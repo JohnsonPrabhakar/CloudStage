@@ -22,7 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  BarChart as BarChartIcon,
   Check,
   DollarSign,
   Sparkles,
@@ -37,17 +36,6 @@ import {
   LogOut,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
-  Bar,
-  XAxis,
-  YAxis,
-  BarChart,
-} from "recharts";
 import { format } from "date-fns";
 
 type AdminDashboardProps = {
@@ -81,7 +69,7 @@ export default function AdminDashboard({
     }
   }, [router]);
 
-  const { pendingEvents, boostedEventsCount, revenueData, artistChartData } =
+  const { pendingEvents, boostedEventsCount, revenueData } =
     useMemo(() => {
       const pending = events.filter((e) => e.moderationStatus === "pending");
       const boostedCount = events.filter((e) => e.isBoosted).length;
@@ -101,17 +89,6 @@ export default function AdminDashboard({
       const premiumRevenue =
         artists.filter((a) => a.isPremium).length * 149;
 
-      const artistRevenueMap = new Map<string, number>();
-      approvedEvents.forEach(event => {
-        const revenue = event.ticketPrice * (event.ticketsSold || 0);
-        artistRevenueMap.set(event.artistId, (artistRevenueMap.get(event.artistId) || 0) + revenue);
-      });
-
-      const chartData = artists.map(artist => ({
-        artist: artist.name,
-        revenue: artistRevenueMap.get(artist.id) || 0
-      }));
-
       return {
         pendingEvents: pending,
         boostedEventsCount: boostedCount,
@@ -121,7 +98,6 @@ export default function AdminDashboard({
           premiumRevenue,
           total: ticketRevenue + boostRevenue + premiumRevenue,
         },
-        artistChartData: chartData,
       };
     }, [events, artists]);
 
@@ -140,10 +116,6 @@ export default function AdminDashboard({
     }
   };
   
-  const chartConfig = {
-    revenue: { label: "Revenue", color: "hsl(var(--primary))" },
-  };
-
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center"><p>Redirecting...</p></div>
@@ -213,7 +185,7 @@ export default function AdminDashboard({
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Pending Events</CardTitle>
-                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{pendingEvents.length}</div>
@@ -222,48 +194,31 @@ export default function AdminDashboard({
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader><CardTitle>Revenue by Artist</CardTitle></CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-                    <BarChart data={artistChartData} accessibilityLayer>
-                      <XAxis dataKey="artist" tickLine={false} axisLine={false} tickMargin={8} />
-                      <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
-                      <ChartTooltip content={<ChartTooltipContent formatter={(value) => `₹${value.toLocaleString("en-IN")}`} />} />
-                      <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                    </BarChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-            <div>
-              <Card>
-                <CardHeader><CardTitle>All Artists</CardTitle></CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Artist</TableHead><TableHead>Status</TableHead>
+          <div className="grid grid-cols-1 gap-8">
+            <Card>
+              <CardHeader><CardTitle>All Artists</CardTitle></CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artist</TableHead><TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {artists.map((artist) => (
+                      <TableRow key={artist.id}>
+                        <TableCell><Link className="hover:underline" href={`/artist/${artist.id}`}>{artist.name}</Link></TableCell>
+                        <TableCell>
+                          <Badge variant={artist.isPremium ? "default" : "outline"} className={artist.isPremium ? 'bg-amber-500' : ''}>
+                            {artist.isPremium ? <><Crown className="mr-2 h-3 w-3"/> Premium</> : "Standard"}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {artists.map((artist) => (
-                        <TableRow key={artist.id}>
-                          <TableCell><Link className="hover:underline" href={`/artist/${artist.id}`}>{artist.name}</Link></TableCell>
-                          <TableCell>
-                            <Badge variant={artist.isPremium ? "default" : "outline"} className={artist.isPremium ? 'bg-amber-500' : ''}>
-                              {artist.isPremium ? <><Crown className="mr-2 h-3 w-3"/> Premium</> : "Standard"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
