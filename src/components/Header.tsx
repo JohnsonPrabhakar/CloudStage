@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Clapperboard } from "lucide-react";
+import { Menu, Clapperboard, Ticket } from "lucide-react";
 
 export function Header() {
   const navItems = [
     { label: "Home", href: "/" },
+    { label: "My Tickets", href: "/my-tickets" },
     { label: "Artist Dashboard", href: "/artist/dashboard" },
     { label: "Admin", href: "/admin" },
   ];
@@ -27,8 +28,9 @@ export function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="transition-colors hover:text-primary"
+                className="transition-colors hover:text-primary flex items-center gap-2"
               >
+                {item.label === "My Tickets" && <Ticket className="h-4 w-4" />}
                 {item.label}
               </Link>
             ))}

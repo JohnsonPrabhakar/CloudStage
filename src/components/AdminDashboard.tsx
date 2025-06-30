@@ -34,12 +34,12 @@ import {
   Eye,
   Clock,
   LogOut,
+  BarChart,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
 import dynamic from "next/dynamic";
 
-// Dynamically import recharts components to prevent SSR issues
 const ResponsiveContainer = dynamic(
   () => import("recharts").then((mod) => mod.ResponsiveContainer),
   { ssr: false }
@@ -88,9 +88,11 @@ export default function AdminDashboard({
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [artists, setArtists] = useState<Artist[]>(initialArtists);
   const [isClient, setIsClient] = useState(false);
+  const [adImpressions, setAdImpressions] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
+    setAdImpressions(Math.floor(Math.random() * 50000) + 10000);
     if (typeof window !== "undefined") {
       const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
       if (!adminLoggedIn) {
@@ -208,7 +210,7 @@ export default function AdminDashboard({
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="approvals">Event Approvals</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="revenue">Revenue & Ads</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-6">
@@ -331,11 +333,11 @@ export default function AdminDashboard({
         <TabsContent value="revenue">
           <Card>
             <CardHeader>
-              <CardTitle>Revenue Breakdown</CardTitle>
-              <CardDescription>Mock revenue data from all sources.</CardDescription>
+              <CardTitle>Revenue & Ad Breakdown</CardTitle>
+              <CardDescription>Mock data from all monetization sources.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Ticket Sales</CardTitle>
@@ -363,6 +365,15 @@ export default function AdminDashboard({
                     <div className="text-2xl font-bold">₹{revenueData.premiumRevenue.toLocaleString("en-IN")}</div>
                   </CardContent>
                 </Card>
+                 <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ad Impressions</CardTitle>
+                    <BarChart className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{adImpressions.toLocaleString()}</div>
+                  </CardContent>
+                </Card>
               </div>
 
                <Card className="mt-8">
@@ -382,7 +393,7 @@ export default function AdminDashboard({
                                   <YAxis />
                                   <Tooltip />
                                   <Legend />
-                                  <Bar dataKey="revenue" fill="#800000" />
+                                  <Bar dataKey="revenue" fill="hsl(var(--primary))" />
                               </RechartsBarChart>
                           </ResponsiveContainer>
                         )}

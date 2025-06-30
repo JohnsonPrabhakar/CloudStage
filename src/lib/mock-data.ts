@@ -21,7 +21,7 @@ const events: Event[] = [
     status: "live",
     moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 0,
     isBoosted: true,
     boostAmount: 2000,
@@ -42,7 +42,7 @@ const events: Event[] = [
     status: "upcoming",
     moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 15.0,
     isBoosted: true,
     boostAmount: 1000,
@@ -63,7 +63,7 @@ const events: Event[] = [
     status: "upcoming",
     moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 10.0,
     isBoosted: false,
     views: 0,
@@ -83,7 +83,7 @@ const events: Event[] = [
     status: "upcoming",
     moderationStatus: "pending",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 20.0,
     isBoosted: false,
     views: 0,
@@ -103,7 +103,7 @@ const events: Event[] = [
     status: "past",
     moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 25.0,
     isBoosted: false,
     views: 50000,
@@ -123,7 +123,7 @@ const events: Event[] = [
     status: "past",
     moderationStatus: "rejected",
     bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
     ticketPrice: 5.0,
     isBoosted: false,
     views: 15000,
@@ -139,6 +139,9 @@ const initializeLocalStorage = () => {
     }
     if (!localStorage.getItem("artists")) {
       localStorage.setItem("artists", JSON.stringify(artists));
+    }
+     if (!localStorage.getItem("myTickets")) {
+      localStorage.setItem("myTickets", JSON.stringify([]));
     }
   }
 };
@@ -179,4 +182,31 @@ export const getArtists = (): Artist[] => {
     localStorage.setItem("artists", JSON.stringify(artists));
   }
   return artists;
+};
+
+
+export const getMyTickets = (): string[] => {
+  if (typeof window !== 'undefined') {
+    const myTickets = localStorage.getItem('myTickets');
+    if (myTickets) {
+      try {
+        return JSON.parse(myTickets);
+      } catch (e) {
+        console.error('Failed to parse myTickets from localStorage', e);
+        localStorage.setItem('myTickets', JSON.stringify([]));
+        return [];
+      }
+    }
+  }
+  return [];
+};
+
+export const addTicket = (eventId: string) => {
+  if (typeof window !== 'undefined') {
+    const myTickets = getMyTickets();
+    if (!myTickets.includes(eventId)) {
+      myTickets.push(eventId);
+      localStorage.setItem('myTickets', JSON.stringify(myTickets));
+    }
+  }
 };

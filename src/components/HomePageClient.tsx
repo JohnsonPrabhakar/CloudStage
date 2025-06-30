@@ -5,6 +5,9 @@ import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEvents } from "@/lib/mock-data";
+import { EventCalendarView } from "./EventCalendarView";
+import { Button } from "./ui/button";
+import { Calendar, List } from "lucide-react";
 
 type HomePageClientProps = {
   initialEvents: Event[];
@@ -12,6 +15,7 @@ type HomePageClientProps = {
 
 export function HomePageClient({ initialEvents }: HomePageClientProps) {
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -98,22 +102,37 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
         </p>
       </div>
 
-      <Tabs defaultValue="upcoming" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 md:w-auto md:mx-auto">
-          <TabsTrigger value="live">Live Now ({liveEvents.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming ({upcomingEvents.length})</TabsTrigger>
-          <TabsTrigger value="past">Past Events ({pastEvents.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="live" className="mt-8">
-          {renderEventGrid(liveEvents, "No events are live right now. Check back soon!")}
-        </TabsContent>
-        <TabsContent value="upcoming" className="mt-8">
-          {renderEventGrid(upcomingEvents, "No upcoming events scheduled. Stay tuned!")}
-        </TabsContent>
-        <TabsContent value="past" className="mt-8">
-          {renderEventGrid(pastEvents, "No past events found.")}
-        </TabsContent>
-      </Tabs>
+      <div className="flex justify-center mb-8">
+        <div className="bg-muted p-1 rounded-lg flex gap-1">
+           <Button variant={viewMode === 'list' ? 'default' : 'ghost'} onClick={() => setViewMode('list')}>
+             <List className="mr-2 h-4 w-4"/> List View
+           </Button>
+           <Button variant={viewMode === 'calendar' ? 'default' : 'ghost'} onClick={() => setViewMode('calendar')}>
+             <Calendar className="mr-2 h-4 w-4"/> Calendar View
+           </Button>
+        </div>
+      </div>
+      
+      {viewMode === 'list' ? (
+        <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 md:w-auto md:mx-auto">
+                <TabsTrigger value="live">Live Now ({liveEvents.length})</TabsTrigger>
+                <TabsTrigger value="upcoming">Upcoming ({upcomingEvents.length})</TabsTrigger>
+                <TabsTrigger value="past">Past Events ({pastEvents.length})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="live" className="mt-8">
+                {renderEventGrid(liveEvents, "No events are live right now. Check back soon!")}
+            </TabsContent>
+            <TabsContent value="upcoming" className="mt-8">
+                {renderEventGrid(upcomingEvents, "No upcoming events scheduled. Stay tuned!")}
+            </TabsContent>
+            <TabsContent value="past" className="mt-8">
+                {renderEventGrid(pastEvents, "No past events found.")}
+            </TabsContent>
+        </Tabs>
+      ) : (
+        <EventCalendarView events={approvedEvents} />
+      )}
     </div>
   );
 }

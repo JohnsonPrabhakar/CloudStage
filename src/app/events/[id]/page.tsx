@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getEvents, getArtists } from "@/lib/mock-data";
+import { getEvents, getArtists, addTicket, getMyTickets } from "@/lib/mock-data";
+import { useToast } from "@/hooks/use-toast";
 import {
   Youtube,
   Instagram,
@@ -27,19 +28,25 @@ import { format } from "date-fns";
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const [event, setEvent] = useState<Event | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
   const [attendees, setAttendees] = useState(0);
+  const [hasTicket, setHasTicket] = useState(false);
 
   useEffect(() => {
     if (params.id) {
       const allEvents = getEvents();
       const allArtists = getArtists();
+      const myTickets = getMyTickets();
+
       const foundEvent = allEvents.find(
         (e) => e.id === params.id && e.moderationStatus === "approved"
       );
       setEvent(foundEvent || null);
+       setHasTicket(myTickets.includes(params.id as string));
+
       if (foundEvent) {
         const foundArtist = allArtists.find(a => a.id === foundEvent.artistId);
         setArtist(foundArtist || null);
@@ -52,6 +59,26 @@ export default function EventDetailPage() {
     // Generate random number on client after mount to avoid hydration mismatch
     setAttendees(Math.floor(Math.random() * 5000 + 1000));
   }, []);
+
+  const handleBuyTicket = () => {
+    if (!event) return;
+    addTicket(event.id);
+    setHasTicket(true);
+    toast({
+      title: "Ticket Purchased!",
+      description: `You've successfully got a ticket for ${event.title}.`,
+    });
+  };
+  
+  const isValidStreamUrl = (url: string) => {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.protocol === 'https:' && urlObj.hostname.includes('youtube.com');
+    } catch (e) {
+        return false;
+    }
+  }
+
 
   if (loading) {
     return (
@@ -89,6 +116,8 @@ export default function EventDetailPage() {
       </div>
     );
   }
+  
+  const canWatch = isValidStreamUrl(event.streamUrl);
 
   const getAction = () => {
     switch (event.status) {
@@ -97,6 +126,7 @@ export default function EventDetailPage() {
           <Button
             asChild
             size="lg"
+            disabled={!canWatch}
             className="w-full text-lg py-6 transition-transform transform hover:scale-105"
           >
             <Link href={`/play/${event.id}`}>
@@ -105,11 +135,18 @@ export default function EventDetailPage() {
           </Button>
         );
       case "upcoming":
+        if (hasTicket) {
+             return (
+              <Button size="lg" className="w-full text-lg py-6" disabled>
+                <Ticket className="mr-2 h-6 w-6" /> You have a ticket!
+              </Button>
+            );
+        }
         return (
           <Button
             size="lg"
             className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-            onClick={() => alert("Redirecting to ticket purchase...")}
+            onClick={handleBuyTicket}
           >
             <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
           </Button>
@@ -119,6 +156,7 @@ export default function EventDetailPage() {
           <Button
             asChild
             size="lg"
+            disabled={!canWatch}
             className="w-full text-lg py-6"
             variant="secondary"
           >
@@ -192,6 +230,7 @@ export default function EventDetailPage() {
               {event.description}
             </p>
           </div>
+           
         </div>
 
         <div className="space-y-6">

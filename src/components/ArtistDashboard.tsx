@@ -30,6 +30,8 @@ import {
   History,
   TrendingUp,
   PartyPopper,
+  Copy,
+  Share2,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -89,6 +91,34 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
       description: `Your event has been successfully boosted for ₹${amount}.`,
     });
   };
+
+  const handleCopyLink = (eventId: string) => {
+    const url = `${window.location.origin}/events/${eventId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link Copied!",
+      description: "Event link copied to your clipboard.",
+    });
+  };
+
+  const handleShare = async (event: Event) => {
+    const url = `${window.location.origin}/events/${event.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: event.title,
+          text: `Check out this event: ${event.title} by ${event.artist}`,
+          url: url,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      handleCopyLink(event.id);
+    }
+  };
+
 
   const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
 
@@ -166,7 +196,16 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
                     {event.isBoosted ? "Boosted" : "Not Boosted"}
                   </Badge>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex-col items-stretch gap-2">
+                  <div className="flex gap-2 w-full">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopyLink(event.id)}>
+                      <Copy className="mr-2 h-4 w-4" /> Copy Link
+                    </Button>
+                     <Button variant="outline" size="sm" className="flex-1" onClick={() => handleShare(event)}>
+                      <Share2 className="mr-2 h-4 w-4" /> Share
+                    </Button>
+                  </div>
+
                   {!event.isBoosted ? (
                     <Dialog>
                       <DialogTrigger asChild>

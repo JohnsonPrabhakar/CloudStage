@@ -26,12 +26,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event, type EventCategory } from "@/lib/types";
 import { getEvents } from "@/lib/mock-data";
-import { Sparkles, Upload } from "lucide-react";
+import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -51,7 +52,10 @@ const formSchema = z.object({
   date: z.string().min(1, "Date and time are required."),
   banner: z.any().refine((files) => files?.length === 1, "Banner image is required."),
   previewVideo: z.any().optional(),
-  streamUrl: z.string().url("Must be a valid URL."),
+  streamUrl: z.string().url("Must be a valid URL.").refine(
+    (url) => url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
+    "Please provide a valid YouTube Live or Embed URL."
+  ),
   ticketPrice: z.coerce.number().min(0, "Price must be a positive number."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   boost: z.boolean().default(false).optional(),
@@ -75,7 +79,7 @@ export default function CreateEventForm() {
       genre: "Pop",
       language: "English",
       date: "",
-      streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      streamUrl: "",
       ticketPrice: 10,
       description: "",
       boost: false,
@@ -187,9 +191,18 @@ export default function CreateEventForm() {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
+       <Button
+        variant="ghost"
+        onClick={() => router.back()}
+        className="mb-4"
+      >
+        <ChevronLeft className="mr-2 h-4 w-4" />
+        Back to Dashboard
+      </Button>
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="text-3xl">Create a New Event</CardTitle>
+          <CardDescription>Fill out the details below to put your event on stage.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -368,13 +381,22 @@ export default function CreateEventForm() {
                   name="streamUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Stream URL</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        Stream URL
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>🎥 Paste your YouTube Live URL here (from YouTube Studio).<br/> CloudStage will embed it automatically.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="https://youtube.com/live/..." {...field} />
+                        <Input placeholder="https://youtube.com/embed/..." {...field} />
                       </FormControl>
-                      <FormDescription>
-                        The URL for your live stream.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
