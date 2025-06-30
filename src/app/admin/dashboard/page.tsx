@@ -1,8 +1,9 @@
 import AdminDashboard from "@/components/AdminDashboard";
-import { getArtists, getEvents } from "@/lib/mock-data";
+import { getArtists } from "@/lib/mock-data";
 
 export default function AdminDashboardPage() {
-  const events = getEvents();
+  // Events are now fetched directly in the client component from Firestore.
+  // We still pass initial artists from mock data.
   const artists = getArtists();
-  return <AdminDashboard initialEvents={events} initialArtists={artists} />;
+  return <AdminDashboard initialArtists={artists} />;
 }

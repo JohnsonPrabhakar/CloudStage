@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { type Event } from "@/lib/types";
-import { getEvents } from "@/lib/mock-data";
+import { getBoostedEvents } from "@/lib/firebase-service";
 import {
   Card,
   CardContent,
@@ -23,14 +23,11 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 
-type BoostedEventsProps = {
-  initialEvents: Event[];
-};
-
-export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
+export default function BoostedEvents() {
   const router = useRouter();
   const [boostedEvents, setBoostedEvents] = useState<Event[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -39,10 +36,13 @@ export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
         router.push("/admin");
       } else {
         setIsAuthenticated(true);
-        // In a real app, this would be an API call.
-        // Here we filter from all events.
-        const allEvents = getEvents();
-        setBoostedEvents(allEvents.filter((e) => e.isBoosted));
+        const fetchBoostedEvents = async () => {
+            setLoading(true);
+            const events = await getBoostedEvents();
+            setBoostedEvents(events);
+            setLoading(false);
+        }
+        fetchBoostedEvents();
       }
     }
   }, [router]);
@@ -72,7 +72,9 @@ export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          {boostedEvents.length > 0 ? (
+          {loading ? (
+             <p className="text-center text-muted-foreground py-12">Loading boosted events...</p>
+          ) : boostedEvents.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>

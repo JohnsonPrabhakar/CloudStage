@@ -33,6 +33,7 @@ import { getEvents, getLoggedInArtist } from "@/lib/mock-data";
 import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { addEvent } from "@/lib/firebase-service";
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -50,7 +51,7 @@ const formSchema = z.object({
   genre: z.string().min(1, "Genre is required."),
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
-  banner: z.any().refine((files) => files?.length === 1, "Banner image is required."),
+  banner: z.any().optional(), // Banner is now optional as we use a placeholder for the backend
   previewVideo: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL.").refine(
     (url) => url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
@@ -88,7 +89,8 @@ export default function CreateEventForm() {
   });
   
   useEffect(() => {
-    const sessionArtist = getLoggedInArtist();
+    // For now, we will use a demo artist until artist auth is migrated
+    const sessionArtist = getLoggedInArtist() || { id: 'demo-artist', name: 'Demo Artist', email: 'demo@test.com'};
     if (!sessionArtist) {
       toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
       router.push('/artist/login');
@@ -101,26 +103,13 @@ export default function CreateEventForm() {
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
     if (duplicateEventId) {
-      const allEvents = getEvents();
-      const eventToDuplicate = allEvents.find(e => e.id === duplicateEventId);
-      if (eventToDuplicate) {
-        form.reset({
-          title: `${eventToDuplicate.title} (Copy)`,
-          category: eventToDuplicate.category,
-          genre: eventToDuplicate.genre,
-          language: eventToDuplicate.language,
-          date: '', // User should set a new date
-          streamUrl: eventToDuplicate.streamUrl,
-          ticketPrice: eventToDuplicate.ticketPrice,
-          description: eventToDuplicate.description,
-          boost: false
-        });
-        setBannerPreview(eventToDuplicate.bannerUrl);
-        toast({
-            title: "Event Duplicated",
-            description: "Event details have been pre-filled. Please set a new date and upload a banner."
-        });
-      }
+      // Duplication from localStorage is disabled during Firebase migration
+      // This would need to be updated to fetch from Firestore by ID.
+      toast({
+        title: "Duplication Disabled",
+        description: "Event duplication is temporarily disabled.",
+        variant: "destructive"
+      });
     }
   }, [searchParams, form, toast]);
 
@@ -164,14 +153,17 @@ export default function CreateEventForm() {
     }
   }
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     if (!loggedInArtist) {
         toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
         return;
     }
 
-    const newEvent: Event = {
-      id: `evt-${Date.now()}`,
+    // NOTE: In a real app, the banner file would be uploaded to a service like
+    // Cloud Storage, and we'd save the resulting URL. For now, we use a placeholder.
+    const bannerUrl = "https://placehold.co/1280x720.png";
+
+    const newEvent: Omit<Event, 'id' | 'createdAt' | 'moderationStatus'> = {
       title: values.title,
       artist: loggedInArtist.name,
       artistId: loggedInArtist.id,
@@ -181,8 +173,7 @@ export default function CreateEventForm() {
       language: values.language,
       date: new Date(values.date).toISOString(),
       status: new Date(values.date) > new Date() ? "upcoming" : "past",
-      moderationStatus: "pending",
-      bannerUrl: bannerPreview || "https://placehold.co/1280x720.png",
+      bannerUrl: bannerUrl,
       streamUrl: values.streamUrl,
       ticketPrice: values.ticketPrice,
       isBoosted: values.boost ?? false,
@@ -191,17 +182,20 @@ export default function CreateEventForm() {
       watchTime: 0,
       ticketsSold: 0,
     };
-
-    if (typeof window !== "undefined") {
-      const allEvents = getEvents();
-      allEvents.push(newEvent);
-      localStorage.setItem("events", JSON.stringify(allEvents));
-
-      toast({
-        title: "Event Submitted!",
-        description: "Your event is now pending admin approval.",
-      });
-      router.push("/artist/dashboard");
+    
+    try {
+        await addEvent(newEvent);
+        toast({
+            title: "Event Submitted!",
+            description: "Your event is now pending admin approval.",
+        });
+        router.push("/artist/dashboard");
+    } catch(error) {
+         toast({
+            title: "Submission Failed",
+            description: "There was an error submitting your event. Please try again.",
+            variant: "destructive",
+        });
     }
   }
 
@@ -367,6 +361,7 @@ export default function CreateEventForm() {
                           }}
                         />
                       </FormControl>
+                      <FormDescription>Image will not be uploaded. A placeholder will be used.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

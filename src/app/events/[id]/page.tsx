@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getEvents, getArtists, addTicket, getMyTickets } from "@/lib/mock-data";
+import { addTicket, getMyTickets, getArtistById } from "@/lib/mock-data";
+import { getEventById } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import {
   Youtube,
@@ -36,23 +37,28 @@ export default function EventDetailPage() {
   const [hasTicket, setHasTicket] = useState(false);
 
   useEffect(() => {
-    if (params.id) {
-      const allEvents = getEvents();
-      const allArtists = getArtists();
-      const myTickets = getMyTickets();
+    const fetchEvent = async () => {
+      if (params.id) {
+        setLoading(true);
+        const eventId = params.id as string;
+        const foundEvent = await getEventById(eventId);
+        
+        if (foundEvent && foundEvent.moderationStatus === 'approved') {
+            setEvent(foundEvent);
+            const myTickets = getMyTickets();
+            setHasTicket(myTickets.includes(eventId));
 
-      const foundEvent = allEvents.find(
-        (e) => e.id === params.id && e.moderationStatus === "approved"
-      );
-      setEvent(foundEvent || null);
-       setHasTicket(myTickets.includes(params.id as string));
-
-      if (foundEvent) {
-        const foundArtist = allArtists.find(a => a.id === foundEvent.artistId);
-        setArtist(foundArtist || null);
+            // Artist data is still from mock data for now
+            const foundArtist = getArtistById(foundEvent.artistId);
+            setArtist(foundArtist || null);
+        } else {
+            setEvent(null);
+            setArtist(null);
+        }
       }
+      setLoading(false);
     }
-    setLoading(false);
+    fetchEvent();
   }, [params.id]);
 
   useEffect(() => {
@@ -78,7 +84,6 @@ export default function EventDetailPage() {
         return false;
     }
   }
-
 
   if (loading) {
     return (

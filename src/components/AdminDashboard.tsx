@@ -42,82 +42,43 @@ import {
 } from "lucide-react";
 import { type Event, type Artist, type PendingArtist } from "@/lib/types";
 import { format } from "date-fns";
-import { getArtists, getEvents, getPendingArtists, approveArtist, rejectArtist } from "@/lib/mock-data";
-import dynamic from "next/dynamic";
-
-const ChartContainer = dynamic(
-  () => import("@/components/ui/chart").then((mod) => mod.ChartContainer),
-  { ssr: false }
-);
-const BarChart = dynamic(
-  () => import("recharts").then((mod) => mod.BarChart),
-  { ssr: false }
-);
-const Bar = dynamic(
-  () => import("recharts").then((mod) => mod.Bar),
-  { ssr: false }
-);
-const XAxis = dynamic(
-  () => import("recharts").then((mod) => mod.XAxis),
-  { ssr: false }
-);
-const YAxis = dynamic(
-  () => import("recharts").then((mod) => mod.YAxis),
-  { ssr: false }
-);
-const CartesianGrid = dynamic(
-  () => import("recharts").then((mod) => mod.CartesianGrid),
-  { ssr: false }
-);
-const ChartTooltipContent = dynamic(
-  () => import("@/components/ui/chart").then((mod) => mod.ChartTooltipContent),
-  { ssr: false }
-);
-const ChartTooltip = dynamic(
-  () => import("@/components/ui/chart").then((mod) => mod.ChartTooltip),
-  { ssr: false }
-);
-const ChartLegend = dynamic(
-  () => import("@/components/ui/chart").then((mod) => mod.ChartLegend),
-  { ssr: false }
-);
-const ChartLegendContent = dynamic(
-  () => import("@/components/ui/chart").then((mod) => mod.ChartLegendContent),
-  { ssr: false }
-);
-
+import { getArtists, getPendingArtists, approveArtist, rejectArtist } from "@/lib/mock-data";
+import { getPendingEvents, updateEventStatus } from "@/lib/firebase-service";
+import { useToast } from "@/hooks/use-toast";
 
 type AdminDashboardProps = {
-  initialEvents: Event[];
   initialArtists: Artist[];
 };
 
 export default function AdminDashboard({
-  initialEvents,
   initialArtists,
 }: AdminDashboardProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
   const [artists, setArtists] = useState<Artist[]>(initialArtists);
   const [pendingArtists, setPendingArtists] = useState<PendingArtist[]>([]);
-  const [isClient, setIsClient] = useState(false);
-  const [adImpressions, setAdImpressions] = useState(0);
   const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-
-  const refreshData = () => {
-     setEvents(getEvents());
+  const refreshData = async () => {
+     setLoading(true);
+     // Artist data still from mock-data
      setArtists(getArtists());
      setPendingArtists(getPendingArtists());
+     
+     // Event data from Firestore
+     const events = await getPendingEvents();
+     setPendingEvents(events);
+     
      if(localStorage.getItem("pendingArtistNotifications") === "true") {
         setHasPendingArtistNotification(true);
      }
+     setLoading(false);
   }
 
   useEffect(() => {
-    setIsClient(true);
-    setAdImpressions(Math.floor(Math.random() * 50000) + 10000);
     if (typeof window !== "undefined") {
       const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
       if (!adminLoggedIn) {
@@ -129,60 +90,26 @@ export default function AdminDashboard({
     }
   }, [router]);
 
-  const { pendingEvents, boostedEventsCount, revenueData, revenueByArtist } =
-    useMemo(() => {
-      const pending = events.filter((e) => e.moderationStatus === "pending");
-      const boostedCount = events.filter((e) => e.isBoosted).length;
-
-      const approvedEvents = events.filter(
-        (e) => e.moderationStatus === "approved"
-      );
-      
-      const ticketRevenue = approvedEvents.reduce(
-        (acc, event) => acc + (event.ticketPrice * (event.ticketsSold || 0)),
-        0
-      );
-      
-      const boostRevenue = events
-        .filter((e) => e.isBoosted && e.boostAmount)
-        .reduce((acc, event) => acc + (event.boostAmount || 0), 0);
-      const premiumRevenue =
-        artists.filter((a) => a.isPremium).length * 149;
-
-      const artistRevenue = artists.map(artist => {
-          const artistTicketRevenue = approvedEvents
-            .filter(e => e.artistId === artist.id)
-            .reduce((acc, e) => acc + (e.ticketPrice * (e.ticketsSold || 0)), 0);
-          
-          const artistBoostRevenue = events
-            .filter(e => e.artistId === artist.id && e.isBoosted && e.boostAmount)
-            .reduce((acc, e) => acc + (e.boostAmount || 0), 0);
-
-          return {
-              name: artist.name,
-              revenue: artistTicketRevenue + artistBoostRevenue
-          }
+  // NOTE: Revenue and boosted event data is now static or mocked
+  // as it would require more complex Firestore queries.
+  const boostedEventsCount = 0; // Placeholder
+  const revenueData = { total: 0 }; // Placeholder
+  
+  const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
+    try {
+      await updateEventStatus(eventId, newStatus);
+      setPendingEvents(prev => prev.filter(e => e.id !== eventId));
+      toast({
+        title: `Event ${newStatus}`,
+        description: `The event has been successfully ${newStatus}.`,
       });
-
-      return {
-        pendingEvents: pending,
-        boostedEventsCount: boostedCount,
-        revenueData: {
-          ticketRevenue,
-          boostRevenue,
-          premiumRevenue,
-          total: ticketRevenue + boostRevenue + premiumRevenue,
-        },
-        revenueByArtist: artistRevenue,
-      };
-    }, [events, artists]);
-
-  const handleModeration = (eventId: string, newStatus: "approved" | "rejected") => {
-    const updatedEvents = events.map((e) =>
-      e.id === eventId ? { ...e, moderationStatus: newStatus } : e
-    );
-    setEvents(updatedEvents);
-    localStorage.setItem("events", JSON.stringify(updatedEvents));
+    } catch (error) {
+       toast({
+        title: "Update failed",
+        description: "Could not update the event status. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleArtistApproval = (email: string) => {
@@ -259,7 +186,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₹{revenueData.total.toLocaleString("en-IN")}</div>
-                <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                <p className="text-xs text-muted-foreground">(Mock Data)</p>
               </CardContent>
             </Card>
             <Card>
@@ -279,7 +206,7 @@ export default function AdminDashboard({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">+{boostedEventsCount}</div>
-                <p className="text-xs text-muted-foreground">Currently active</p>
+                 <p className="text-xs text-muted-foreground">(Mock Data)</p>
               </CardContent>
             </Card>
             <Card>
@@ -293,40 +220,13 @@ export default function AdminDashboard({
               </CardContent>
             </Card>
           </div>
-
-          <div className="grid grid-cols-1 gap-8">
-            <Card>
-              <CardHeader><CardTitle>All Artists</CardTitle></CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Artist</TableHead><TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {artists.map((artist) => (
-                      <TableRow key={artist.id}>
-                        <TableCell><Link className="hover:underline" href={`/artist/${artist.id}`}>{artist.name}</Link></TableCell>
-                        <TableCell>
-                          <Badge variant={artist.isPremium ? "default" : "outline"} className={artist.isPremium ? 'bg-amber-500' : ''}>
-                            {artist.isPremium ? <><Crown className="mr-2 h-3 w-3"/> Premium</> : "Standard"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
 
         <TabsContent value="event-approvals">
           <Card>
             <CardHeader><CardTitle>Pending Event Approvals</CardTitle></CardHeader>
             <CardContent>
-              {pendingEvents.length > 0 ? (
+              {loading ? <p>Loading events...</p> : pendingEvents.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -420,83 +320,14 @@ export default function AdminDashboard({
           </Card>
         </TabsContent>
 
-
         <TabsContent value="revenue">
           <Card>
             <CardHeader>
               <CardTitle>Revenue & Ad Breakdown</CardTitle>
-              <CardDescription>Mock data from all monetization sources.</CardDescription>
+              <CardDescription>This data is currently mocked and not connected to Firestore.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ticket Sales</CardTitle>
-                    <Ticket className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">₹{revenueData.ticketRevenue.toLocaleString("en-IN")}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Boost Income</CardTitle>
-                    <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">₹{revenueData.boostRevenue.toLocaleString("en-IN")}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Premium Subscriptions</CardTitle>
-                    <Crown className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">₹{revenueData.premiumRevenue.toLocaleString("en-IN")}</div>
-                  </CardContent>
-                </Card>
-                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ad Impressions</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{adImpressions.toLocaleString()}</div>
-                  </CardContent>
-                </Card>
-              </div>
-
-               <Card className="mt-8">
-                <CardHeader>
-                    <CardTitle>Revenue by Artist</CardTitle>
-                    <CardDescription>
-                        A breakdown of revenue generated per artist.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="h-[300px] w-full">
-                        {isClient && (
-                           <ChartContainer config={{
-                            revenue: {
-                              label: "Revenue",
-                              color: "hsl(var(--chart-1))",
-                            },
-                          }}>
-                              <BarChart data={revenueByArtist}>
-                                  <CartesianGrid vertical={false} />
-                                  <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
-                                  <YAxis />
-                                  <ChartTooltip content={<ChartTooltipContent />} />
-                                  <ChartLegend content={<ChartLegendContent />} />
-                                  <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                              </BarChart>
-                          </ChartContainer>
-                        )}
-                    </div>
-                </CardContent>
-              </Card>
-
+               <p className="text-sm text-muted-foreground">Revenue charts and stats will be re-enabled after backend integration for monetization is complete.</p>
             </CardContent>
           </Card>
         </TabsContent>

@@ -23,136 +23,9 @@ const artists: Artist[] = [
     },
 ];
 
-const events: Event[] = [
-  {
-    id: "evt1",
-    title: "Live from the Garage",
-    artist: "The Rockers",
-    artistId: "artist1",
-    description: "Join us for a raw, high-energy rock show live from our garage. Expect loud guitars and new songs!",
-    category: "Music",
-    genre: "Rock",
-    language: "English",
-    date: new Date(Date.now() - 3600 * 1000).toISOString(), // 1 hour ago
-    status: "live",
-    moderationStatus: "approved",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 0,
-    isBoosted: true,
-    boostAmount: 2000,
-    views: 12532,
-    watchTime: 45 * 12532,
-    ticketsSold: 0,
-  },
-  {
-    id: "evt2",
-    title: "Sunset Boulevard",
-    artist: "Synthwave Dreamer",
-    artistId: "artist2",
-    description: "A chill, nostalgic journey through 80s inspired synthwave tracks. Perfect for a late-night drive.",
-    category: "Music",
-    genre: "Synthwave",
-    language: "Instrumental",
-    date: new Date(Date.now() + 86400000 * 2).toISOString(), // in 2 days
-    status: "upcoming",
-    moderationStatus: "approved",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 15.0,
-    isBoosted: true,
-    boostAmount: 1000,
-    views: 0,
-    watchTime: 0,
-    ticketsSold: 834,
-  },
-  {
-    id: "evt3",
-    title: "Acoustic Campfire Session",
-    artist: "Acoustic Soul",
-    artistId: "artist3",
-    description: "An intimate acoustic performance of soulful original songs and beloved covers.",
-    category: "Music",
-    genre: "Acoustic",
-    language: "English",
-    date: new Date(Date.now() + 86400000 * 7).toISOString(), // in 7 days
-    status: "upcoming",
-    moderationStatus: "approved",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 10.0,
-    isBoosted: false,
-    views: 0,
-    watchTime: 0,
-    ticketsSold: 451,
-  },
-  {
-    id: "evt4",
-    title: "Comedy Night Live",
-    artist: "Laugh Factory",
-    artistId: "artist4",
-    description: "A hilarious night of stand-up comedy featuring three of the best up-and-coming comedians.",
-    category: "Stand-up Comedy",
-    genre: "Comedy",
-    language: "English",
-    date: new Date(Date.now() + 86400000 * 10).toISOString(), // in 10 days
-    status: "upcoming",
-    moderationStatus: "pending",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 20.0,
-    isBoosted: false,
-    views: 0,
-    watchTime: 0,
-    ticketsSold: 120,
-  },
-   {
-    id: "evt5",
-    title: "World Tour Kick-off",
-    artist: "The Rockers",
-    artistId: "artist1",
-    description: "The official recording of our world tour kick-off show. Experience the epic night all over again.",
-    category: "Music",
-    genre: "Rock",
-    language: "English",
-    date: new Date(Date.now() - 86400000 * 30).toISOString(), // 30 days ago
-    status: "past",
-    moderationStatus: "approved",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 25.0,
-    isBoosted: false,
-    views: 50000,
-    watchTime: 90 * 50000,
-    ticketsSold: 25000,
-  },
-   {
-    id: "evt6",
-    title: "Neon Nights EP Release",
-    artist: "Synthwave Dreamer",
-    artistId: "artist2",
-    description: "The live-streamed release party for the 'Neon Nights' EP. Featuring a full playthrough and Q&A.",
-    category: "Music",
-    genre: "Synthwave",
-    language: "Instrumental",
-    date: new Date(Date.now() - 86400000 * 14).toISOString(), // 14 days ago
-    status: "past",
-    moderationStatus: "rejected",
-    bannerUrl: "https://placehold.co/1280x720.png",
-    streamUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-    ticketPrice: 5.0,
-    isBoosted: false,
-    views: 15000,
-    watchTime: 60 * 15000,
-    ticketsSold: 7500,
-  },
-];
-
 const initializeLocalStorage = () => {
   if (typeof window !== "undefined") {
-    if (!localStorage.getItem("events")) {
-      localStorage.setItem("events", JSON.stringify(events));
-    }
+    // Events are no longer stored in localStorage
     if (!localStorage.getItem("artists")) {
       localStorage.setItem("artists", JSON.stringify(artists));
     }
@@ -184,10 +57,6 @@ const getParsedItem = <T>(key: string, defaultValue: T): T => {
     }
     return defaultValue;
 }
-
-
-// EVENT-related functions
-export const getEvents = (): Event[] => getParsedItem<Event[]>("events", events);
 
 // ARTIST-related functions
 export const getArtists = (): Artist[] => getParsedItem<Artist[]>("artists", artists);

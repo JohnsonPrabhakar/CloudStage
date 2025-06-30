@@ -1,7 +1,6 @@
 import BoostedEvents from "@/components/BoostedEvents";
-import { getEvents } from "@/lib/mock-data";
 
 export default function BoostedEventsPage() {
-  const events = getEvents();
-  return <BoostedEvents initialEvents={events} />;
+  // Data will now be fetched on the client side from Firestore
+  return <BoostedEvents />;
 }

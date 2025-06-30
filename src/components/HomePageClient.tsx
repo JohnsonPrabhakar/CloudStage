@@ -4,51 +4,44 @@ import { useState, useEffect, useMemo } from "react";
 import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getEvents } from "@/lib/mock-data";
+import { getApprovedEvents } from "@/lib/firebase-service";
 import { EventCalendarView } from "./EventCalendarView";
 import { Button } from "./ui/button";
-import { Calendar, List } from "lucide-react";
+import { Calendar, List, Loader2 } from "lucide-react";
+import { Skeleton } from "./ui/skeleton";
 
-type HomePageClientProps = {
-  initialEvents: Event[];
-};
-
-export function HomePageClient({ initialEvents }: HomePageClientProps) {
-  const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
+export function HomePageClient() {
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedEvents = localStorage.getItem("events");
-      if (storedEvents) {
-        try {
-          const parsedEvents = JSON.parse(storedEvents);
-          setAllEvents(parsedEvents);
-        } catch (e) {
-          console.error("Failed to parse events from localStorage", e);
-        }
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        const events = await getApprovedEvents();
+        setAllEvents(events);
+      } catch (error) {
+        console.error("Failed to fetch events from Firestore", error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+    fetchEvents();
   }, []);
-
-  const approvedEvents = useMemo(
-    () => allEvents.filter((event) => event.moderationStatus === "approved"),
-    [allEvents]
-  );
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
     // Logic to update status dynamically based on date
-    const eventsWithUpdatedStatus = approvedEvents.map(event => {
+    const eventsWithUpdatedStatus = allEvents.map(event => {
         const eventDate = new Date(event.date);
-        let status: Event['status'] = event.status;
+        let status: Event['status'] = 'past';
         if (event.status !== 'live') { // Don't override if manually set to live
-             if (eventDate < now) status = 'past';
-             else status = 'upcoming';
+             if (eventDate > now) status = 'upcoming';
         }
         // A simple check to simulate a live event
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        if (eventDate > oneHourAgo && eventDate < now) {
+        if (eventDate > oneHourAgo && eventDate <= now) {
             status = 'live';
         }
 
@@ -72,9 +65,24 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
         pastEvents: Event[];
       }
     );
-  }, [approvedEvents]);
+  }, [allEvents]);
 
   const renderEventGrid = (events: Event[], emptyMessage: string) => {
+    if (loading) {
+        return (
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex flex-col space-y-3">
+                        <Skeleton className="h-[200px] w-full rounded-xl" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-[250px]" />
+                            <Skeleton className="h-4 w-[200px]" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
     if (events.length === 0) {
       return (
         <div className="text-center py-16 text-muted-foreground">
@@ -116,9 +124,9 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
       {viewMode === 'list' ? (
         <Tabs defaultValue="upcoming" className="w-full">
             <TabsList className="grid w-full grid-cols-3 md:w-auto md:mx-auto">
-                <TabsTrigger value="live">Live Now ({liveEvents.length})</TabsTrigger>
-                <TabsTrigger value="upcoming">Upcoming ({upcomingEvents.length})</TabsTrigger>
-                <TabsTrigger value="past">Past Events ({pastEvents.length})</TabsTrigger>
+                <TabsTrigger value="live">Live Now ({!loading && liveEvents.length})</TabsTrigger>
+                <TabsTrigger value="upcoming">Upcoming ({!loading && upcomingEvents.length})</TabsTrigger>
+                <TabsTrigger value="past">Past Events ({!loading && pastEvents.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="live" className="mt-8">
                 {renderEventGrid(liveEvents, "No events are live right now. Check back soon!")}
@@ -131,7 +139,7 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
             </TabsContent>
         </Tabs>
       ) : (
-        <EventCalendarView events={approvedEvents} />
+        <EventCalendarView events={allEvents} />
       )}
     </div>
   );

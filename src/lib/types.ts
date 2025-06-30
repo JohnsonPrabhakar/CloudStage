@@ -17,6 +17,7 @@ export interface Event {
   genre: string; // e.g., Rock, Pop. More specific than category.
   language: string;
   date: string;
+  createdAt?: any; // Firestore timestamp
   status: "live" | "upcoming" | "past"; // computed based on date
   moderationStatus: "pending" | "approved" | "rejected";
   bannerUrl: string;
