@@ -37,6 +37,42 @@ import {
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
+import dynamic from "next/dynamic";
+
+// Dynamically import recharts components to prevent SSR issues
+const ResponsiveContainer = dynamic(
+  () => import("recharts").then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
+);
+const RechartsBarChart = dynamic(
+  () => import("recharts").then((mod) => mod.BarChart),
+  { ssr: false }
+);
+const CartesianGrid = dynamic(
+  () => import("recharts").then((mod) => mod.CartesianGrid),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import("recharts").then((mod) => mod.XAxis),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import("recharts").then((mod) => mod.YAxis),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import("recharts").then((mod) => mod.Tooltip),
+  { ssr: false }
+);
+const Legend = dynamic(
+  () => import("recharts").then((mod) => mod.Legend),
+  { ssr: false }
+);
+const Bar = dynamic(
+  () => import("recharts").then((mod) => mod.Bar),
+  { ssr: false }
+);
+
 
 type AdminDashboardProps = {
   initialEvents: Event[];
@@ -51,25 +87,34 @@ export default function AdminDashboard({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [artists, setArtists] = useState<Artist[]>(initialArtists);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     if (typeof window !== "undefined") {
       const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
       if (!adminLoggedIn) {
         router.push("/admin");
       } else {
         setIsAuthenticated(true);
-        // Re-fetch from localStorage to get the latest data
         const storedEvents = localStorage.getItem("events");
-        if (storedEvents) setEvents(JSON.parse(storedEvents));
+        if (storedEvents) {
+            try {
+                setEvents(JSON.parse(storedEvents));
+            } catch (e) { console.error(e); }
+        }
 
         const storedArtists = localStorage.getItem("artists");
-        if (storedArtists) setArtists(JSON.parse(storedArtists));
+        if (storedArtists) {
+             try {
+                setArtists(JSON.parse(storedArtists));
+            } catch (e) { console.error(e); }
+        }
       }
     }
   }, [router]);
 
-  const { pendingEvents, boostedEventsCount, revenueData } =
+  const { pendingEvents, boostedEventsCount, revenueData, revenueByArtist } =
     useMemo(() => {
       const pending = events.filter((e) => e.moderationStatus === "pending");
       const boostedCount = events.filter((e) => e.isBoosted).length;
@@ -89,6 +134,21 @@ export default function AdminDashboard({
       const premiumRevenue =
         artists.filter((a) => a.isPremium).length * 149;
 
+      const artistRevenue = artists.map(artist => {
+          const artistTicketRevenue = approvedEvents
+            .filter(e => e.artistId === artist.id)
+            .reduce((acc, e) => acc + (e.ticketPrice * (e.ticketsSold || 0)), 0);
+          
+          const artistBoostRevenue = events
+            .filter(e => e.artistId === artist.id && e.isBoosted && e.boostAmount)
+            .reduce((acc, e) => acc + (e.boostAmount || 0), 0);
+
+          return {
+              name: artist.name,
+              revenue: artistTicketRevenue + artistBoostRevenue
+          }
+      });
+
       return {
         pendingEvents: pending,
         boostedEventsCount: boostedCount,
@@ -98,6 +158,7 @@ export default function AdminDashboard({
           premiumRevenue,
           total: ticketRevenue + boostRevenue + premiumRevenue,
         },
+        revenueByArtist: artistRevenue,
       };
     }, [events, artists]);
 
@@ -272,7 +333,7 @@ export default function AdminDashboard({
             <CardHeader>
               <CardTitle>Revenue Breakdown</CardTitle>
               <CardDescription>Mock revenue data from all sources.</CardDescription>
-            </Header>
+            </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <Card>
@@ -303,6 +364,32 @@ export default function AdminDashboard({
                   </CardContent>
                 </Card>
               </div>
+
+               <Card className="mt-8">
+                <CardHeader>
+                    <CardTitle>Revenue by Artist</CardTitle>
+                    <CardDescription>
+                        A breakdown of revenue generated per artist.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="h-[300px] w-full">
+                        {isClient && (
+                          <ResponsiveContainer width="100%" height="100%">
+                              <RechartsBarChart data={revenueByArtist}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis dataKey="name" />
+                                  <YAxis />
+                                  <Tooltip />
+                                  <Legend />
+                                  <Bar dataKey="revenue" fill="#800000" />
+                              </RechartsBarChart>
+                          </ResponsiveContainer>
+                        )}
+                    </div>
+                </CardContent>
+              </Card>
+
             </CardContent>
           </Card>
         </TabsContent>
