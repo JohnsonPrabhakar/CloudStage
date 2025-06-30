@@ -1,4 +1,4 @@
-export type EventCategory = 
+export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
   | 'Magic Show'
@@ -30,15 +30,37 @@ export interface Event {
   ticketsSold?: number;
 }
 
+export type ArtistCategory = 'Music' | 'Stand-up Comedy' | 'Yoga' | 'Magic' | 'Devotional';
+
 export interface Artist {
   id: string;
   name: string;
-  isPremium: boolean;
-  type: 'Solo Artist' | 'Band';
-  genres: string[];
+  email: string;
+  password?: string; // Should not be sent to client after auth
+  phone: string;
+  location: string;
+  about: string;
+  profilePictureUrl: string;
   youtubeUrl: string;
   instagramUrl: string;
+  facebookUrl: string;
+  experience: number;
+  category: ArtistCategory;
+  subCategory: string;
+  isPremium: boolean;
+  isApproved: boolean;
+  type: 'Solo Artist' | 'Band';
+  genres: string[];
 }
+
+export interface LoggedInArtist {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export type PendingArtist = Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres'> & { password_confirmation?: string };
+
 
 export type MovieGenre = 'Action' | 'Romance' | 'Comedy' | 'Thriller' | 'Drama' | 'Sci-Fi' | 'Horror';
 export type MovieLanguage = 'English' | 'Hindi' | 'Tamil' | 'Telugu';

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -22,8 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type Artist } from "@/lib/types";
-import { getArtists, getEvents } from "@/lib/mock-data";
+import { type Event, type Artist, type LoggedInArtist } from "@/lib/types";
+import { getArtistById, getEvents, getLoggedInArtist, clearLoggedInArtist } from "@/lib/mock-data";
 import {
   PlusCircle,
   Crown,
@@ -32,6 +33,7 @@ import {
   PartyPopper,
   Copy,
   Share2,
+  LogOut,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -40,28 +42,40 @@ type ArtistDashboardProps = {
 };
 
 export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [loggedInArtist, setLoggedInArtist] = useState<LoggedInArtist | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const { toast } = useToast();
-
-  const artistId = "artist1"; // Mocked artist ID
 
   useEffect(() => {
     setIsClient(true);
+    const sessionArtist = getLoggedInArtist();
+    if (!sessionArtist) {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+      router.push('/artist/login');
+      return;
+    }
+    setLoggedInArtist(sessionArtist);
+
+    const fullArtistProfile = getArtistById(sessionArtist.id);
+    setArtist(fullArtistProfile || null);
+
     const allEvents = getEvents();
-    const allArtists = getArtists();
-    setMyEvents(allEvents.filter((e) => e.artistId === artistId));
-    setArtist(allArtists.find((a) => a.id === artistId) || null);
-  }, []);
+    setMyEvents(allEvents.filter((e) => e.artistId === sessionArtist.id));
+  }, [router, toast]);
   
   // This effect will re-run when local storage changes are made on other pages.
   useEffect(() => {
     const handleStorageChange = () => {
-        const allEvents = getEvents();
-        const allArtists = getArtists();
-        setMyEvents(allEvents.filter(e => e.artistId === artistId));
-        setArtist(allArtists.find(a => a.id === artistId) || null);
+        const sessionArtist = getLoggedInArtist();
+        if (sessionArtist) {
+            const allEvents = getEvents();
+            const fullArtistProfile = getArtistById(sessionArtist.id);
+            setMyEvents(allEvents.filter(e => e.artistId === sessionArtist.id));
+            setArtist(fullArtistProfile || null);
+        }
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -70,13 +84,11 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
     };
   }, []);
 
-
   const handleBoost = (eventId: string, amount: number) => {
     const updatedEvents = myEvents.map((e) =>
       e.id === eventId ? { ...e, isBoosted: true, boostAmount: amount } : e
     );
 
-    // Update all events in localStorage
     const allEvents = getEvents();
     const allEventsUpdated = allEvents.map(e => {
         const updatedEvent = updatedEvents.find(ue => ue.id === e.id);
@@ -114,17 +126,22 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
         console.error("Error sharing:", error);
       }
     } else {
-      // Fallback for browsers that don't support Web Share API
       handleCopyLink(event.id);
     }
   };
 
+  const handleLogout = () => {
+    clearLoggedInArtist();
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    router.push("/artist/login");
+  }
 
   const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
 
-  if (!isClient) {
+  if (!isClient || !loggedInArtist) {
     return (
       <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
+        <div className="h-10 w-1/4 bg-muted rounded"></div>
         <div className="h-24 bg-muted rounded-lg"></div>
         <div className="h-12 w-1/3 bg-muted rounded"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -161,12 +178,13 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Artist Dashboard</h1>
+          <h1 className="text-4xl font-bold">Welcome, {artist?.name}</h1>
           <p className="text-muted-foreground">
             Manage your events and grow your audience.
           </p>
         </div>
         <div className="flex gap-2">
+            <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" /> Logout</Button>
             <Button asChild variant="outline">
                 <Link href="/artist/history"><History className="mr-2 h-4 w-4"/> View History</Link>
             </Button>

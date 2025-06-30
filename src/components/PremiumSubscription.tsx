@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -12,17 +12,28 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getArtists } from "@/lib/mock-data";
+import { getArtists, getLoggedInArtist } from "@/lib/mock-data";
 import { CheckCircle, Crown, ChevronLeft } from "lucide-react";
 
 export default function PremiumSubscription() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
+  const [artistId, setArtistId] = useState<string | null>(null);
 
-  const artistId = "artist1"; // Mocked artist ID
+  useEffect(() => {
+    const sessionArtist = getLoggedInArtist();
+    if (!sessionArtist) {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+      router.push('/artist/login');
+    } else {
+      setArtistId(sessionArtist.id);
+    }
+  }, [router, toast]);
+
 
   const handleSubscribe = (planName: string, price: number) => {
+    if (!artistId) return;
     setLoading(planName);
 
     // Simulate payment processing
@@ -65,6 +76,10 @@ export default function PremiumSubscription() {
       ],
     },
   ];
+  
+  if (!artistId) {
+    return <div className="container mx-auto p-8">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">

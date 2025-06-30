@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import { type Event } from "@/lib/types";
 import {
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { getLoggedInArtist } from '@/lib/mock-data';
 import { Copy, PlusCircle, ChevronLeft, Eye, Clock, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -22,6 +25,15 @@ type ArtistHistoryProps = {
 
 export default function ArtistHistory({ initialEvents }: ArtistHistoryProps) {
   const router = useRouter();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const sessionArtist = getLoggedInArtist();
+    if (!sessionArtist) {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+      router.push('/artist/login');
+    }
+  }, [router, toast]);
 
   const handleDuplicate = (eventId: string) => {
     router.push(`/artist/create-event?duplicate=${eventId}`);

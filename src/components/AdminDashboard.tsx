@@ -34,23 +34,27 @@ import {
   Eye,
   Clock,
   LogOut,
-  BarChart,
   Upload,
+  Bell,
+  Facebook,
+  Instagram,
+  Youtube
 } from "lucide-react";
-import { type Event, type Artist } from "@/lib/types";
+import { type Event, type Artist, type PendingArtist } from "@/lib/types";
 import { format } from "date-fns";
+import { getArtists, getEvents, getPendingArtists, approveArtist, rejectArtist } from "@/lib/mock-data";
 import dynamic from "next/dynamic";
 
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((mod) => mod.ResponsiveContainer),
+const ChartContainer = dynamic(
+  () => import("@/components/ui/chart").then((mod) => mod.ChartContainer),
   { ssr: false }
 );
-const RechartsBarChart = dynamic(
+const BarChart = dynamic(
   () => import("recharts").then((mod) => mod.BarChart),
   { ssr: false }
 );
-const CartesianGrid = dynamic(
-  () => import("recharts").then((mod) => mod.CartesianGrid),
+const Bar = dynamic(
+  () => import("recharts").then((mod) => mod.Bar),
   { ssr: false }
 );
 const XAxis = dynamic(
@@ -61,16 +65,24 @@ const YAxis = dynamic(
   () => import("recharts").then((mod) => mod.YAxis),
   { ssr: false }
 );
-const Tooltip = dynamic(
-  () => import("recharts").then((mod) => mod.Tooltip),
+const CartesianGrid = dynamic(
+  () => import("recharts").then((mod) => mod.CartesianGrid),
   { ssr: false }
 );
-const Legend = dynamic(
-  () => import("recharts").then((mod) => mod.Legend),
+const ChartTooltipContent = dynamic(
+  () => import("@/components/ui/chart").then((mod) => mod.ChartTooltipContent),
   { ssr: false }
 );
-const Bar = dynamic(
-  () => import("recharts").then((mod) => mod.Bar),
+const ChartTooltip = dynamic(
+  () => import("@/components/ui/chart").then((mod) => mod.ChartTooltip),
+  { ssr: false }
+);
+const ChartLegend = dynamic(
+  () => import("@/components/ui/chart").then((mod) => mod.ChartLegend),
+  { ssr: false }
+);
+const ChartLegendContent = dynamic(
+  () => import("@/components/ui/chart").then((mod) => mod.ChartLegendContent),
   { ssr: false }
 );
 
@@ -88,8 +100,20 @@ export default function AdminDashboard({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [artists, setArtists] = useState<Artist[]>(initialArtists);
+  const [pendingArtists, setPendingArtists] = useState<PendingArtist[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [adImpressions, setAdImpressions] = useState(0);
+  const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
+
+
+  const refreshData = () => {
+     setEvents(getEvents());
+     setArtists(getArtists());
+     setPendingArtists(getPendingArtists());
+     if(localStorage.getItem("pendingArtistNotifications") === "true") {
+        setHasPendingArtistNotification(true);
+     }
+  }
 
   useEffect(() => {
     setIsClient(true);
@@ -100,19 +124,7 @@ export default function AdminDashboard({
         router.push("/admin");
       } else {
         setIsAuthenticated(true);
-        const storedEvents = localStorage.getItem("events");
-        if (storedEvents) {
-            try {
-                setEvents(JSON.parse(storedEvents));
-            } catch (e) { console.error(e); }
-        }
-
-        const storedArtists = localStorage.getItem("artists");
-        if (storedArtists) {
-             try {
-                setArtists(JSON.parse(storedArtists));
-            } catch (e) { console.error(e); }
-        }
+        refreshData();
       }
     }
   }, [router]);
@@ -172,6 +184,16 @@ export default function AdminDashboard({
     setEvents(updatedEvents);
     localStorage.setItem("events", JSON.stringify(updatedEvents));
   };
+  
+  const handleArtistApproval = (email: string) => {
+    approveArtist(email);
+    refreshData();
+  };
+
+  const handleArtistRejection = (email: string) => {
+    rejectArtist(email);
+    refreshData();
+  };
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -212,10 +234,19 @@ export default function AdminDashboard({
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="overview" onValueChange={(value) => {
+        if (value === 'artist-approvals') {
+          setHasPendingArtistNotification(false);
+          localStorage.setItem("pendingArtistNotifications", "false");
+        }
+      }}>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="approvals">Event Approvals</TabsTrigger>
+          <TabsTrigger value="event-approvals">Event Approvals</TabsTrigger>
+          <TabsTrigger value="artist-approvals" className="relative">
+            Pending Artists
+            {hasPendingArtistNotification && <Bell className="h-4 w-4 absolute top-1 right-1 text-primary animate-pulse"/>}
+          </TabsTrigger>
           <TabsTrigger value="revenue">Revenue & Ads</TabsTrigger>
         </TabsList>
 
@@ -291,7 +322,7 @@ export default function AdminDashboard({
           </div>
         </TabsContent>
 
-        <TabsContent value="approvals">
+        <TabsContent value="event-approvals">
           <Card>
             <CardHeader><CardTitle>Pending Event Approvals</CardTitle></CardHeader>
             <CardContent>
@@ -336,6 +367,60 @@ export default function AdminDashboard({
           </Card>
         </TabsContent>
 
+        <TabsContent value="artist-approvals">
+          <Card>
+            <CardHeader><CardTitle>Pending Artist Approvals</CardTitle></CardHeader>
+            <CardContent>
+              {pendingArtists.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Artist</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead>Socials</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingArtists.map((artist) => (
+                      <TableRow key={artist.email}>
+                        <TableCell>
+                            <div className="font-medium">{artist.name}</div>
+                            <div className="text-sm text-muted-foreground">{artist.email}</div>
+                             <div className="text-sm text-muted-foreground">{artist.phone}</div>
+                        </TableCell>
+                         <TableCell className="text-sm">
+                            <div>Category: {artist.category} ({artist.subCategory})</div>
+                            <div>Experience: {artist.experience} years</div>
+                            <div>Location: {artist.location}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                             <Link href={artist.youtubeUrl} target="_blank"><Youtube className="h-5 w-5"/></Link>
+                             <Link href={artist.instagramUrl} target="_blank"><Instagram className="h-5 w-5"/></Link>
+                             <Link href={artist.facebookUrl} target="_blank"><Facebook className="h-5 w-5"/></Link>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleArtistApproval(artist.email)}>
+                            <Check className="h-4 w-4 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleArtistRejection(artist.email)}>
+                            <X className="h-4 w-4 mr-1" /> Reject
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No pending artist registrations.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
         <TabsContent value="revenue">
           <Card>
             <CardHeader>
@@ -374,7 +459,7 @@ export default function AdminDashboard({
                  <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Ad Impressions</CardTitle>
-                    <BarChart className="h-4 w-4 text-muted-foreground" />
+                    <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{adImpressions.toLocaleString()}</div>
@@ -392,16 +477,21 @@ export default function AdminDashboard({
                 <CardContent>
                      <div className="h-[300px] w-full">
                         {isClient && (
-                          <ResponsiveContainer width="100%" height="100%">
-                              <RechartsBarChart data={revenueByArtist}>
-                                  <CartesianGrid strokeDasharray="3 3" />
-                                  <XAxis dataKey="name" />
+                           <ChartContainer config={{
+                            revenue: {
+                              label: "Revenue",
+                              color: "hsl(var(--chart-1))",
+                            },
+                          }}>
+                              <BarChart data={revenueByArtist}>
+                                  <CartesianGrid vertical={false} />
+                                  <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                                   <YAxis />
-                                  <Tooltip />
-                                  <Legend />
-                                  <Bar dataKey="revenue" fill="hsl(var(--primary))" />
-                              </RechartsBarChart>
-                          </ResponsiveContainer>
+                                  <ChartTooltip content={<ChartTooltipContent />} />
+                                  <ChartLegend content={<ChartLegendContent />} />
+                                  <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                              </BarChart>
+                          </ChartContainer>
                         )}
                     </div>
                 </CardContent>

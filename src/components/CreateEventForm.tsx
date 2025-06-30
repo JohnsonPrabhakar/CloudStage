@@ -28,8 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type EventCategory } from "@/lib/types";
-import { getEvents } from "@/lib/mock-data";
+import { type Event, type EventCategory, type LoggedInArtist } from "@/lib/types";
+import { getEvents, getLoggedInArtist } from "@/lib/mock-data";
 import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -67,6 +67,7 @@ export default function CreateEventForm() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [loggedInArtist, setLoggedInArtist] = useState<LoggedInArtist | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -85,6 +86,17 @@ export default function CreateEventForm() {
       boost: false,
     },
   });
+  
+  useEffect(() => {
+    const sessionArtist = getLoggedInArtist();
+    if (!sessionArtist) {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+      router.push('/artist/login');
+    } else {
+        setLoggedInArtist(sessionArtist);
+    }
+  }, [router, toast]);
+
 
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
@@ -103,7 +115,6 @@ export default function CreateEventForm() {
           description: eventToDuplicate.description,
           boost: false
         });
-        // We can't pre-fill file inputs, but we can show the old banner
         setBannerPreview(eventToDuplicate.bannerUrl);
         toast({
             title: "Event Duplicated",
@@ -117,7 +128,7 @@ export default function CreateEventForm() {
     setIsGenerating(true);
     const { title, genre, category } = form.getValues();
 
-    if (!title || !genre || !category) {
+    if (!title || !genre || !category || !loggedInArtist) {
       toast({
         variant: "destructive",
         title: "Missing Information",
@@ -130,7 +141,7 @@ export default function CreateEventForm() {
     try {
       const result = await generateEventDescription({
         title,
-        artist: "Current Artist", // Mocked
+        artist: loggedInArtist.name,
         genre,
         type: category,
       });
@@ -154,11 +165,16 @@ export default function CreateEventForm() {
   }
 
   function onSubmit(values: FormValues) {
+    if (!loggedInArtist) {
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
+        return;
+    }
+
     const newEvent: Event = {
       id: `evt-${Date.now()}`,
       title: values.title,
-      artist: "Current Artist", // Mocked
-      artistId: "artist1", // Mocked
+      artist: loggedInArtist.name,
+      artistId: loggedInArtist.id,
       description: values.description,
       category: values.category as EventCategory,
       genre: values.genre,
@@ -187,6 +203,10 @@ export default function CreateEventForm() {
       });
       router.push("/artist/dashboard");
     }
+  }
+
+  if (!loggedInArtist) {
+    return <div className="container mx-auto p-8">Loading form...</div>;
   }
 
   return (
