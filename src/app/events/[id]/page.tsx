@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { addTicket, getMyTickets, getArtistById } from "@/lib/mock-data";
-import { getEventById } from "@/lib/firebase-service";
+import { getArtistById } from "@/lib/mock-data";
+import { getEventById, createTicket, checkForExistingTicket } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import {
   Youtube,
   Instagram,
@@ -35,6 +37,14 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [attendees, setAttendees] = useState(0);
   const [hasTicket, setHasTicket] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -45,9 +55,6 @@ export default function EventDetailPage() {
         
         if (foundEvent && foundEvent.moderationStatus === 'approved') {
             setEvent(foundEvent);
-            const myTickets = getMyTickets();
-            setHasTicket(myTickets.includes(eventId));
-
             // Artist data is still from mock data for now
             const foundArtist = getArtistById(foundEvent.artistId);
             setArtist(foundArtist || null);
@@ -62,18 +69,50 @@ export default function EventDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
+    // Check if user has a ticket after user and event are loaded
+    const checkTicketStatus = async () => {
+      if (currentUser && event) {
+        const ticketExists = await checkForExistingTicket(currentUser.uid, event.id);
+        setHasTicket(ticketExists);
+      } else {
+        // Reset if user logs out or event changes
+        setHasTicket(false);
+      }
+    };
+    checkTicketStatus();
+  }, [currentUser, event]);
+
+  useEffect(() => {
     // Generate random number on client after mount to avoid hydration mismatch
     setAttendees(Math.floor(Math.random() * 5000 + 1000));
   }, []);
 
-  const handleBuyTicket = () => {
+  const handleBuyTicket = async () => {
     if (!event) return;
-    addTicket(event.id);
-    setHasTicket(true);
-    toast({
-      title: "Ticket Purchased!",
-      description: `You've successfully got a ticket for ${event.title}.`,
-    });
+    if (!currentUser) {
+        toast({
+            variant: "destructive",
+            title: "Please Log In",
+            description: "You need to be logged in to get a ticket.",
+        });
+        router.push("/artist/login");
+        return;
+    }
+
+    const result = await createTicket(currentUser.uid, event.id);
+    if (result.success) {
+        setHasTicket(true);
+        toast({
+            title: "Ticket Acquired!",
+            description: `You've successfully got a ticket for ${event.title}.`,
+        });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Failed to Get Ticket",
+            description: result.message,
+        });
+    }
   };
   
   const isValidStreamUrl = (url: string) => {

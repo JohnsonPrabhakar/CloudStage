@@ -12,12 +12,14 @@ import {
   Timestamp,
   setDoc,
   deleteDoc,
+  limit,
 } from 'firebase/firestore';
-import { type Event, type Artist } from './types';
+import { type Event, type Artist, type Ticket } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
+const ticketsCollection = collection(db, 'tickets');
 
 // Helper to convert Firestore doc to a given type
 const fromFirestore = <T extends { id: string }>(doc: any): T => {
@@ -178,3 +180,46 @@ export const updateArtistToPremium = async(uid: string) => {
         isPremium: true,
     });
 }
+
+// TICKET-RELATED FUNCTIONS
+
+// Check if a user already has a ticket for a specific event
+export const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
+  const q = query(
+    ticketsCollection,
+    where('userId', '==', userId),
+    where('eventId', '==', eventId),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+};
+
+// Create a new ticket document in Firestore
+export const createTicket = async (userId: string, eventId: string): Promise<{ success: boolean; message: string }> => {
+  const alreadyExists = await checkForExistingTicket(userId, eventId);
+  if (alreadyExists) {
+    return { success: false, message: 'You already have a ticket for this event.' };
+  }
+
+  try {
+    await addDoc(ticketsCollection, {
+      userId,
+      eventId,
+      createdAt: serverTimestamp(),
+      isPaid: false,
+      paymentId: null,
+    });
+    return { success: true, message: 'Ticket successfully acquired!' };
+  } catch (error) {
+    console.error("Error creating ticket in Firestore: ", error);
+    return { success: false, message: 'Could not acquire ticket. Please try again.' };
+  }
+};
+
+// Get all tickets for a specific user
+export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
+  const q = query(ticketsCollection, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
+};

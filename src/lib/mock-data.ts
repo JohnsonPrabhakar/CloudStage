@@ -1,49 +1,8 @@
 import { type Event, type Artist } from "./types";
 
-const initializeLocalStorage = () => {
-  if (typeof window !== "undefined") {
-    // Artist and Event data are now managed by Firebase.
-    // We only keep client-side specific data like 'myTickets'.
-    if (!localStorage.getItem("myTickets")) {
-      localStorage.setItem("myTickets", JSON.stringify([]));
-    }
-  }
-};
-
-initializeLocalStorage();
-
-// General Parsed Getters
-const getParsedItem = <T>(key: string, defaultValue: T): T => {
-    if (typeof window !== "undefined") {
-        const item = localStorage.getItem(key);
-        if (item) {
-            try {
-                return JSON.parse(item);
-            } catch (e) {
-                console.error(`Failed to parse ${key} from localStorage`, e);
-                localStorage.setItem(key, JSON.stringify(defaultValue));
-                return defaultValue;
-            }
-        }
-        localStorage.setItem(key, JSON.stringify(defaultValue));
-    }
-    return defaultValue;
-}
-
-
-// TICKET-related functions
-export const getMyTickets = (): string[] => getParsedItem<string[]>("myTickets", []);
-
-export const addTicket = (eventId: string) => {
-  if (typeof window !== 'undefined') {
-    const myTickets = getMyTickets();
-    if (!myTickets.includes(eventId)) {
-      myTickets.push(eventId);
-      localStorage.setItem('myTickets', JSON.stringify(myTickets));
-    }
-  }
-};
-
+// This file used to contain mock data and localStorage logic for tickets.
+// That functionality has been migrated to firebase-service.ts.
+// It is kept for the public-facing artist mock data.
 
 // Legacy functions for mock-data based artist fetching (used in non-auth pages like event details)
 // In a full-stack app, this would be replaced with a public API endpoint.

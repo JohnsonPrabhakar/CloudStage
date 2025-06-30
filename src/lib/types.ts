@@ -64,3 +64,12 @@ export interface Movie {
   language: MovieLanguage;
   posterUrl: string;
 }
+
+export interface Ticket {
+  id: string;
+  userId: string;
+  eventId: string;
+  createdAt: any;
+  isPaid: boolean;
+  paymentId: string | null;
+}
