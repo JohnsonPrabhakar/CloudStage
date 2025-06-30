@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -40,7 +41,7 @@ const formSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
   phone: z.string().min(10, "Please enter a valid phone number."),
   location: z.string().min(2, "Location is required."),
-  profilePicture: z.instanceof(FileList).optional(),
+  profilePicture: z.any().optional(),
   about: z.string().min(20, "Please tell us a bit more about you (at least 20 characters)."),
   instagramUrl: z.string().url().optional().or(z.literal('')),
   facebookUrl: z.string().url().optional().or(z.literal('')),
@@ -350,3 +351,5 @@ export default function ArtistRegister() {
     </div>
   );
 }
+
+    
