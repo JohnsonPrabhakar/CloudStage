@@ -27,12 +27,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type MovieGenre, type MovieLanguage } from "@/lib/types";
-import { addMovie } from "@/lib/mock-movies";
+import { addMovie } from "@/lib/firebase-service";
 import { ChevronLeft, Film } from "lucide-react";
 
-const movieGenres: MovieGenre[] = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
-const movieLanguages: MovieLanguage[] = ['English', 'Hindi', 'Tamil', 'Telugu'];
+const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
+const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
 
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
@@ -41,9 +40,9 @@ const formSchema = z.object({
     (url) => url.includes("youtube.com/embed/"),
     "Please provide a valid YouTube Embed URL (e.g., https://youtube.com/embed/...)."
   ),
-  genre: z.enum(movieGenres),
-  language: z.enum(movieLanguages),
-  posterImage: z.any().optional(),
+  genre: z.string().min(1, "Genre is required"),
+  language: z.string().min(1, "Language is required"),
+  posterImage: z.instanceof(FileList).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -77,26 +76,33 @@ export default function UploadMoviePage() {
     },
   });
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     const posterFile = values.posterImage?.[0];
-    const posterUrl = posterFile 
-        ? URL.createObjectURL(posterFile) 
-        : `https://placehold.co/400x600.png?text=${encodeURIComponent(values.title)}`;
 
-    addMovie({
-      title: values.title,
-      description: values.description,
-      youtubeUrl: values.youtubeUrl,
-      genre: values.genre,
-      language: values.language,
-      posterUrl: posterUrl,
-    });
-
-    toast({
-      title: "Movie Added!",
-      description: `${values.title} has been successfully added to the library.`,
-    });
-    router.push("/movies");
+    try {
+      await addMovie(
+        {
+          title: values.title,
+          description: values.description,
+          youtubeUrl: values.youtubeUrl,
+          genre: values.genre,
+          language: values.language,
+        },
+        posterFile
+      );
+      toast({
+        title: "Movie Added!",
+        description: `${values.title} has been successfully added to the library.`,
+      });
+      router.push("/movies");
+    } catch(error) {
+      console.error(error);
+      toast({
+        title: "Upload Failed",
+        description: "There was an error uploading the movie. Please try again.",
+        variant: "destructive"
+      });
+    }
   }
 
   if (!isAuthenticated) {
@@ -223,7 +229,7 @@ export default function UploadMoviePage() {
                 <FormField
                   control={form.control}
                   name="posterImage"
-                  render={({ field }) => (
+                  render={({ field: { onChange, value, ...rest } }) => (
                     <FormItem>
                       <FormLabel>Upload Poster</FormLabel>
                       {posterPreview && <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover"/>}
@@ -231,13 +237,14 @@ export default function UploadMoviePage() {
                          <Input 
                           type="file" 
                           accept="image/jpeg, image/png, image/webp"
+                           {...rest}
                           onChange={(e) => {
                             const files = e.target.files;
                             if (files && files.length > 0) {
-                              field.onChange(files);
+                              onChange(files);
                               setPosterPreview(URL.createObjectURL(files[0]));
                             } else {
-                              field.onChange(undefined);
+                              onChange(undefined);
                               setPosterPreview(null);
                             }
                           }}

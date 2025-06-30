@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Movie } from "@/lib/types";
-import { getMovieById } from "@/lib/mock-movies";
+import { getMovieById } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import {
   Share2,
@@ -15,6 +15,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MovieWatchPage() {
   const params = useParams();
@@ -25,11 +26,15 @@ export default function MovieWatchPage() {
   const [reactions, setReactions] = useState<{ id: number; icon: string; left: string }[]>([]);
 
   useEffect(() => {
-    if (params.id) {
-      const foundMovie = getMovieById(params.id as string);
-      setMovie(foundMovie || null);
+    const fetchMovie = async () => {
+        if (params.id) {
+            setLoading(true);
+            const foundMovie = await getMovieById(params.id as string);
+            setMovie(foundMovie || null);
+        }
+        setLoading(false);
     }
-    setLoading(false);
+    fetchMovie();
   }, [params.id]);
 
   useEffect(() => {
@@ -88,7 +93,25 @@ export default function MovieWatchPage() {
   }
 
   if (loading) {
-    return <div className="container mx-auto p-8">Loading movie...</div>;
+     return (
+        <div className="container mx-auto p-4 md:p-8 animate-pulse">
+            <div className="w-24 h-8 bg-muted rounded mb-4"></div>
+            <div className="aspect-video w-full bg-muted rounded-lg"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+                <div className="md:col-span-2 space-y-4">
+                    <Skeleton className="h-10 w-3/4" />
+                    <div className="flex gap-2">
+                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-6 w-20" />
+                    </div>
+                    <Skeleton className="h-24 w-full" />
+                </div>
+                 <div className="space-y-6">
+                    <Skeleton className="h-60 w-full" />
+                 </div>
+            </div>
+        </div>
+     );
   }
 
   if (!movie || !isValidStreamUrl(movie.youtubeUrl)) {

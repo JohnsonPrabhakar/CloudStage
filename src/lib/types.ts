@@ -52,8 +52,8 @@ export interface Artist {
   genres: string[];
 }
 
-export type MovieGenre = 'Action' | 'Romance' | 'Comedy' | 'Thriller' | 'Drama' | 'Sci-Fi' | 'Horror';
-export type MovieLanguage = 'English' | 'Hindi' | 'Tamil' | 'Telugu';
+export type MovieGenre = string;
+export type MovieLanguage = string;
 
 export interface Movie {
   id: string;
@@ -63,6 +63,7 @@ export interface Movie {
   genre: MovieGenre;
   language: MovieLanguage;
   posterUrl: string;
+  createdAt?: any;
 }
 
 export interface Ticket {

@@ -1,4 +1,4 @@
-import { db, auth } from './firebase';
+import { db, auth, storage } from './firebase';
 import {
   collection,
   addDoc,
@@ -14,12 +14,14 @@ import {
   deleteDoc,
   limit,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket } from './types';
+import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
 const ticketsCollection = collection(db, 'tickets');
+const moviesCollection = collection(db, 'movies');
 
 // Helper to convert Firestore doc to a given type
 const fromFirestore = <T extends { id: string }>(doc: any): T => {
@@ -222,4 +224,53 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
   const q = query(ticketsCollection, where('userId', '==', userId));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
+};
+
+// MOVIE-RELATED FUNCTIONS
+
+export const addMovie = async (movieData: Omit<Movie, 'id' | 'posterUrl' | 'createdAt'>, posterFile?: File): Promise<void> => {
+  try {
+    let posterUrl = `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
+
+    if (posterFile) {
+      const storageRef = ref(storage, `movie-posters/${Date.now()}_${posterFile.name}`);
+      const snapshot = await uploadBytes(storageRef, posterFile);
+      posterUrl = await getDownloadURL(snapshot.ref);
+    }
+    
+    await addDoc(moviesCollection, {
+      ...movieData,
+      posterUrl,
+      createdAt: serverTimestamp(),
+    });
+
+  } catch (error) {
+    console.error("Error adding movie to Firestore: ", error);
+    throw new Error("Could not create movie.");
+  }
+};
+
+export const getAllMovies = async (): Promise<Movie[]> => {
+  try {
+    const q = query(moviesCollection);
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromFirestore<Movie>(doc));
+  } catch (error) {
+    console.error("Error fetching all movies: ", error);
+    return [];
+  }
+};
+
+export const getMovieById = async (id: string): Promise<Movie | null> => {
+  try {
+    const movieDoc = doc(db, 'movies', id);
+    const snapshot = await getDoc(movieDoc);
+    if (snapshot.exists()) {
+      return fromFirestore<Movie>(snapshot);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching movie by ID: ", error);
+    return null;
+  }
 };

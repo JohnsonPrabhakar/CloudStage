@@ -1,24 +1,33 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { type Movie, type MovieGenre, type MovieLanguage } from "@/lib/types";
+import { useState, useMemo, useEffect } from "react";
+import { type Movie } from "@/lib/types";
 import { MovieCard } from "./MovieCard";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Film } from "lucide-react";
+import { getAllMovies } from "@/lib/firebase-service";
+import { Skeleton } from "./ui/skeleton";
 
-type MoviesClientProps = {
-  initialMovies: Movie[];
-};
+const genres = ['Action', 'Comedy', 'Drama', 'Horror', 'Romance', 'Sci-Fi', 'Thriller'];
+const languages = ['English', 'Hindi', 'Tamil', 'Telugu'];
 
-const genres: MovieGenre[] = ['Action', 'Comedy', 'Drama', 'Horror', 'Romance', 'Sci-Fi', 'Thriller'];
-const languages: MovieLanguage[] = ['English', 'Hindi', 'Tamil', 'Telugu'];
-
-export function MoviesClient({ initialMovies }: MoviesClientProps) {
-  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+export function MoviesClient() {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState<MovieGenre | "all">("all");
-  const [selectedLanguage, setSelectedLanguage] = useState<MovieLanguage | "all">("all");
+  const [selectedGenre, setSelectedGenre] = useState<string | "all">("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string | "all">("all");
+
+  useEffect(() => {
+    const fetchMovies = async () => {
+        setLoading(true);
+        const allMovies = await getAllMovies();
+        setMovies(allMovies);
+        setLoading(false);
+    }
+    fetchMovies();
+  }, []);
 
   const filteredMovies = useMemo(() => {
     return movies.filter(movie => {
@@ -28,6 +37,41 @@ export function MoviesClient({ initialMovies }: MoviesClientProps) {
         return matchesSearch && matchesGenre && matchesLanguage;
     });
   }, [movies, searchQuery, selectedGenre, selectedLanguage]);
+
+  const renderMovieGrid = () => {
+    if (loading) {
+       return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex flex-col space-y-3">
+                        <Skeleton className="h-[250px] w-full rounded-xl" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-6 w-[200px]" />
+                            <Skeleton className="h-4 w-[150px]" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
+    if (filteredMovies.length > 0) {
+      return (
+         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredMovies.map((movie) => (
+                <MovieCard key={movie.id} movie={movie} />
+            ))}
+         </div>
+      );
+    }
+
+    return (
+        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg">
+          <p className="text-xl">No movies found.</p>
+          <p>Try adjusting your search or filter criteria.</p>
+        </div>
+      )
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -68,18 +112,7 @@ export function MoviesClient({ initialMovies }: MoviesClientProps) {
         </Select>
       </div>
       
-      {filteredMovies.length > 0 ? (
-         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredMovies.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
-            ))}
-         </div>
-      ) : (
-        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg">
-          <p className="text-xl">No movies found.</p>
-          <p>Try adjusting your search or filter criteria.</p>
-        </div>
-      )}
+      {renderMovieGrid()}
     </div>
   );
 }
