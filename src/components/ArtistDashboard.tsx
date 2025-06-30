@@ -253,7 +253,7 @@ export default function ArtistDashboard() {
                           <DialogDescription>
                             Get your event featured on the homepage for maximum visibility.
                           </DialogDescription>
-                        </DialogHeader>
+                        </Header>
                         <div className="grid grid-cols-2 gap-4 py-4">
                           {[500, 1000, 2000, 3000].map((amount) => (
                             <DialogClose asChild key={amount}>
