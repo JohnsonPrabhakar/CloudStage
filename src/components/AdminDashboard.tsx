@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -38,7 +39,8 @@ import {
   Facebook,
   Instagram,
   Youtube,
-  Loader2
+  Loader2,
+  WifiOff,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -62,18 +64,26 @@ export default function AdminDashboard() {
   const [pendingArtists, setPendingArtists] = useState<Artist[]>([]);
   const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshData = async () => {
      setLoading(true);
-     const events = await getPendingEvents();
-     setPendingEvents(events);
-     const artists = await getPendingArtistsFromDb();
-     setPendingArtists(artists);
-     
-     if(artists.length > 0) {
-        setHasPendingArtistNotification(true);
+     setError(null);
+     try {
+       const events = await getPendingEvents();
+       setPendingEvents(events);
+       const artists = await getPendingArtistsFromDb();
+       setPendingArtists(artists);
+       
+       if(artists.length > 0) {
+          setHasPendingArtistNotification(true);
+       }
+     } catch (err) {
+        console.error("Failed to load admin data:", err);
+        setError("Could not load dashboard data. Please check your internet connection and try again.");
+     } finally {
+        setLoading(false);
      }
-     setLoading(false);
   }
 
   useEffect(() => {
@@ -131,6 +141,19 @@ export default function AdminDashboard() {
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
         <p>Verifying admin access...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+        <h1 className="text-3xl font-bold">Connection Error</h1>
+        <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+        <Button onClick={refreshData}>
+          Try Again
+        </Button>
       </div>
     );
   }
