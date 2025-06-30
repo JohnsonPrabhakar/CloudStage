@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -36,6 +37,7 @@ import {
   Copy,
   Share2,
   LogOut,
+  WifiOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "./ui/skeleton";
@@ -46,26 +48,35 @@ export default function ArtistDashboard() {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-            const profile = await getArtistProfile(user.uid);
-            if (profile) {
-                if (profile.isApproved) {
-                    setArtist(profile);
-                    const events = await getArtistEvents(user.uid);
-                    setMyEvents(events);
+            try {
+                setError(null);
+                const profile = await getArtistProfile(user.uid);
+                if (profile) {
+                    if (profile.isApproved) {
+                        setArtist(profile);
+                        const events = await getArtistEvents(user.uid);
+                        setMyEvents(events);
+                    } else {
+                        router.push('/artist/pending');
+                    }
                 } else {
-                    router.push('/artist/pending');
+                     router.push('/artist/login');
                 }
-            } else {
-                 router.push('/artist/login');
+            } catch (err) {
+                 console.error("Failed to fetch artist data:", err);
+                 setError("Could not load your dashboard. Please check your internet connection and try again.");
+            } finally {
+                setLoading(false);
             }
         } else {
             router.push('/artist/login');
+            setLoading(false);
         }
-        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -114,7 +125,36 @@ export default function ArtistDashboard() {
 
   const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
 
-  if (loading || !artist) {
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
+        <div className="h-10 w-1/4 bg-muted rounded"></div>
+        <div className="h-24 bg-muted rounded-lg"></div>
+        <div className="h-12 w-1/3 bg-muted rounded"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Skeleton className="h-48 rounded-lg" />
+            <Skeleton className="h-48 rounded-lg" />
+            <Skeleton className="h-48 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+        <div className="container mx-auto p-8 text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+                Try Again
+            </Button>
+        </div>
+    );
+  }
+  
+  if (!artist) {
+    // This state is hit briefly before redirection. Showing a skeleton is a good fallback.
     return (
       <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
         <div className="h-10 w-1/4 bg-muted rounded"></div>
@@ -131,7 +171,7 @@ export default function ArtistDashboard() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-      {!artist?.isPremium && (
+      {!artist.isPremium && (
         <Card className="bg-primary/10 border-primary/50">
           <CardHeader>
             <div className="flex items-center gap-4">
@@ -154,7 +194,7 @@ export default function ArtistDashboard() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Welcome, {artist?.name}</h1>
+          <h1 className="text-4xl font-bold">Welcome, {artist.name}</h1>
           <p className="text-muted-foreground">
             Manage your events and grow your audience.
           </p>
