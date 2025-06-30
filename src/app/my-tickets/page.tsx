@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { type Event, type Ticket as TicketType } from "@/lib/types";
 import { getEventById, getUserTickets } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
-import { Ticket, LogIn } from "lucide-react";
+import { Ticket, LogIn, WifiOff } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,32 +16,42 @@ export default function MyTicketsPage() {
   const [ticketedEvents, setTicketedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  const fetchTickets = async (currentUser: User) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tickets = await getUserTickets(currentUser.uid);
+      if (tickets.length > 0) {
+        const eventPromises = tickets.map(ticket => getEventById(ticket.eventId));
+        const eventResults = await Promise.all(eventPromises);
+        const validEvents = eventResults.filter((event): event is Event => event !== null);
+        setTicketedEvents(validEvents);
+      } else {
+        setTicketedEvents([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tickets or events:", error);
+      setError("Could not load your tickets. Please check your connection and try again.");
+      setTicketedEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         // User is signed in, fetch their tickets.
-        try {
-          const tickets = await getUserTickets(currentUser.uid);
-          if (tickets.length > 0) {
-            const eventPromises = tickets.map(ticket => getEventById(ticket.eventId));
-            const eventResults = await Promise.all(eventPromises);
-            const validEvents = eventResults.filter((event): event is Event => event !== null);
-            setTicketedEvents(validEvents);
-          } else {
-            setTicketedEvents([]);
-          }
-        } catch (error) {
-          console.error("Failed to fetch tickets or events:", error);
-          setTicketedEvents([]);
-        }
+        fetchTickets(currentUser);
       } else {
         // User is signed out.
         setTicketedEvents([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -72,6 +82,19 @@ export default function MyTicketsPage() {
                     <LogIn className="mr-2 h-4 w-4" />
                     Log In
                 </Link>
+            </Button>
+        </div>
+    )
+  }
+  
+  if (error) {
+    return (
+        <div className="container mx-auto p-8 text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={() => user && fetchTickets(user)}>
+                Try Again
             </Button>
         </div>
     )
