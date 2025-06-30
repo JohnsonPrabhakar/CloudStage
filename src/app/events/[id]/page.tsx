@@ -20,12 +20,14 @@ import {
   Play,
   DollarSign,
 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attendees, setAttendees] = useState(0);
 
   useEffect(() => {
     if (params.id) {
@@ -35,6 +37,11 @@ export default function EventDetailPage() {
     }
     setLoading(false);
   }, [params.id]);
+
+  useEffect(() => {
+    // Generate random number on client after mount to avoid hydration mismatch
+    setAttendees(Math.floor(Math.random() * 5000 + 1000));
+  }, []);
 
   if (loading) {
     return (
@@ -173,7 +180,7 @@ export default function EventDetailPage() {
               <div className="flex items-center">
                 <Calendar className="h-5 w-5 mr-3 text-primary" />
                 <span className="font-medium">
-                  {new Date(event.date).toLocaleString()}
+                  {format(new Date(event.date), "PPP p")}
                 </span>
               </div>
               <div className="flex items-center">
@@ -185,7 +192,7 @@ export default function EventDetailPage() {
               <div className="flex items-center">
                 <Users className="h-5 w-5 mr-3 text-primary" />
                 <span className="font-medium">
-                  {Math.floor(Math.random() * 5000 + 1000)} attendees
+                  {attendees > 0 ? `${attendees} attendees` : "..."}
                 </span>
               </div>
               <div className="flex items-center gap-4 pt-4">

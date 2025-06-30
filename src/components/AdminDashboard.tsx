@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,6 +33,7 @@ import {
   YAxis,
   BarChart as RechartsBarChart,
 } from "@/components/ui/chart";
+import { format } from "date-fns";
 
 type AdminDashboardProps = {
   initialEvents: Event[];
@@ -47,6 +48,10 @@ export default function AdminDashboard({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
+  
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [boostedEventsCount, setBoostedEventsCount] = useState(0);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -67,6 +72,34 @@ export default function AdminDashboard({
     }
   }, [router]);
 
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+
+    const eventRevenues = new Map<string, number>();
+    
+    const newTotalRevenue = allEvents.reduce((acc, event) => {
+        const saleCount = Math.floor(Math.random() * 500) + 50;
+        const revenue = event.ticketPrice * saleCount;
+        eventRevenues.set(event.id, revenue);
+        return acc + revenue;
+    }, 0);
+    
+    const newChartData = initialArtists.map(artist => {
+        const artistRevenue = allEvents
+            .filter(e => e.artistId === artist.id)
+            .reduce((acc, event) => acc + (eventRevenues.get(event.id) || 0), 0);
+        return {
+            artist: artist.name,
+            revenue: artistRevenue
+        }
+    });
+
+    setTotalRevenue(newTotalRevenue);
+    setChartData(newChartData);
+    setBoostedEventsCount(allEvents.filter(e => e.isBoosted).length);
+
+  }, [allEvents, initialArtists, isAuthenticated]);
+
   const handleApproval = (eventId: string, isApproved: boolean) => {
     const eventToProcess = pendingEvents.find((e) => e.id === eventId);
     if (!eventToProcess) return;
@@ -85,16 +118,6 @@ export default function AdminDashboard({
     );
   };
   
-  const boostedEvents = allEvents.filter(e => e.isBoosted);
-  const totalRevenue = allEvents.reduce((acc, event) => acc + event.ticketPrice * (Math.floor(Math.random() * 500) + 50), 0);
-
-  const chartData = useMemo(() => {
-    return initialArtists.map(artist => ({
-        artist: artist.name,
-        revenue: allEvents.filter(e => e.artistId === artist.id).reduce((acc, event) => acc + event.ticketPrice * (Math.floor(Math.random() * 500) + 50), 0)
-    }));
-  }, [allEvents, initialArtists]);
-
   const chartConfig = {
     revenue: {
       label: "Revenue",
@@ -142,7 +165,7 @@ export default function AdminDashboard({
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{boostedEvents.length}</div>
+            <div className="text-2xl font-bold">+{boostedEventsCount}</div>
             <p className="text-xs text-muted-foreground">Active boosts</p>
           </CardContent>
         </Card>
@@ -229,7 +252,7 @@ export default function AdminDashboard({
                   <TableRow key={event.id}>
                     <TableCell>{event.title}</TableCell>
                     <TableCell>{event.artist}</TableCell>
-                    <TableCell>{new Date(event.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{format(new Date(event.date), "PPP")}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"

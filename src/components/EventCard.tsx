@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, Ticket, Play } from "lucide-react";
+import { format } from "date-fns";
 
 type EventCardProps = {
   event: Event;
@@ -73,7 +74,7 @@ export function EventCard({ event }: EventCardProps) {
       <CardContent>
         <div className="flex items-center text-sm text-muted-foreground">
           <Calendar className="mr-2 h-4 w-4" />
-          <span>{new Date(event.date).toLocaleDateString()}</span>
+          <span>{format(new Date(event.date), "PPP")}</span>
         </div>
       </CardContent>
       <CardFooter>

@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { type Event } from "@/lib/types";
 import { PlusCircle, Crown, CheckCircle } from "lucide-react";
+import { format } from "date-fns";
 
 type ArtistDashboardProps = {
   initialEvents: Event[];
@@ -22,6 +23,9 @@ type ArtistDashboardProps = {
 
 export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps) {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
+  const [eventStats, setEventStats] = useState<
+    Record<string, { audience: number; revenue: number }>
+  >({});
 
   useEffect(() => {
     // Mocking artist-specific events. In a real app, this would be a filtered API call.
@@ -30,6 +34,18 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
       .filter((e) => e.status === "past" && e.artistId === "artist1")
       .slice(0, 3);
     setMyEvents(pastEvents);
+
+    // Generate stats on client to avoid hydration mismatch
+    if (typeof window !== "undefined") {
+      const stats: Record<string, { audience: number; revenue: number }> = {};
+      pastEvents.forEach((event) => {
+        stats[event.id] = {
+          audience: Math.floor(Math.random() * 5000 + 1000),
+          revenue: event.ticketPrice * Math.floor(Math.random() * 500 + 100),
+        };
+      });
+      setEventStats(stats);
+    }
   }, [initialEvents]);
 
   const premiumPlans = [
@@ -83,20 +99,24 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
                 <CardHeader>
                   <CardTitle>{event.title}</CardTitle>
                   <CardDescription>
-                    {new Date(event.date).toLocaleDateString()}
+                    {format(new Date(event.date), "PPP")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p>
-                    <span className="font-semibold">Audience:</span>{" "}
-                    {Math.floor(Math.random() * 5000 + 1000).toLocaleString()}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Revenue:</span> $
-                    {(
-                      event.ticketPrice * Math.floor(Math.random() * 500 + 100)
-                    ).toLocaleString()}
-                  </p>
+                  {eventStats[event.id] ? (
+                    <>
+                      <p>
+                        <span className="font-semibold">Audience:</span>{" "}
+                        {eventStats[event.id].audience.toLocaleString()}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Revenue:</span> $
+                        {eventStats[event.id].revenue.toLocaleString()}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Loading stats...</p>
+                  )}
                 </CardContent>
                 <CardFooter>
                     <Button variant="outline" className="w-full">View Details</Button>
