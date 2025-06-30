@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const GenerateEventDescriptionInputSchema = z.object({
+const GenerateEventDescriptionInputSchema = z.object({
   title: z.string().describe('The title of the event.'),
   artist: z.string().describe('The name of the artist or performer.'),
   genre: z.string().describe('The genre of the event (e.g., Rock, Comedy).'),
@@ -18,7 +18,7 @@ export const GenerateEventDescriptionInputSchema = z.object({
 });
 export type GenerateEventDescriptionInput = z.infer<typeof GenerateEventDescriptionInputSchema>;
 
-export const GenerateEventDescriptionOutputSchema = z.object({
+const GenerateEventDescriptionOutputSchema = z.object({
   description: z.string().describe('The generated event description.'),
 });
 export type GenerateEventDescriptionOutput = z.infer<typeof GenerateEventDescriptionOutputSchema>;
