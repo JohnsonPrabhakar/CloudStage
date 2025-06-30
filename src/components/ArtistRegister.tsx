@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -38,7 +39,7 @@ const formSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
   phone: z.string().min(10, "Please enter a valid phone number."),
   location: z.string().min(2, "Location is required."),
-  profilePictureUrl: z.any().optional(),
+  profilePicture: z.any().optional(),
   about: z.string().min(20, "Please tell us a bit more about you (at least 20 characters)."),
   instagramUrl: z.string().url().optional().or(z.literal('')),
   facebookUrl: z.string().url().optional().or(z.literal('')),
@@ -52,6 +53,7 @@ export default function ArtistRegister() {
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -67,16 +69,24 @@ export default function ArtistRegister() {
       youtubeUrl: "",
       experience: 0,
       subCategory: "",
+      profilePicture: undefined,
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
+    const profileFile = values.profilePicture?.[0];
+    const profileUrl = profileFile 
+        ? URL.createObjectURL(profileFile) 
+        : "https://placehold.co/128x128.png";
+
     const newArtist: PendingArtist = {
         ...values,
-        profilePictureUrl: "https://placehold.co/128x128.png", // Placeholder
+        profilePictureUrl: profileUrl,
     };
+    
+    delete (newArtist as any).profilePicture;
 
     addPendingArtist(newArtist);
     
@@ -182,6 +192,35 @@ export default function ArtistRegister() {
                   )}
                 />
               </div>
+
+               <FormField
+                control={form.control}
+                name="profilePicture"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Profile Picture</FormLabel>
+                     {profilePicturePreview && <Image src={profilePicturePreview} alt="Profile preview" width={100} height={100} className="rounded-full border object-cover"/>}
+                    <FormControl>
+                       <Input
+                        type="file"
+                        accept="image/jpeg, image/png, image/webp"
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          if (files && files.length > 0) {
+                            field.onChange(files);
+                            setProfilePicturePreview(URL.createObjectURL(files[0]));
+                          } else {
+                            field.onChange(undefined);
+                            setProfilePicturePreview(null);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>Optional. A good profile picture helps you stand out.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
