@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -81,7 +82,7 @@ export default function ArtistLogin() {
             description = "Invalid email or password.";
             break;
           default:
-            description = "An error occurred during login. Please try again.";
+            description = "An error occurred during login. Please check your internet connection and try again.";
             break;
         }
       }

@@ -109,7 +109,7 @@ export default function ArtistRegister() {
                description = "The Email/Password sign-in provider is not enabled in your Firebase console. Please enable it to allow registrations.";
                break;
             default:
-              description = "An unexpected error occurred during registration. Please check the console.";
+              description = "An unexpected error occurred during registration. Please check your internet connection and try again.";
               break;
           }
         }
