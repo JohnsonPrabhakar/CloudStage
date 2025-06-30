@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,6 +27,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
+import { Sparkles } from "lucide-react";
+import { generateEventDescription } from "@/ai/flows/generate-event-description";
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -42,6 +45,7 @@ const formSchema = z.object({
 
 export default function CreateEventForm() {
   const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,6 +62,46 @@ export default function CreateEventForm() {
       boost: false,
     },
   });
+
+  async function handleGenerateDescription() {
+    setIsGenerating(true);
+    const { title, genre, type } = form.getValues();
+
+    if (!title || !genre || !type) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please fill out the Title, Event Type, and Genre fields first.",
+      });
+      setIsGenerating(false);
+      return;
+    }
+
+    try {
+      const result = await generateEventDescription({
+        title,
+        artist: "Current Artist", // Mocked, same as in onSubmit
+        genre,
+        type,
+      });
+      if (result.description) {
+        form.setValue("description", result.description, { shouldValidate: true });
+        toast({
+          title: "Description Generated!",
+          description: "The AI has written an event description for you.",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Generation Failed",
+        description: "Could not generate a description. Please try again.",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const newEvent: Event = {
@@ -198,10 +242,22 @@ export default function CreateEventForm() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Event Description</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Event Description</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateDescription}
+                        disabled={isGenerating}
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {isGenerating ? 'Generating...' : 'Generate with AI'}
+                      </Button>
+                    </div>
                     <FormControl>
                       <Textarea
-                        placeholder="Tell us about your event..."
+                        placeholder="Tell us about your event, or let AI write it for you..."
                         className="resize-y min-h-[100px]"
                         {...field}
                       />
