@@ -13,6 +13,7 @@ import {
   Share2,
   Copy,
   ChevronLeft,
+  WifiOff,
 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,16 +24,24 @@ export default function MovieWatchPage() {
   const { toast } = useToast();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reactions, setReactions] = useState<{ id: number; icon: string; left: string }[]>([]);
 
   useEffect(() => {
     const fetchMovie = async () => {
         if (params.id) {
             setLoading(true);
-            const foundMovie = await getMovieById(params.id as string);
-            setMovie(foundMovie || null);
+            setError(null);
+            try {
+                const foundMovie = await getMovieById(params.id as string);
+                setMovie(foundMovie || null);
+            } catch (err) {
+                console.error(err);
+                setError("Could not load movie details. Please check your internet connection and try again.");
+            } finally {
+                setLoading(false);
+            }
         }
-        setLoading(false);
     }
     fetchMovie();
   }, [params.id]);
@@ -112,6 +121,19 @@ export default function MovieWatchPage() {
             </div>
         </div>
      );
+  }
+
+  if (error) {
+    return (
+        <div className="container mx-auto p-8 text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+                Try Again
+            </Button>
+        </div>
+    )
   }
 
   if (!movie || !isValidStreamUrl(movie.youtubeUrl)) {

@@ -5,9 +5,10 @@ import { type Movie } from "@/lib/types";
 import { MovieCard } from "./MovieCard";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Film } from "lucide-react";
+import { Film, WifiOff } from "lucide-react";
 import { getAllMovies } from "@/lib/firebase-service";
 import { Skeleton } from "./ui/skeleton";
+import { Button } from "./ui/button";
 
 const genres = ['Action', 'Comedy', 'Drama', 'Horror', 'Romance', 'Sci-Fi', 'Thriller'];
 const languages = ['English', 'Hindi', 'Tamil', 'Telugu'];
@@ -15,6 +16,7 @@ const languages = ['English', 'Hindi', 'Tamil', 'Telugu'];
 export function MoviesClient() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenre, setSelectedGenre] = useState<string | "all">("all");
   const [selectedLanguage, setSelectedLanguage] = useState<string | "all">("all");
@@ -22,9 +24,16 @@ export function MoviesClient() {
   useEffect(() => {
     const fetchMovies = async () => {
         setLoading(true);
-        const allMovies = await getAllMovies();
-        setMovies(allMovies);
-        setLoading(false);
+        setError(null);
+        try {
+            const allMovies = await getAllMovies();
+            setMovies(allMovies);
+        } catch (err) {
+            console.error(err);
+            setError("Could not load movies. Please check your internet connection and try again.");
+        } finally {
+            setLoading(false);
+        }
     }
     fetchMovies();
   }, []);
@@ -53,6 +62,17 @@ export function MoviesClient() {
                 ))}
             </div>
         )
+    }
+
+    if (error) {
+       return (
+        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg">
+          <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+          <p className="text-xl font-semibold text-foreground">Connection Error</p>
+          <p className="mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      )
     }
 
     if (filteredMovies.length > 0) {

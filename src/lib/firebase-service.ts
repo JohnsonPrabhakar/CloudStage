@@ -139,7 +139,7 @@ export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'i
         phone: data.phone,
         location: data.location,
         about: data.about,
-        profilePictureUrl: profilePictureUrl, // Use the generated URL
+        profilePictureUrl: profilePictureUrl,
         youtubeUrl: data.youtubeUrl || "",
         instagramUrl: data.instagramUrl || "",
         facebookUrl: data.facebookUrl || "",
@@ -265,7 +265,7 @@ export const getAllMovies = async (): Promise<Movie[]> => {
     return snapshot.docs.map(doc => fromFirestore<Movie>(doc));
   } catch (error) {
     console.error("Error fetching all movies: ", error);
-    return [];
+    throw error;
   }
 };
 
@@ -279,6 +279,6 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     return null;
   } catch (error) {
     console.error("Error fetching movie by ID: ", error);
-    return null;
+    throw error;
   }
 };
