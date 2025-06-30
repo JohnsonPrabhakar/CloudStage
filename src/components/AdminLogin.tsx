@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -57,7 +58,7 @@ export default function AdminLogin() {
         toast({
           variant: "destructive",
           title: "Access Denied",
-          description: "This account does not have admin privileges.",
+          description: "Only the designated admin account can log in here.",
         });
         setLoading(false);
       }
