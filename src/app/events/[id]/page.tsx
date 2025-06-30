@@ -19,6 +19,7 @@ import {
   Users,
   Play,
   DollarSign,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -31,8 +32,8 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      const allEvents = getEvents(); // In a real app, this would also fetch from localStorage
-      const foundEvent = allEvents.find((e) => e.id === params.id);
+      const allEvents = getEvents(); 
+      const foundEvent = allEvents.find((e) => e.id === params.id && e.moderationStatus === "approved");
       setEvent(foundEvent || null);
     }
     setLoading(false);
@@ -71,7 +72,7 @@ export default function EventDetailPage() {
       <div className="container mx-auto p-4 text-center">
         <h1 className="text-4xl font-bold">Event Not Found</h1>
         <p className="text-muted-foreground mt-4">
-          The event you are looking for does not exist.
+          This event may not exist or is no longer available.
         </p>
         <Button onClick={() => router.push("/")} className="mt-8">
           Back to Home
@@ -126,11 +127,17 @@ export default function EventDetailPage() {
         <Image
           src={event.bannerUrl}
           alt={event.title}
-          layout="fill"
-          objectFit="cover"
+          fill
+          className="object-cover"
           data-ai-hint="concert stage"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+        {event.isBoosted && (
+             <Badge className="absolute top-4 left-4 bg-amber-500 text-white shadow-lg">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Boosted Event
+            </Badge>
+        )}
         <div className="absolute bottom-0 left-0 p-4 md:p-8">
           <h1 className="text-4xl md:text-6xl font-extrabold text-white shadow-lg">
             {event.title}
@@ -144,13 +151,16 @@ export default function EventDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <div className="flex items-center gap-4 flex-wrap">
-            <Badge variant="outline" className="text-sm py-1 px-3">
+            <Badge variant="default" className="text-sm py-1 px-3">
               <Clapperboard className="mr-2 h-4 w-4" />
-              {event.genre}
+              {event.category}
             </Badge>
             <Badge variant="outline" className="text-sm py-1 px-3">
               <Globe className="mr-2 h-4 w-4" />
               {event.language}
+            </Badge>
+             <Badge variant="outline" className="text-sm py-1 px-3">
+              {event.genre}
             </Badge>
             <Badge variant="secondary" className="text-sm py-1 px-3 capitalize">
               {event.status}
@@ -186,7 +196,7 @@ export default function EventDetailPage() {
               <div className="flex items-center">
                 <DollarSign className="h-5 w-5 mr-3 text-primary" />
                 <span className="font-medium">
-                  ${event.ticketPrice.toFixed(2)}
+                  ₹{event.ticketPrice.toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center">

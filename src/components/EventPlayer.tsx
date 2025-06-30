@@ -35,7 +35,7 @@ export default function EventPlayer({ event }: { event: Event }) {
             <h1 className="text-3xl font-bold">{event.title}</h1>
             <p className="text-lg text-muted-foreground">by {event.artist}</p>
             <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline"><Clapperboard className="mr-1 h-3 w-3"/>{event.genre}</Badge>
+                <Badge variant="outline"><Clapperboard className="mr-1 h-3 w-3"/>{event.category}</Badge>
                 <Badge variant="outline"><Globe className="mr-1 h-3 w-3"/>{event.language}</Badge>
             </div>
         </div>
@@ -48,7 +48,7 @@ export default function EventPlayer({ event }: { event: Event }) {
             {/* Chat messages placeholder */}
             <div className="flex items-start gap-2">
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                  <Image src="https://placehold.co/40x40.png" alt="User" layout="fill" data-ai-hint="person avatar"/>
+                  <Image src="https://placehold.co/40x40.png" alt="User" fill data-ai-hint="person avatar"/>
                 </div>
                 <div>
                     <p className="font-bold text-sm">Fan123</p>
@@ -57,7 +57,7 @@ export default function EventPlayer({ event }: { event: Event }) {
             </div>
              <div className="flex items-start gap-2">
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                  <Image src="https://placehold.co/40x40.png" alt="User" layout="fill" data-ai-hint="person avatar"/>
+                  <Image src="https://placehold.co/40x40.png" alt="User" fill data-ai-hint="person avatar"/>
                 </div>
                 <div>
                     <p className="font-bold text-sm">MusicLover</p>
@@ -66,7 +66,7 @@ export default function EventPlayer({ event }: { event: Event }) {
             </div>
              <div className="flex items-start gap-2">
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                  <Image src="https://placehold.co/40x40.png" alt="User" layout="fill" data-ai-hint="person avatar"/>
+                  <Image src="https://placehold.co/40x40.png" alt="User" fill data-ai-hint="person avatar"/>
                 </div>
                 <div>
                     <p className="font-bold text-sm">Rocker</p>

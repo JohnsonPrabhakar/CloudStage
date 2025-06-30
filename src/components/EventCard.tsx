@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Calendar, Ticket, Play } from "lucide-react";
+import { ArrowRight, Calendar, Ticket, Play, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 
 type EventCardProps = {
@@ -45,25 +45,34 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <Card className="flex flex-col overflow-hidden h-full transition-all hover:shadow-xl hover:-translate-y-1">
-      <Link href={`/events/${event.id}`} className="block">
+      <Link href={`/events/${event.id}`} className="block group">
         <div className="relative h-48 w-full">
           <Image
             src={event.bannerUrl}
             alt={event.title}
-            layout="fill"
-            objectFit="cover"
-            className="transition-transform duration-300 group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
             data-ai-hint="concert crowd"
           />
-          <Badge
-            className="absolute top-2 right-2 capitalize"
-            variant={event.status === "live" ? "destructive" : "secondary"}
-          >
-            {event.status}
-          </Badge>
+           <div className="absolute top-2 right-2 flex gap-2">
+            {event.isBoosted && (
+                <Badge className="bg-amber-500 text-white">
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    Boosted
+                </Badge>
+            )}
+            <Badge
+                className="capitalize"
+                variant={event.status === "live" ? "destructive" : "secondary"}
+            >
+                {event.status}
+            </Badge>
+           </div>
         </div>
       </Link>
       <CardHeader className="flex-grow">
+        <Badge variant="outline" className="w-fit mb-2">{event.category}</Badge>
         <Link href={`/events/${event.id}`} className="block">
           <CardTitle className="text-xl hover:text-primary transition-colors">
             {event.title}

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getEvents } from "@/lib/mock-data";
 
 type HomePageClientProps = {
   initialEvents: Event[];
@@ -13,8 +14,6 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
   const [allEvents, setAllEvents] = useState<Event[]>(initialEvents);
 
   useEffect(() => {
-    // In a real app, you might want to merge server data with local data more intelligently.
-    // For this mock, we'll just check if local data exists and use it.
     if (typeof window !== "undefined") {
       const storedEvents = localStorage.getItem("events");
       if (storedEvents) {
@@ -24,20 +23,39 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
         } catch (e) {
           console.error("Failed to parse events from localStorage", e);
         }
-      } else {
-        localStorage.setItem('events', JSON.stringify(initialEvents));
       }
     }
-  }, [initialEvents]);
+  }, []);
+
+  const approvedEvents = useMemo(
+    () => allEvents.filter((event) => event.moderationStatus === "approved"),
+    [allEvents]
+  );
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
-    return allEvents.reduce(
-      (acc, event) => {
+    // Logic to update status dynamically based on date
+    const eventsWithUpdatedStatus = approvedEvents.map(event => {
         const eventDate = new Date(event.date);
+        let status: Event['status'] = event.status;
+        if (event.status !== 'live') { // Don't override if manually set to live
+             if (eventDate < now) status = 'past';
+             else status = 'upcoming';
+        }
+        // A simple check to simulate a live event
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        if (eventDate > oneHourAgo && eventDate < now) {
+            status = 'live';
+        }
+
+        return {...event, status};
+    });
+
+    return eventsWithUpdatedStatus.reduce(
+      (acc, event) => {
         if (event.status === "live") {
           acc.liveEvents.push(event);
-        } else if (event.status === "upcoming" && eventDate > now) {
+        } else if (event.status === "upcoming") {
           acc.upcomingEvents.push(event);
         } else {
           acc.pastEvents.push(event);
@@ -50,7 +68,7 @@ export function HomePageClient({ initialEvents }: HomePageClientProps) {
         pastEvents: Event[];
       }
     );
-  }, [allEvents]);
+  }, [approvedEvents]);
 
   const renderEventGrid = (events: Event[], emptyMessage: string) => {
     if (events.length === 0) {

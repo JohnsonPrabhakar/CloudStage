@@ -10,11 +10,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { type Event } from "@/lib/types";
-import { PlusCircle, Crown, CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { type Event, type Artist } from "@/lib/types";
+import { getArtists, getEvents } from "@/lib/mock-data";
+import {
+  PlusCircle,
+  Crown,
+  History,
+  TrendingUp,
+  PartyPopper,
+} from "lucide-react";
 import { format } from "date-fns";
 
 type ArtistDashboardProps = {
@@ -23,159 +39,174 @@ type ArtistDashboardProps = {
 
 export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps) {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
-  const [eventStats, setEventStats] = useState<
-    Record<string, { audience: number; revenue: number }>
-  >({});
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
+
+  const artistId = "artist1"; // Mocked artist ID
 
   useEffect(() => {
-    // Mocking artist-specific events. In a real app, this would be a filtered API call.
-    // For now, we'll just take some of the past events.
-    const pastEvents = initialEvents
-      .filter((e) => e.status === "past" && e.artistId === "artist1")
-      .slice(0, 3);
-    setMyEvents(pastEvents);
+    setIsClient(true);
+    const allEvents = getEvents();
+    const allArtists = getArtists();
+    setMyEvents(allEvents.filter((e) => e.artistId === artistId));
+    setArtist(allArtists.find((a) => a.id === artistId) || null);
+  }, []);
+  
+  // This effect will re-run when local storage changes are made on other pages.
+  useEffect(() => {
+    const handleStorageChange = () => {
+        const allEvents = getEvents();
+        const allArtists = getArtists();
+        setMyEvents(allEvents.filter(e => e.artistId === artistId));
+        setArtist(allArtists.find(a => a.id === artistId) || null);
+    };
 
-    // Generate stats on client to avoid hydration mismatch
-    if (typeof window !== "undefined") {
-      const stats: Record<string, { audience: number; revenue: number }> = {};
-      pastEvents.forEach((event) => {
-        stats[event.id] = {
-          audience: Math.floor(Math.random() * 5000 + 1000),
-          revenue: event.ticketPrice * Math.floor(Math.random() * 500 + 100),
-        };
-      });
-      setEventStats(stats);
-    }
-  }, [initialEvents]);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
-  const premiumPlans = [
-    {
-      name: "Pro Artist",
-      price: "$29/mo",
-      features: [
-        "Unlimited Events",
-        "HD Streaming",
-        "Advanced Analytics",
-        "Priority Support",
-      ],
-      isCurrent: false,
-    },
-    {
-      name: "Legend",
-      price: "$79/mo",
-      features: [
-        "All Pro features",
-        "4K Streaming",
-        "Dedicated Support",
-        "Merch Integration",
-      ],
-      isCurrent: false,
-    },
-  ];
+
+  const handleBoost = (eventId: string, amount: number) => {
+    const updatedEvents = myEvents.map((e) =>
+      e.id === eventId ? { ...e, isBoosted: true, boostAmount: amount } : e
+    );
+
+    // Update all events in localStorage
+    const allEvents = getEvents();
+    const allEventsUpdated = allEvents.map(e => {
+        const updatedEvent = updatedEvents.find(ue => ue.id === e.id);
+        return updatedEvent || e;
+    });
+
+    localStorage.setItem("events", JSON.stringify(allEventsUpdated));
+    setMyEvents(updatedEvents);
+
+    toast({
+      title: "Event Boosted! 🚀",
+      description: `Your event has been successfully boosted for ₹${amount}.`,
+    });
+  };
+
+  const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
+
+  if (!isClient) {
+    return (
+      <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
+        <div className="h-24 bg-muted rounded-lg"></div>
+        <div className="h-12 w-1/3 bg-muted rounded"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="h-48 bg-muted rounded-lg"></div>
+            <div className="h-48 bg-muted rounded-lg"></div>
+            <div className="h-48 bg-muted rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
+      {!artist?.isPremium && (
+        <Card className="bg-primary/10 border-primary/50">
+          <CardHeader>
+            <div className="flex items-center gap-4">
+              <Crown className="h-8 w-8 text-primary" />
+              <div>
+                <CardTitle>Become a Premium Artist!</CardTitle>
+                <CardDescription>
+                  Get priority listing, free boosts, and advanced analytics.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild>
+              <Link href="/artist/premium">Upgrade to Premium</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 className="text-4xl font-bold">Artist Dashboard</h1>
-            <p className="text-muted-foreground">Manage your events and grow your audience.</p>
+          <h1 className="text-4xl font-bold">Artist Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage your events and grow your audience.
+          </p>
         </div>
-        <Button asChild size="lg">
-          <Link href="/artist/create-event">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Create New Event
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+            <Button asChild variant="outline">
+                <Link href="/artist/history"><History className="mr-2 h-4 w-4"/> View History</Link>
+            </Button>
+            <Button asChild size="lg">
+                <Link href="/artist/create-event">
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Create New Event
+                </Link>
+            </Button>
+        </div>
       </div>
 
-      <Separator />
-
       <section>
-        <h2 className="text-2xl font-bold mb-4">Past Shows</h2>
-        {myEvents.length > 0 ? (
+        <h2 className="text-2xl font-bold mb-4">My Approved Events</h2>
+        {approvedEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myEvents.map((event) => (
-              <Card key={event.id}>
+            {approvedEvents.map((event) => (
+              <Card key={event.id} className="flex flex-col">
                 <CardHeader>
                   <CardTitle>{event.title}</CardTitle>
                   <CardDescription>
                     {format(new Date(event.date), "PPP")}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {eventStats[event.id] ? (
-                    <>
-                      <p>
-                        <span className="font-semibold">Audience:</span>{" "}
-                        {eventStats[event.id].audience.toLocaleString()}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Revenue:</span> $
-                        {eventStats[event.id].revenue.toLocaleString()}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">Loading stats...</p>
-                  )}
+                <CardContent className="flex-grow">
+                   <Badge variant={event.isBoosted ? "default" : "outline"} className={event.isBoosted ? "bg-green-600" : ""}>
+                    {event.isBoosted ? "Boosted" : "Not Boosted"}
+                  </Badge>
                 </CardContent>
                 <CardFooter>
-                    <Button variant="outline" className="w-full">View Details</Button>
+                  {!event.isBoosted ? (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="w-full">
+                          <TrendingUp className="mr-2 h-4 w-4" /> Boost Event
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Boost Your Event</DialogTitle>
+                          <DialogDescription>
+                            Get your event featured on the homepage for maximum visibility.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-4 py-4">
+                          {[500, 1000, 2000, 3000].map((amount) => (
+                            <DialogClose asChild key={amount}>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleBoost(event.id, amount)}
+                              >
+                                Boost for ₹{amount}
+                              </Button>
+                            </DialogClose>
+                          ))}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                     <Button className="w-full" disabled>
+                        <PartyPopper className="mr-2 h-4 w-4"/> Already Boosted
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground">No past shows to display.</p>
+          <p className="text-muted-foreground">No approved events yet. Create one to get started!</p>
         )}
-      </section>
-
-      <Separator />
-
-      <section>
-        <h2 className="text-2xl font-bold mb-4">Premium Membership</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="flex flex-col">
-                <CardHeader>
-                    <CardTitle>Free Tier</CardTitle>
-                    <CardDescription>Get started on CloudStage</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-4">
-                     <p className="text-3xl font-bold">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                        <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500"/>Up to 2 events per month</li>
-                        <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500"/>Standard Analytics</li>
-                        <li className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-green-500"/>Community Support</li>
-                    </ul>
-                </CardContent>
-                <CardFooter>
-                    <Button variant="outline" className="w-full" disabled>Your Current Plan</Button>
-                </CardFooter>
-            </Card>
-          {premiumPlans.map((plan) => (
-            <Card key={plan.name} className="flex flex-col border-primary/50 shadow-lg">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle>{plan.name}</CardTitle>
-                    <Crown className="h-6 w-6 text-primary" />
-                </div>
-                <CardDescription>
-                  For professionals who want more.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-4">
-                <p className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground"></span></p>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-primary"/>{feature}</li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full">Subscribe</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
       </section>
     </div>
   );

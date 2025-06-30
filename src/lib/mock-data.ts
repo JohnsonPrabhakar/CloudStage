@@ -1,11 +1,11 @@
 import { type Event, type Artist } from "./types";
 
 const artists: Artist[] = [
-    { id: 'artist1', name: 'The Rockers', isPremium: true },
+    { id: 'artist1', name: 'The Rockers', isPremium: false },
     { id: 'artist2', name: 'Synthwave Dreamer', isPremium: false },
     { id: 'artist3', name: 'Acoustic Soul', isPremium: true },
     { id: 'artist4', name: 'Laugh Factory', isPremium: false },
-]
+];
 
 const events: Event[] = [
   {
@@ -14,14 +14,17 @@ const events: Event[] = [
     artist: "The Rockers",
     artistId: "artist1",
     description: "Join us for a raw, high-energy rock show live from our garage. Expect loud guitars and new songs!",
+    category: "Music",
     genre: "Rock",
     language: "English",
     date: new Date(Date.now() - 3600 * 1000).toISOString(), // 1 hour ago
     status: "live",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 0,
     isBoosted: true,
+    boostAmount: 2000,
     youtubeUrl: "https://youtube.com",
     instagramUrl: "https://instagram.com",
   },
@@ -31,14 +34,17 @@ const events: Event[] = [
     artist: "Synthwave Dreamer",
     artistId: "artist2",
     description: "A chill, nostalgic journey through 80s inspired synthwave tracks. Perfect for a late-night drive.",
+    category: "Music",
     genre: "Synthwave",
     language: "Instrumental",
     date: new Date(Date.now() + 86400000 * 2).toISOString(), // in 2 days
     status: "upcoming",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 15.0,
     isBoosted: true,
+    boostAmount: 1000,
     youtubeUrl: "https://youtube.com",
     instagramUrl: "https://instagram.com",
   },
@@ -48,10 +54,12 @@ const events: Event[] = [
     artist: "Acoustic Soul",
     artistId: "artist3",
     description: "An intimate acoustic performance of soulful original songs and beloved covers.",
+    category: "Music",
     genre: "Acoustic",
     language: "English",
     date: new Date(Date.now() + 86400000 * 7).toISOString(), // in 7 days
     status: "upcoming",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 10.0,
@@ -65,10 +73,12 @@ const events: Event[] = [
     artist: "Laugh Factory",
     artistId: "artist4",
     description: "A hilarious night of stand-up comedy featuring three of the best up-and-coming comedians.",
+    category: "Stand-up Comedy",
     genre: "Comedy",
     language: "English",
     date: new Date(Date.now() + 86400000 * 10).toISOString(), // in 10 days
     status: "upcoming",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 20.0,
@@ -82,10 +92,12 @@ const events: Event[] = [
     artist: "The Rockers",
     artistId: "artist1",
     description: "The official recording of our world tour kick-off show. Experience the epic night all over again.",
+    category: "Music",
     genre: "Rock",
     language: "English",
     date: new Date(Date.now() - 86400000 * 30).toISOString(), // 30 days ago
     status: "past",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 25.0,
@@ -99,10 +111,12 @@ const events: Event[] = [
     artist: "Synthwave Dreamer",
     artistId: "artist2",
     description: "The live-streamed release party for the 'Neon Nights' EP. Featuring a full playthrough and Q&A.",
+    category: "Music",
     genre: "Synthwave",
     language: "Instrumental",
     date: new Date(Date.now() - 86400000 * 14).toISOString(), // 14 days ago
     status: "past",
+    moderationStatus: "approved",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 5.0,
@@ -112,14 +126,37 @@ const events: Event[] = [
   },
 ];
 
+const initializeLocalStorage = () => {
+  if (typeof window !== "undefined") {
+    if (!localStorage.getItem("events")) {
+      localStorage.setItem("events", JSON.stringify(events));
+    }
+    if (!localStorage.getItem("artists")) {
+      localStorage.setItem("artists", JSON.stringify(artists));
+    }
+  }
+};
+
+initializeLocalStorage();
+
 export const getEvents = (): Event[] => {
   if (typeof window !== "undefined") {
     const localEvents = localStorage.getItem("events");
     if (localEvents) {
       return JSON.parse(localEvents);
     }
+    localStorage.setItem("events", JSON.stringify(events));
   }
   return events;
 };
 
-export const getArtists = (): Artist[] => artists;
+export const getArtists = (): Artist[] => {
+  if (typeof window !== "undefined") {
+    const localArtists = localStorage.getItem("artists");
+    if (localArtists) {
+      return JSON.parse(localArtists);
+    }
+    localStorage.setItem("artists", JSON.stringify(artists));
+  }
+  return artists;
+};
