@@ -17,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
 
 const formSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -39,7 +41,7 @@ export default function AdminLogin() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     // Mock authentication
-    if (values.username === "admin" && values.password === "password") {
+    if (values.username === "admin" && values.password === "password123") {
       if (typeof window !== "undefined") {
         localStorage.setItem("isAdmin", "true");
       }
@@ -65,7 +67,7 @@ export default function AdminLogin() {
           <CardTitle>Admin Login</CardTitle>
           <CardDescription>Enter credentials to access the dashboard.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -88,7 +90,7 @@ export default function AdminLogin() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="password" {...field} />
+                      <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -99,6 +101,13 @@ export default function AdminLogin() {
               </Button>
             </form>
           </Form>
+           <Alert>
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Demo Credentials</AlertTitle>
+            <AlertDescription>
+              Use <strong>username:</strong> admin & <strong>password:</strong> password123
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     </div>

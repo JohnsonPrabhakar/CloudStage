@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   Eye,
   Clock,
+  LogOut,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import {
@@ -129,6 +130,13 @@ export default function AdminDashboard({
     setEvents(updatedEvents);
     localStorage.setItem("events", JSON.stringify(updatedEvents));
   };
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("isAdmin");
+      router.push("/admin");
+    }
+  };
   
   const chartConfig = {
     revenue: { label: "Revenue", color: "hsl(var(--primary))" },
@@ -149,11 +157,16 @@ export default function AdminDashboard({
           </Button>
           <h1 className="text-4xl font-bold">Admin Dashboard</h1>
         </div>
-        <Button asChild>
-          <Link href="/admin/boosted">
-            <TrendingUp className="mr-2 h-4 w-4" /> View Boosted Events
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button asChild>
+                <Link href="/admin/boosted">
+                    <TrendingUp className="mr-2 h-4 w-4" /> View Boosted Events
+                </Link>
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" /> Logout
+            </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview">
@@ -302,7 +315,7 @@ export default function AdminDashboard({
             <CardHeader>
               <CardTitle>Revenue Breakdown</CardTitle>
               <CardDescription>Mock revenue data from all sources.</CardDescription>
-            </CardHeader>
+            </Header>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <Card>

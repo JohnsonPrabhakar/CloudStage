@@ -30,13 +30,30 @@ type BoostedEventsProps = {
 export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
   const router = useRouter();
   const [boostedEvents, setBoostedEvents] = useState<Event[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // In a real app, this would be an API call.
-    // Here we filter from all events.
-    const allEvents = getEvents();
-    setBoostedEvents(allEvents.filter((e) => e.isBoosted));
-  }, []);
+    if (typeof window !== "undefined") {
+      const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
+      if (!adminLoggedIn) {
+        router.push("/admin");
+      } else {
+        setIsAuthenticated(true);
+        // In a real app, this would be an API call.
+        // Here we filter from all events.
+        const allEvents = getEvents();
+        setBoostedEvents(allEvents.filter((e) => e.isBoosted));
+      }
+    }
+  }, [router]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Redirecting...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
