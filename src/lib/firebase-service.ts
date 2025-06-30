@@ -119,19 +119,27 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
 
 // ARTIST-RELATED FUNCTIONS
 
-export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres'> & {password: string}) => {
+export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres' | 'profilePictureUrl'> & {password: string}, profilePictureFile?: File) => {
     // 1. Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
 
-    // 2. Create artist profile in Firestore
+    // 2. Handle profile picture upload
+    let profilePictureUrl = 'https://placehold.co/128x128.png';
+    if(profilePictureFile) {
+        const storageRef = ref(storage, `artist-profiles/${user.uid}_${profilePictureFile.name}`);
+        const snapshot = await uploadBytes(storageRef, profilePictureFile);
+        profilePictureUrl = await getDownloadURL(snapshot.ref);
+    }
+
+    // 3. Create artist profile in Firestore
     const artistProfile: Omit<Artist, 'id'> = {
         name: data.name,
         email: data.email,
         phone: data.phone,
         location: data.location,
         about: data.about,
-        profilePictureUrl: data.profilePictureUrl,
+        profilePictureUrl: profilePictureUrl, // Use the generated URL
         youtubeUrl: data.youtubeUrl || "",
         instagramUrl: data.instagramUrl || "",
         facebookUrl: data.facebookUrl || "",
