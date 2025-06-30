@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  BarChart,
+  BarChart as BarChartIcon,
   Check,
   DollarSign,
   Sparkles,
@@ -41,11 +41,13 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
   Bar,
   XAxis,
   YAxis,
-  BarChart as RechartsBarChart,
-} from "@/components/ui/chart";
+  BarChart,
+} from "recharts";
 import { format } from "date-fns";
 
 type AdminDashboardProps = {
@@ -211,7 +213,7 @@ export default function AdminDashboard({
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Pending Events</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
+                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{pendingEvents.length}</div>
@@ -226,12 +228,12 @@ export default function AdminDashboard({
                 <CardHeader><CardTitle>Revenue by Artist</CardTitle></CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-                    <RechartsBarChart data={artistChartData} accessibilityLayer>
+                    <BarChart data={artistChartData} accessibilityLayer>
                       <XAxis dataKey="artist" tickLine={false} axisLine={false} tickMargin={8} />
                       <YAxis tickFormatter={(value) => `₹${Number(value) / 1000}k`} />
                       <ChartTooltip content={<ChartTooltipContent formatter={(value) => `₹${value.toLocaleString("en-IN")}`} />} />
                       <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                    </RechartsBarChart>
+                    </BarChart>
                   </ChartContainer>
                 </CardContent>
               </Card>
