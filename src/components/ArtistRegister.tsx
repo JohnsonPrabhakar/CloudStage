@@ -99,7 +99,11 @@ export default function ArtistRegister() {
         if (error instanceof FirebaseError) {
           switch (error.code) {
             case 'auth/email-already-in-use':
-              description = "This email address is already registered.";
+              description = "This email address is already registered. Please try logging in instead.";
+              form.setError("email", {
+                  type: "server",
+                  message: "This email is already in use. Please try logging in.",
+              });
               break;
             case 'auth/configuration-not-found':
                description = "The Email/Password sign-in provider is not enabled in your Firebase console. Please enable it to allow registrations.";
@@ -351,5 +355,3 @@ export default function ArtistRegister() {
     </div>
   );
 }
-
-    
