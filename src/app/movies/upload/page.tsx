@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -42,7 +43,7 @@ const formSchema = z.object({
   ),
   genre: z.enum(movieGenres),
   language: z.enum(movieLanguages),
-  posterUrl: z.string().url("Must be a valid image URL.").optional().or(z.literal('')),
+  posterImage: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -51,6 +52,7 @@ export default function UploadMoviePage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -71,14 +73,23 @@ export default function UploadMoviePage() {
       youtubeUrl: "",
       genre: "Action",
       language: "English",
-      posterUrl: "",
+      posterImage: undefined,
     },
   });
 
   function onSubmit(values: FormValues) {
+    const posterFile = values.posterImage?.[0];
+    const posterUrl = posterFile 
+        ? URL.createObjectURL(posterFile) 
+        : `https://placehold.co/400x600.png?text=${encodeURIComponent(values.title)}`;
+
     addMovie({
-      ...values,
-      posterUrl: values.posterUrl || `https://placehold.co/400x600.png?text=${encodeURIComponent(values.title)}`,
+      title: values.title,
+      description: values.description,
+      youtubeUrl: values.youtubeUrl,
+      genre: values.genre,
+      language: values.language,
+      posterUrl: posterUrl,
     });
 
     toast({
@@ -211,12 +222,26 @@ export default function UploadMoviePage() {
 
                 <FormField
                   control={form.control}
-                  name="posterUrl"
+                  name="posterImage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Poster Image URL</FormLabel>
+                      <FormLabel>Upload Poster</FormLabel>
+                      {posterPreview && <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover"/>}
                       <FormControl>
-                        <Input placeholder="https://example.com/image.png" {...field} />
+                         <Input 
+                          type="file" 
+                          accept="image/jpeg, image/png, image/webp"
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            if (files && files.length > 0) {
+                              field.onChange(files);
+                              setPosterPreview(URL.createObjectURL(files[0]));
+                            } else {
+                              field.onChange(undefined);
+                              setPosterPreview(null);
+                            }
+                          }}
+                        />
                       </FormControl>
                        <FormDescription>
                         Optional. If left blank, a placeholder image will be used.
