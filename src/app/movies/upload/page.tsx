@@ -28,7 +28,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { addMovie } from "@/lib/firebase-service";
-import { ChevronLeft, Film } from "lucide-react";
+import { ChevronLeft, Film, Loader2 } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
 const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
@@ -54,15 +56,16 @@ export default function UploadMoviePage() {
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
-      if (!adminLoggedIn) {
-        router.push("/admin");
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email === 'admin@cloudstage.in') {
         setIsAuthenticated(true);
+      } else {
+        toast({ variant: 'destructive', title: 'Access Denied' });
+        router.push("/admin");
       }
-    }
-  }, [router]);
+    });
+    return () => unsubscribe();
+  }, [router, toast]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -108,7 +111,8 @@ export default function UploadMoviePage() {
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Redirecting to admin login...</p>
+         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Verifying admin access...</p>
       </div>
     );
   }

@@ -20,37 +20,43 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 export default function BoostedEvents() {
   const router = useRouter();
+  const { toast } = useToast();
   const [boostedEvents, setBoostedEvents] = useState<Event[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
-      if (!adminLoggedIn) {
-        router.push("/admin");
-      } else {
-        setIsAuthenticated(true);
-        const fetchBoostedEvents = async () => {
-            setLoading(true);
-            const events = await getBoostedEvents();
-            setBoostedEvents(events);
-            setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user && user.email === 'admin@cloudstage.in') {
+            setIsAuthenticated(true);
+            const fetchBoostedEvents = async () => {
+                setLoading(true);
+                const events = await getBoostedEvents();
+                setBoostedEvents(events);
+                setLoading(false);
+            }
+            fetchBoostedEvents();
+        } else {
+            toast({ variant: 'destructive', title: 'Access Denied' });
+            router.push("/admin");
         }
-        fetchBoostedEvents();
-      }
-    }
-  }, [router]);
+    });
+    return () => unsubscribe();
+  }, [router, toast]);
 
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Redirecting...</p>
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Verifying admin access...</p>
       </div>
     );
   }

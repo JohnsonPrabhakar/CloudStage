@@ -17,12 +17,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { FirebaseError } from "firebase/app";
 
 const formSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Please enter a valid email."),
+  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 export default function AdminLogin() {
@@ -33,28 +34,54 @@ export default function AdminLogin() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    // Mock authentication
-    if (values.username === "admin" && values.password === "password123") {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("isAdmin", "true");
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      
+      if (userCredential.user.email === "admin@cloudstage.in") {
+        toast({
+          title: "Login Successful",
+          description: "Redirecting to admin dashboard...",
+        });
+        router.push("/admin/dashboard");
+      } else {
+        // This case handles a valid Firebase user who is not the whitelisted admin
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Access Denied",
+          description: "This account does not have admin privileges.",
+        });
+        setLoading(false);
       }
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to dashboard...",
-      });
-      router.push("/admin/dashboard");
-    } else {
+    } catch (error) {
+       let title = "Login Failed";
+       let description = "An unexpected error occurred. Please try again.";
+
+       if (error instanceof FirebaseError) {
+         switch (error.code) {
+           case 'auth/user-not-found':
+           case 'auth/wrong-password':
+           case 'auth/invalid-credential':
+             description = "Invalid email or password.";
+             break;
+           default:
+             description = "An error occurred during login. Please try again.";
+             break;
+         }
+       }
+      
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid username or password.",
+        title,
+        description,
       });
       setLoading(false);
     }
@@ -65,19 +92,19 @@ export default function AdminLogin() {
       <Card className="w-full max-w-sm mx-4">
         <CardHeader>
           <CardTitle>Admin Login</CardTitle>
-          <CardDescription>Enter credentials to access the dashboard.</CardDescription>
+          <CardDescription>Enter admin credentials to access the dashboard.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="admin" {...field} />
+                      <Input placeholder="admin@cloudstage.in" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -101,13 +128,6 @@ export default function AdminLogin() {
               </Button>
             </form>
           </Form>
-           <Alert>
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Demo Credentials</AlertTitle>
-            <AlertDescription>
-              Use <strong>username:</strong> admin & <strong>password:</strong> password123
-            </AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
     </div>

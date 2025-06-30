@@ -37,7 +37,8 @@ import {
   Bell,
   Facebook,
   Instagram,
-  Youtube
+  Youtube,
+  Loader2
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -50,6 +51,8 @@ import {
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -62,13 +65,11 @@ export default function AdminDashboard() {
 
   const refreshData = async () => {
      setLoading(true);
-     // Fetch data from Firestore
      const events = await getPendingEvents();
      setPendingEvents(events);
      const artists = await getPendingArtistsFromDb();
      setPendingArtists(artists);
      
-     // Mock notification logic
      if(artists.length > 0) {
         setHasPendingArtistNotification(true);
      }
@@ -76,15 +77,15 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const adminLoggedIn = localStorage.getItem("isAdmin") === "true";
-      if (!adminLoggedIn) {
-        router.push("/admin");
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email === 'admin@cloudstage.in') {
         setIsAuthenticated(true);
         refreshData();
+      } else {
+        router.push("/admin");
       }
-    }
+    });
+    return () => unsubscribe();
   }, [router]);
 
   // NOTE: Revenue and boosted event data is now static or mocked
@@ -119,16 +120,18 @@ export default function AdminDashboard() {
     toast({ title: "Artist Rejected", description: "The artist's profile has been removed." });
   };
 
-  const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("isAdmin");
-      router.push("/admin");
-    }
+  const handleLogout = async () => {
+    await signOut(auth);
+    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+    router.push("/admin");
   };
   
   if (!isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center"><p>Redirecting...</p></div>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <p>Verifying admin access...</p>
+      </div>
     );
   }
   
