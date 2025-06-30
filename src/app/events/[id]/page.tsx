@@ -282,16 +282,20 @@ export default function EventDetailPage() {
                 </span>
               </div>
               <div className="flex items-center gap-4 pt-4">
-                <Link href={artist.youtubeUrl} target="_blank">
-                  <Button variant="outline" size="icon">
-                    <Youtube className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href={artist.instagramUrl} target="_blank">
-                  <Button variant="outline" size="icon">
-                    <Instagram className="h-5 w-5" />
-                  </Button>
-                </Link>
+                {artist.youtubeUrl && (
+                  <Link href={artist.youtubeUrl} target="_blank">
+                    <Button variant="outline" size="icon">
+                      <Youtube className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                )}
+                {artist.instagramUrl && (
+                  <Link href={artist.instagramUrl} target="_blank">
+                    <Button variant="outline" size="icon">
+                      <Instagram className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>
