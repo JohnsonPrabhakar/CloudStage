@@ -25,6 +25,7 @@ import {
   DollarSign,
   Sparkles,
   ChevronLeft,
+  WifiOff,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -35,6 +36,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [attendees, setAttendees] = useState(0);
   const [hasTicket, setHasTicket] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -46,10 +48,11 @@ export default function EventDetailPage() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-      if (params.id) {
-        setLoading(true);
+  const fetchEvent = async () => {
+    if (params.id) {
+      setLoading(true);
+      setError(null);
+      try {
         const eventId = params.id as string;
         const foundEvent = await getEventById(eventId);
         
@@ -62,9 +65,16 @@ export default function EventDetailPage() {
             setEvent(null);
             setArtist(null);
         }
+      } catch (err) {
+        console.error("Failed to fetch event:", err);
+        setError("Could not load event details. Please check your internet connection and try again.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchEvent();
   }, [params.id]);
 
@@ -145,6 +155,19 @@ export default function EventDetailPage() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return (
+        <div className="container mx-auto p-8 text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={fetchEvent}>
+                Try Again
+            </Button>
+        </div>
+    )
   }
 
   if (!event || !artist) {
