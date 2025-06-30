@@ -32,14 +32,14 @@ import {
   TrendingUp,
   Ticket,
   ChevronLeft,
+  Eye,
+  Clock,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   Bar,
   XAxis,
   YAxis,
@@ -86,10 +86,12 @@ export default function AdminDashboard({
       const approvedEvents = events.filter(
         (e) => e.moderationStatus === "approved"
       );
+      
       const ticketRevenue = approvedEvents.reduce(
-        (acc, event) => acc + event.ticketPrice * (Math.random() * 500 + 50),
+        (acc, event) => acc + (event.ticketPrice * (event.ticketsSold || 0)),
         0
       );
+      
       const boostRevenue = events
         .filter((e) => e.isBoosted && e.boostAmount)
         .reduce((acc, event) => acc + (event.boostAmount || 0), 0);
@@ -98,7 +100,7 @@ export default function AdminDashboard({
 
       const artistRevenueMap = new Map<string, number>();
       approvedEvents.forEach(event => {
-        const revenue = event.ticketPrice * (Math.random() * 500 + 50);
+        const revenue = event.ticketPrice * (event.ticketsSold || 0);
         artistRevenueMap.set(event.artistId, (artistRevenueMap.get(event.artistId) || 0) + revenue);
       });
 
@@ -234,9 +236,9 @@ export default function AdminDashboard({
                     <TableBody>
                       {artists.map((artist) => (
                         <TableRow key={artist.id}>
-                          <TableCell>{artist.name}</TableCell>
+                          <TableCell><Link className="hover:underline" href={`/artist/${artist.id}`}>{artist.name}</Link></TableCell>
                           <TableCell>
-                            <Badge variant={artist.isPremium ? "default" : "outline"}>
+                            <Badge variant={artist.isPremium ? "default" : "outline"} className={artist.isPremium ? 'bg-amber-500' : ''}>
                               {artist.isPremium ? <><Crown className="mr-2 h-3 w-3"/> Premium</> : "Standard"}
                             </Badge>
                           </TableCell>
@@ -258,18 +260,24 @@ export default function AdminDashboard({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Event Title</TableHead>
-                      <TableHead>Artist</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Metrics</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pendingEvents.map((event) => (
                       <TableRow key={event.id}>
-                        <TableCell>{event.title}</TableCell>
-                        <TableCell>{event.artist}</TableCell>
-                        <TableCell>{format(new Date(event.date), "PPP")}</TableCell>
+                        <TableCell>
+                            <div className="font-medium">{event.title}</div>
+                            <div className="text-sm text-muted-foreground">by {event.artist}</div>
+                             <div className="text-sm text-muted-foreground">{format(new Date(event.date), "PPP")}</div>
+                        </TableCell>
+                         <TableCell className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2"><Ticket className="h-4 w-4"/><span>{event.ticketsSold || 0} sold</span></div>
+                          <div className="flex items-center gap-2"><Eye className="h-4 w-4"/><span>{event.views || 0} views</span></div>
+                          <div className="flex items-center gap-2"><Clock className="h-4 w-4"/><span>{event.watchTime || 0} min watch time</span></div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleModeration(event.id, "approved")}>
                             <Check className="h-4 w-4 mr-1" /> Approve

@@ -1,10 +1,10 @@
 import { type Event, type Artist } from "./types";
 
 const artists: Artist[] = [
-    { id: 'artist1', name: 'The Rockers', isPremium: false },
-    { id: 'artist2', name: 'Synthwave Dreamer', isPremium: false },
-    { id: 'artist3', name: 'Acoustic Soul', isPremium: true },
-    { id: 'artist4', name: 'Laugh Factory', isPremium: false },
+    { id: 'artist1', name: 'The Rockers', isPremium: false, type: 'Band', genres: ['Rock', 'Hard Rock'], youtubeUrl: 'https://youtube.com', instagramUrl: 'https://instagram.com' },
+    { id: 'artist2', name: 'Synthwave Dreamer', isPremium: false, type: 'Solo Artist', genres: ['Synthwave', 'Electronic'], youtubeUrl: 'https://youtube.com', instagramUrl: 'https://instagram.com' },
+    { id: 'artist3', name: 'Acoustic Soul', isPremium: true, type: 'Solo Artist', genres: ['Acoustic', 'Folk', 'Soul'], youtubeUrl: 'https://youtube.com', instagramUrl: 'https://instagram.com' },
+    { id: 'artist4', name: 'Laugh Factory', isPremium: false, type: 'Band', genres: ['Comedy'], youtubeUrl: 'https://youtube.com', instagramUrl: 'https://instagram.com' },
 ];
 
 const events: Event[] = [
@@ -25,8 +25,9 @@ const events: Event[] = [
     ticketPrice: 0,
     isBoosted: true,
     boostAmount: 2000,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 12532,
+    watchTime: 45 * 12532,
+    ticketsSold: 0,
   },
   {
     id: "evt2",
@@ -45,8 +46,9 @@ const events: Event[] = [
     ticketPrice: 15.0,
     isBoosted: true,
     boostAmount: 1000,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 0,
+    watchTime: 0,
+    ticketsSold: 834,
   },
   {
     id: "evt3",
@@ -64,8 +66,9 @@ const events: Event[] = [
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 10.0,
     isBoosted: false,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 0,
+    watchTime: 0,
+    ticketsSold: 451,
   },
   {
     id: "evt4",
@@ -78,13 +81,14 @@ const events: Event[] = [
     language: "English",
     date: new Date(Date.now() + 86400000 * 10).toISOString(), // in 10 days
     status: "upcoming",
-    moderationStatus: "approved",
+    moderationStatus: "pending",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 20.0,
     isBoosted: false,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 0,
+    watchTime: 0,
+    ticketsSold: 120,
   },
    {
     id: "evt5",
@@ -102,8 +106,9 @@ const events: Event[] = [
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 25.0,
     isBoosted: false,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 50000,
+    watchTime: 90 * 50000,
+    ticketsSold: 25000,
   },
    {
     id: "evt6",
@@ -116,13 +121,14 @@ const events: Event[] = [
     language: "Instrumental",
     date: new Date(Date.now() - 86400000 * 14).toISOString(), // 14 days ago
     status: "past",
-    moderationStatus: "approved",
+    moderationStatus: "rejected",
     bannerUrl: "https://placehold.co/1280x720.png",
     streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ticketPrice: 5.0,
     isBoosted: false,
-    youtubeUrl: "https://youtube.com",
-    instagramUrl: "https://instagram.com",
+    views: 15000,
+    watchTime: 60 * 15000,
+    ticketsSold: 7500,
   },
 ];
 
@@ -143,7 +149,14 @@ export const getEvents = (): Event[] => {
   if (typeof window !== "undefined") {
     const localEvents = localStorage.getItem("events");
     if (localEvents) {
-      return JSON.parse(localEvents);
+      try {
+        return JSON.parse(localEvents);
+      } catch (e) {
+        console.error("Failed to parse events from localStorage", e);
+        // If parsing fails, fallback to default
+        localStorage.setItem("events", JSON.stringify(events));
+        return events;
+      }
     }
     localStorage.setItem("events", JSON.stringify(events));
   }
@@ -154,7 +167,14 @@ export const getArtists = (): Artist[] => {
   if (typeof window !== "undefined") {
     const localArtists = localStorage.getItem("artists");
     if (localArtists) {
-      return JSON.parse(localArtists);
+      try {
+        return JSON.parse(localArtists);
+      } catch (e) {
+        console.error("Failed to parse artists from localStorage", e);
+        // If parsing fails, fallback to default
+        localStorage.setItem("artists", JSON.stringify(artists));
+        return artists;
+      }
     }
     localStorage.setItem("artists", JSON.stringify(artists));
   }

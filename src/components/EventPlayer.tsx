@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -18,6 +18,7 @@ import {
   X,
   LogOut,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const AdOverlay = ({
   onClose,
@@ -26,7 +27,7 @@ const AdOverlay = ({
   ctaText,
   adImageUrl,
   adImageAlt,
-  adAiHint
+  adAiHint,
 }: {
   onClose: () => void;
   showSkip: boolean;
@@ -49,7 +50,9 @@ const AdOverlay = ({
       />
       {ctaLink && ctaText && (
         <Button asChild className="mt-4">
-          <Link href={ctaLink} target="_blank">{ctaText}</Link>
+          <Link href={ctaLink} target="_blank">
+            {ctaText}
+          </Link>
         </Button>
       )}
       {showSkip && (
@@ -66,6 +69,12 @@ const AdOverlay = ({
   </div>
 );
 
+const initialMessages = [
+    { name: 'Fan123', message: 'This is amazing! 🔥' },
+    { name: 'MusicLover', message: 'Playing my favorite song!' },
+    { name: 'Rocker', message: 'Turn it up! 🤘' },
+];
+
 export default function EventPlayer({ event }: { event: Event }) {
   const router = useRouter();
   const videoId = event.streamUrl.split("v=")[1]?.split("&")[0];
@@ -73,6 +82,12 @@ export default function EventPlayer({ event }: { event: Event }) {
   const [showMidRollAd, setShowMidRollAd] = useState(false);
   const [showEndRollAd, setShowEndRollAd] = useState(false);
   const [canSkipAd, setCanSkipAd] = useState(false);
+  
+  const [chatName, setChatName] = useState("");
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatHistory, setChatHistory] = useState(initialMessages);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     // Simulate mid-roll ad after 1 minute
@@ -91,6 +106,13 @@ export default function EventPlayer({ event }: { event: Event }) {
       return () => clearTimeout(skipTimer);
     }
   }, [showMidRollAd]);
+  
+  useEffect(() => {
+    // Auto-scroll chat
+    if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
 
   const handleLeaveEvent = () => {
     setShowEndRollAd(true);
@@ -98,6 +120,14 @@ export default function EventPlayer({ event }: { event: Event }) {
       router.back();
     }, 5000); // Show ad for 5 seconds before navigating
   };
+  
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (chatMessage.trim() && chatName.trim()) {
+        setChatHistory([...chatHistory, { name: chatName, message: chatMessage}]);
+        setChatMessage("");
+    }
+  }
 
   return (
     <>
@@ -165,58 +195,23 @@ export default function EventPlayer({ event }: { event: Event }) {
           <CardHeader>
             <CardTitle>Live Chat</CardTitle>
           </CardHeader>
-          <CardContent className="flex-grow overflow-y-auto space-y-4">
-            {/* Chat messages placeholder */}
-            <div className="flex items-start gap-2">
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                <Image
-                  src="https://placehold.co/40x40.png"
-                  alt="User"
-                  fill
-                  data-ai-hint="person avatar"
-                />
-              </div>
-              <div>
-                <p className="font-bold text-sm">Fan123</p>
-                <p className="text-sm bg-muted p-2 rounded-lg">
-                  This is amazing! 🔥
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                <Image
-                  src="https://placehold.co/40x40.png"
-                  alt="User"
-                  fill
-                  data-ai-hint="person avatar"
-                />
-              </div>
-              <div>
-                <p className="font-bold text-sm">MusicLover</p>
-                <p className="text-sm bg-muted p-2 rounded-lg">
-                  Playing my favorite song!
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                <Image
-                  src="https://placehold.co/40x40.png"
-                  alt="User"
-                  fill
-                  data-ai-hint="person avatar"
-                />
-              </div>
-              <div>
-                <p className="font-bold text-sm">Rocker</p>
-                <p className="text-sm bg-muted p-2 rounded-lg">
-                  Turn it up! 🤘
-                </p>
-              </div>
-            </div>
+          <CardContent ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-4">
+             {chatHistory.map((chat, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <Avatar className="h-8 w-8">
+                     <AvatarImage src={`https://i.pravatar.cc/40?u=${chat.name}`} alt={chat.name} />
+                    <AvatarFallback>{chat.name.substring(0, 1)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-bold text-sm">{chat.name}</p>
+                    <p className="text-sm bg-muted p-2 rounded-lg max-w-full break-words">
+                      {chat.message}
+                    </p>
+                  </div>
+                </div>
+             ))}
           </CardContent>
-          <div className="p-4 border-t">
+          <div className="p-4 border-t space-y-2">
             <div className="flex gap-2 mb-2">
               <Button variant="outline" size="icon">
                 <ThumbsUp className="h-5 w-5" />
@@ -225,12 +220,23 @@ export default function EventPlayer({ event }: { event: Event }) {
                 <Heart className="h-5 w-5" />
               </Button>
             </div>
-            <div className="flex gap-2">
-              <Input placeholder="Say something..." />
-              <Button>
-                <Send className="h-5 w-5" />
-              </Button>
-            </div>
+            <form onSubmit={handleSendMessage} className="space-y-2">
+                <Input 
+                    placeholder="Your name" 
+                    value={chatName}
+                    onChange={(e) => setChatName(e.target.value)}
+                />
+                <div className="flex gap-2">
+                    <Input 
+                        placeholder="Say something..." 
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                    />
+                    <Button type="submit">
+                        <Send className="h-5 w-5" />
+                    </Button>
+                </div>
+            </form>
           </div>
         </div>
       </div>

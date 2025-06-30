@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -29,9 +30,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event, type EventCategory } from "@/lib/types";
 import { getEvents } from "@/lib/mock-data";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Upload } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
-import { format } from "date-fns";
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -49,7 +49,8 @@ const formSchema = z.object({
   genre: z.string().min(1, "Genre is required."),
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
-  bannerUrl: z.string().url("Must be a valid URL."),
+  banner: z.any().refine((files) => files?.length === 1, "Banner image is required."),
+  previewVideo: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL."),
   ticketPrice: z.coerce.number().min(0, "Price must be a positive number."),
   description: z.string().min(10, "Description must be at least 10 characters."),
@@ -63,6 +64,8 @@ export default function CreateEventForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,7 +75,6 @@ export default function CreateEventForm() {
       genre: "Pop",
       language: "English",
       date: "",
-      bannerUrl: "https://placehold.co/1280x720.png",
       streamUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       ticketPrice: 10,
       description: "",
@@ -92,15 +94,16 @@ export default function CreateEventForm() {
           genre: eventToDuplicate.genre,
           language: eventToDuplicate.language,
           date: '', // User should set a new date
-          bannerUrl: eventToDuplicate.bannerUrl,
           streamUrl: eventToDuplicate.streamUrl,
           ticketPrice: eventToDuplicate.ticketPrice,
           description: eventToDuplicate.description,
           boost: false
         });
+        // We can't pre-fill file inputs, but we can show the old banner
+        setBannerPreview(eventToDuplicate.bannerUrl);
         toast({
             title: "Event Duplicated",
-            description: "Event details have been pre-filled. Please set a new date."
+            description: "Event details have been pre-filled. Please set a new date and upload a banner."
         });
       }
     }
@@ -125,7 +128,7 @@ export default function CreateEventForm() {
         title,
         artist: "Current Artist", // Mocked
         genre,
-        type: category, // The AI flow expects a 'type' field
+        type: category,
       });
       if (result.description) {
         form.setValue("description", result.description, { shouldValidate: true });
@@ -159,13 +162,14 @@ export default function CreateEventForm() {
       date: new Date(values.date).toISOString(),
       status: new Date(values.date) > new Date() ? "upcoming" : "past",
       moderationStatus: "pending",
-      bannerUrl: values.bannerUrl,
+      bannerUrl: bannerPreview || "https://placehold.co/1280x720.png",
       streamUrl: values.streamUrl,
       ticketPrice: values.ticketPrice,
       isBoosted: values.boost ?? false,
       boostAmount: values.boost ? 100 : 0, // Mock boost amount
-      youtubeUrl: "https://youtube.com", // Mocked
-      instagramUrl: "https://instagram.com", // Mocked
+      views: 0,
+      watchTime: 0,
+      ticketsSold: 0,
     };
 
     if (typeof window !== "undefined") {
@@ -311,23 +315,55 @@ export default function CreateEventForm() {
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <FormField
+                 <FormField
                   control={form.control}
-                  name="bannerUrl"
+                  name="banner"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Banner Image URL</FormLabel>
+                      <FormLabel>Banner Image (JPG, PNG)</FormLabel>
+                      {bannerPreview && <Image src={bannerPreview} alt="Banner preview" width={200} height={100} className="rounded-md border object-cover"/>}
                       <FormControl>
-                        <Input placeholder="https://placehold.co/1280x720.png" {...field} />
+                        <Input 
+                          type="file" 
+                          accept="image/jpeg, image/png"
+                          onChange={(e) => {
+                            field.onChange(e.target.files);
+                            if (e.target.files && e.target.files[0]) {
+                              setBannerPreview(URL.createObjectURL(e.target.files[0]));
+                            }
+                          }}
+                        />
                       </FormControl>
-                      <FormDescription>
-                        Use a high-quality image for your banner.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
+                 <FormField
+                  control={form.control}
+                  name="previewVideo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preview Video (MP4, optional)</FormLabel>
+                      {videoPreview && <video src={videoPreview} controls className="w-full rounded-md border"/>}
+                      <FormControl>
+                        <Input 
+                          type="file" 
+                          accept="video/mp4"
+                          onChange={(e) => {
+                            field.onChange(e.target.files);
+                            if (e.target.files && e.target.files[0]) {
+                              setVideoPreview(URL.createObjectURL(e.target.files[0]));
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+               <FormField
                   control={form.control}
                   name="streamUrl"
                   render={({ field }) => (
@@ -343,7 +379,6 @@ export default function CreateEventForm() {
                     </FormItem>
                   )}
                 />
-              </div>
 
               <Card className="bg-muted/50">
                 <CardContent className="pt-6">

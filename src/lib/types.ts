@@ -24,12 +24,18 @@ export interface Event {
   ticketPrice: number;
   isBoosted: boolean;
   boostAmount?: number;
-  youtubeUrl: string;
-  instagramUrl: string;
+  // Performance metrics
+  views?: number;
+  watchTime?: number; // in minutes
+  ticketsSold?: number;
 }
 
 export interface Artist {
   id: string;
   name: string;
   isPremium: boolean;
+  type: 'Solo Artist' | 'Band';
+  genres: string[];
+  youtubeUrl: string;
+  instagramUrl: string;
 }

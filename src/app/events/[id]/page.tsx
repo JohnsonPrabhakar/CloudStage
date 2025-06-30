@@ -7,8 +7,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type Event } from "@/lib/types";
-import { getEvents } from "@/lib/mock-data";
+import { type Event, type Artist } from "@/lib/types";
+import { getEvents, getArtists } from "@/lib/mock-data";
 import {
   Youtube,
   Instagram,
@@ -28,16 +28,22 @@ export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [event, setEvent] = useState<Event | null>(null);
+  const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
   const [attendees, setAttendees] = useState(0);
 
   useEffect(() => {
     if (params.id) {
       const allEvents = getEvents();
+      const allArtists = getArtists();
       const foundEvent = allEvents.find(
         (e) => e.id === params.id && e.moderationStatus === "approved"
       );
       setEvent(foundEvent || null);
+      if (foundEvent) {
+        const foundArtist = allArtists.find(a => a.id === foundEvent.artistId);
+        setArtist(foundArtist || null);
+      }
     }
     setLoading(false);
   }, [params.id]);
@@ -70,7 +76,7 @@ export default function EventDetailPage() {
     );
   }
 
-  if (!event) {
+  if (!event || !artist) {
     return (
       <div className="container mx-auto p-4 text-center">
         <h1 className="text-4xl font-bold">Event Not Found</h1>
@@ -153,9 +159,9 @@ export default function EventDetailPage() {
           <h1 className="text-4xl md:text-6xl font-extrabold text-white shadow-lg">
             {event.title}
           </h1>
-          <p className="text-xl md:text-2xl text-primary-foreground/90 font-medium mt-2">
+           <Link href={`/artist/${artist.id}`} className="text-xl md:text-2xl text-primary-foreground/90 font-medium mt-2 hover:underline">
             by {event.artist}
-          </p>
+          </Link>
         </div>
       </div>
 
@@ -237,12 +243,12 @@ export default function EventDetailPage() {
                 </span>
               </div>
               <div className="flex items-center gap-4 pt-4">
-                <Link href={event.youtubeUrl} target="_blank">
+                <Link href={artist.youtubeUrl} target="_blank">
                   <Button variant="outline" size="icon">
                     <Youtube className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href={event.instagramUrl} target="_blank">
+                <Link href={artist.instagramUrl} target="_blank">
                   <Button variant="outline" size="icon">
                     <Instagram className="h-5 w-5" />
                   </Button>
