@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, PlusCircle } from "lucide-react";
+import { Copy, PlusCircle, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 
@@ -49,10 +49,17 @@ export default function ArtistHistory({ initialEvents }: ArtistHistoryProps) {
     <div className="container mx-auto p-4 md:p-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl">My Event History</CardTitle>
-          <CardDescription>
-            A complete log of all events you have submitted.
-          </CardDescription>
+          <div className="flex items-center gap-4">
+             <Button variant="outline" size="icon" onClick={() => router.back()}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            <div>
+              <CardTitle className="text-3xl">My Event History</CardTitle>
+              <CardDescription>
+                A complete log of all events you have submitted.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {initialEvents.length > 0 ? (

@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { getArtists } from "@/lib/mock-data";
-import { CheckCircle, Crown } from "lucide-react";
+import { CheckCircle, Crown, ChevronLeft } from "lucide-react";
 
 export default function PremiumSubscription() {
   const router = useRouter();
@@ -68,6 +68,11 @@ export default function PremiumSubscription() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
+       <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+        <ChevronLeft className="mr-2 h-4 w-4" />
+        Back to Dashboard
+      </Button>
+
       <div className="text-center">
         <h1 className="text-4xl font-bold">Choose Your Premium Plan</h1>
         <p className="text-muted-foreground mt-2">

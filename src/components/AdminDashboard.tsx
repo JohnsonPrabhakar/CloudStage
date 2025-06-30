@@ -31,6 +31,7 @@ import {
   Crown,
   TrendingUp,
   Ticket,
+  ChevronLeft,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import {
@@ -139,9 +140,14 @@ export default function AdminDashboard({
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold">Admin Dashboard</h1>
-         <Button asChild>
+       <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => router.push("/")}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-4xl font-bold">Admin Dashboard</h1>
+        </div>
+        <Button asChild>
           <Link href="/admin/boosted">
             <TrendingUp className="mr-2 h-4 w-4" /> View Boosted Events
           </Link>
@@ -231,7 +237,7 @@ export default function AdminDashboard({
                           <TableCell>{artist.name}</TableCell>
                           <TableCell>
                             <Badge variant={artist.isPremium ? "default" : "outline"}>
-                              {artist.isPremium ? "Premium" : "Standard"}
+                              {artist.isPremium ? <><Crown className="mr-2 h-3 w-3"/> Premium</> : "Standard"}
                             </Badge>
                           </TableCell>
                         </TableRow>

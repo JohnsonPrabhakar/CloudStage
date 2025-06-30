@@ -20,6 +20,7 @@ import {
   Play,
   DollarSign,
   Sparkles,
+  ChevronLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -32,8 +33,10 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (params.id) {
-      const allEvents = getEvents(); 
-      const foundEvent = allEvents.find((e) => e.id === params.id && e.moderationStatus === "approved");
+      const allEvents = getEvents();
+      const foundEvent = allEvents.find(
+        (e) => e.id === params.id && e.moderationStatus === "approved"
+      );
       setEvent(foundEvent || null);
     }
     setLoading(false);
@@ -123,6 +126,14 @@ export default function EventDetailPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
+      <Button
+        variant="ghost"
+        onClick={() => router.back()}
+        className="mb-4"
+      >
+        <ChevronLeft className="mr-2 h-4 w-4" />
+        Back
+      </Button>
       <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden shadow-2xl mb-8">
         <Image
           src={event.bannerUrl}
@@ -133,10 +144,10 @@ export default function EventDetailPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         {event.isBoosted && (
-             <Badge className="absolute top-4 left-4 bg-amber-500 text-white shadow-lg">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Boosted Event
-            </Badge>
+          <Badge className="absolute top-4 left-4 bg-amber-500 text-white shadow-lg">
+            <Sparkles className="mr-2 h-4 w-4" />
+            Boosted Event
+          </Badge>
         )}
         <div className="absolute bottom-0 left-0 p-4 md:p-8">
           <h1 className="text-4xl md:text-6xl font-extrabold text-white shadow-lg">
@@ -159,7 +170,7 @@ export default function EventDetailPage() {
               <Globe className="mr-2 h-4 w-4" />
               {event.language}
             </Badge>
-             <Badge variant="outline" className="text-sm py-1 px-3">
+            <Badge variant="outline" className="text-sm py-1 px-3">
               {event.genre}
             </Badge>
             <Badge variant="secondary" className="text-sm py-1 px-3 capitalize">
@@ -178,6 +189,26 @@ export default function EventDetailPage() {
         </div>
 
         <div className="space-y-6">
+          <Card className="border-border/50 p-4">
+            <CardHeader className="p-2 text-center">
+              <CardTitle className="text-sm font-normal text-muted-foreground">
+                Advertisement
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Link href="#" target="_blank">
+                 <Image
+                    src="https://placehold.co/300x250.png"
+                    width={300}
+                    height={250}
+                    alt="Sponsored Ad"
+                    className="w-full rounded-md"
+                    data-ai-hint="product advertisement"
+                />
+              </Link>
+            </CardContent>
+          </Card>
+          
           <Card className="bg-card/50">
             <CardContent className="p-6">{getAction()}</CardContent>
           </Card>

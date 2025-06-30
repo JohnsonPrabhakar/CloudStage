@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { type Event } from "@/lib/types";
 import { getEvents } from "@/lib/mock-data";
 import {
@@ -18,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 
 type BoostedEventsProps = {
@@ -25,6 +28,7 @@ type BoostedEventsProps = {
 };
 
 export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
+  const router = useRouter();
   const [boostedEvents, setBoostedEvents] = useState<Event[]>([]);
 
   useEffect(() => {
@@ -38,10 +42,17 @@ export default function BoostedEvents({ initialEvents }: BoostedEventsProps) {
     <div className="container mx-auto p-4 md:p-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-3xl">Boosted Events</CardTitle>
-          <CardDescription>
-            Events that are currently being promoted on the platform.
-          </CardDescription>
+          <div className="flex items-center gap-4">
+             <Button variant="outline" size="icon" onClick={() => router.back()}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            <div>
+                <CardTitle className="text-3xl">Boosted Events</CardTitle>
+                <CardDescription>
+                    Events that are currently being promoted on the platform.
+                </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {boostedEvents.length > 0 ? (
