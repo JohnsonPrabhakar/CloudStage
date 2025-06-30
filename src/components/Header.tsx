@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Clapperboard, Ticket } from "lucide-react";
+import { Menu, Clapperboard, Ticket, Film } from "lucide-react";
 
 export function Header() {
   const navItems = [
     { label: "Home", href: "/" },
-    { label: "My Tickets", href: "/my-tickets" },
+    { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
+    { label: "My Tickets", href: "/my-tickets", icon: <Ticket className="h-4 w-4" /> },
     { label: "Artist Dashboard", href: "/artist/dashboard" },
     { label: "Admin", href: "/admin" },
   ];
@@ -30,7 +31,7 @@ export function Header() {
                 href={item.href}
                 className="transition-colors hover:text-primary flex items-center gap-2"
               >
-                {item.label === "My Tickets" && <Ticket className="h-4 w-4" />}
+                {item.icon}
                 {item.label}
               </Link>
             ))}
@@ -56,8 +57,9 @@ export function Header() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="transition-colors hover:text-primary"
+                      className="transition-colors hover:text-primary flex items-center gap-2"
                     >
+                      {item.icon}
                       {item.label}
                     </Link>
                   ))}
@@ -65,6 +67,10 @@ export function Header() {
               </SheetContent>
             </Sheet>
           </div>
+          <Link href="/" className="flex items-center space-x-2 md:hidden">
+            <Clapperboard className="h-6 w-6 text-primary" />
+            <span className="font-bold sm:inline-block">CloudStage</span>
+          </Link>
           <nav className="flex items-center">
              <Button>Get Started</Button>
           </nav>

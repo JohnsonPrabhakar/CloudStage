@@ -35,6 +35,7 @@ import {
   Clock,
   LogOut,
   BarChart,
+  Upload,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -195,6 +196,11 @@ export default function AdminDashboard({
           <h1 className="text-4xl font-bold">Admin Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
+            <Button asChild>
+                <Link href="/movies/upload">
+                    <Upload className="mr-2 h-4 w-4" /> Upload Movie
+                </Link>
+            </Button>
             <Button asChild>
                 <Link href="/admin/boosted">
                     <TrendingUp className="mr-2 h-4 w-4" /> View Boosted Events

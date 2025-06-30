@@ -39,3 +39,16 @@ export interface Artist {
   youtubeUrl: string;
   instagramUrl: string;
 }
+
+export type MovieGenre = 'Action' | 'Romance' | 'Comedy' | 'Thriller' | 'Drama' | 'Sci-Fi' | 'Horror';
+export type MovieLanguage = 'English' | 'Hindi' | 'Tamil' | 'Telugu';
+
+export interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  youtubeUrl: string;
+  genre: MovieGenre;
+  language: MovieLanguage;
+  posterUrl: string;
+}
