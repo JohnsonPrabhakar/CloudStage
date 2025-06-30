@@ -40,7 +40,7 @@ const formSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
   phone: z.string().min(10, "Please enter a valid phone number."),
   location: z.string().min(2, "Location is required."),
-  profilePicture: z.any().optional(),
+  profilePicture: z.instanceof(FileList).optional(),
   about: z.string().min(20, "Please tell us a bit more about you (at least 20 characters)."),
   instagramUrl: z.string().url().optional().or(z.literal('')),
   facebookUrl: z.string().url().optional().or(z.literal('')),
@@ -77,15 +77,12 @@ export default function ArtistRegister() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
-    // Note: In a real app, the profile picture would be uploaded to Cloud Storage.
-    // For this prototype, we'll continue using a placeholder.
-    const profilePictureUrl = "https://placehold.co/128x128.png";
+    const profilePictureFile = values.profilePicture?.[0];
 
     try {
         await registerArtist({
             ...values,
-            profilePictureUrl,
-        });
+        }, profilePictureFile);
 
         toast({
             title: "Registration Submitted!",
@@ -96,9 +93,20 @@ export default function ArtistRegister() {
 
     } catch (error) {
         console.error("Registration failed:", error);
-        let description = "An unexpected error occurred.";
-        if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
-            description = "This email address is already registered.";
+        let description = "An unexpected error occurred. Please try again.";
+
+        if (error instanceof FirebaseError) {
+          switch (error.code) {
+            case 'auth/email-already-in-use':
+              description = "This email address is already registered.";
+              break;
+            case 'auth/configuration-not-found':
+               description = "The Email/Password sign-in provider is not enabled in your Firebase console. Please enable it to allow registrations.";
+               break;
+            default:
+              description = "An unexpected error occurred during registration. Please check the console.";
+              break;
+          }
         }
         
         toast({
@@ -208,7 +216,7 @@ export default function ArtistRegister() {
                <FormField
                 control={form.control}
                 name="profilePicture"
-                render={({ field }) => (
+                render={({ field: { onChange, value, ...rest } }) => (
                   <FormItem>
                     <FormLabel>Profile Picture</FormLabel>
                      {profilePicturePreview && <Image src={profilePicturePreview} alt="Profile preview" width={100} height={100} className="rounded-full border object-cover"/>}
@@ -216,19 +224,20 @@ export default function ArtistRegister() {
                        <Input
                         type="file"
                         accept="image/jpeg, image/png, image/webp"
+                        {...rest}
                         onChange={(e) => {
                           const files = e.target.files;
                           if (files && files.length > 0) {
-                            field.onChange(files);
+                            onChange(files);
                             setProfilePicturePreview(URL.createObjectURL(files[0]));
                           } else {
-                            field.onChange(undefined);
+                            onChange(undefined);
                             setProfilePicturePreview(null);
                           }
                         }}
                       />
                     </FormControl>
-                    <FormDescription>Optional. A good profile picture helps you stand out. Upload is simulated.</FormDescription>
+                    <FormDescription>Optional. A good profile picture helps you stand out.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
