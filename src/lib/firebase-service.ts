@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import {
   collection,
   addDoc,
@@ -10,36 +10,52 @@ import {
   updateDoc,
   serverTimestamp,
   Timestamp,
+  setDoc,
+  deleteDoc,
 } from 'firebase/firestore';
-import { type Event } from './types';
+import { type Event, type Artist } from './types';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const eventsCollection = collection(db, 'events');
+const artistsCollection = collection(db, 'artists');
 
-// Helper to convert Firestore doc to Event type
-const fromFirestore = (doc: any): Event => {
+// Helper to convert Firestore doc to a given type
+const fromFirestore = <T extends { id: string }>(doc: any): T => {
   const data = doc.data();
-  // Convert Firestore Timestamps to ISO strings for client-side consistency
-  const convertTimestampToString = (timestamp: any) => {
-    if (timestamp instanceof Timestamp) {
-      return timestamp.toDate().toISOString();
+  // Convert any Firestore Timestamps to ISO strings for client-side consistency
+  const convertTimestamps = (data: any): any => {
+    if (data === null || data === undefined) return data;
+    if (typeof data !== 'object') return data;
+
+    if (data instanceof Timestamp) {
+      return data.toDate().toISOString();
     }
-    return timestamp;
-  };
+    
+    if (Array.isArray(data)) {
+        return data.map(item => convertTimestamps(item));
+    }
+
+    const convertedData: { [key: string]: any } = {};
+    for (const key in data) {
+      convertedData[key] = convertTimestamps(data[key]);
+    }
+    return convertedData;
+  }
   
   return {
     id: doc.id,
-    ...data,
-    date: convertTimestampToString(data.date),
-    createdAt: convertTimestampToString(data.createdAt),
-  } as Event;
+    ...convertTimestamps(data),
+  } as T;
 };
+
+
+// EVENT-RELATED FUNCTIONS
 
 export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus'>) => {
   try {
     await addDoc(eventsCollection, {
       ...eventData,
       moderationStatus: 'pending',
-      isApproved: false, // Legacy support, will be replaced by moderationStatus
       createdAt: serverTimestamp(),
     });
   } catch (error) {
@@ -51,29 +67,35 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'approved'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(fromFirestore);
+  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
 
 export const getPendingEvents = async (): Promise<Event[]> => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'pending'));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(fromFirestore);
+  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
 
 export const getBoostedEvents = async (): Promise<Event[]> => {
     const q = query(eventsCollection, where('isBoosted', '==', true), where('moderationStatus', '==', 'approved'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(fromFirestore);
+    return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 }
 
 export const getEventById = async (id: string): Promise<Event | null> => {
   const eventDoc = doc(db, 'events', id);
   const snapshot = await getDoc(eventDoc);
   if (snapshot.exists()) {
-    return fromFirestore(snapshot);
+    return fromFirestore<Event>(snapshot);
   }
   return null;
 };
+
+export const getArtistEvents = async(artistId: string): Promise<Event[]> => {
+    const q = query(eventsCollection, where('artistId', '==', artistId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromFirestore<Event>(doc));
+}
 
 export const updateEventStatus = async (id: string, status: 'approved' | 'rejected') => {
   const eventDoc = doc(db, 'events', id);
@@ -89,3 +111,70 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
     boostAmount: amount
   });
 };
+
+
+// ARTIST-RELATED FUNCTIONS
+
+export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres'> & {password: string}) => {
+    // 1. Create user in Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+    const user = userCredential.user;
+
+    // 2. Create artist profile in Firestore
+    const artistProfile: Omit<Artist, 'id'> = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        about: data.about,
+        profilePictureUrl: data.profilePictureUrl,
+        youtubeUrl: data.youtubeUrl || "",
+        instagramUrl: data.instagramUrl || "",
+        facebookUrl: data.facebookUrl || "",
+        experience: data.experience,
+        category: data.category,
+        subCategory: data.subCategory,
+        isPremium: false,
+        isApproved: false,
+        type: 'Solo Artist', // Default value
+        genres: [data.subCategory], // Default value
+    };
+
+    await setDoc(doc(db, "artists", user.uid), artistProfile);
+}
+
+export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
+    const artistDoc = doc(db, 'artists', uid);
+    const snapshot = await getDoc(artistDoc);
+    if (snapshot.exists()) {
+        return fromFirestore<Artist>(snapshot);
+    }
+    return null;
+}
+
+export const getPendingArtists = async(): Promise<Artist[]> => {
+    const q = query(artistsCollection, where('isApproved', '==', false));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromFirestore<Artist>(doc));
+}
+
+export const approveArtist = async (uid: string) => {
+    const artistDoc = doc(db, 'artists', uid);
+    await updateDoc(artistDoc, {
+        isApproved: true,
+    });
+}
+
+export const rejectArtist = async (uid: string) => {
+    // Note: Deleting the user from Firebase Auth requires Admin SDK and is a backend operation.
+    // For this client-side prototype, we will just delete their Firestore profile.
+    const artistDoc = doc(db, 'artists', uid);
+    await deleteDoc(artistDoc);
+}
+
+export const updateArtistToPremium = async(uid: string) => {
+    const artistDoc = doc(db, 'artists', uid);
+    await updateDoc(artistDoc, {
+        isPremium: true,
+    });
+}

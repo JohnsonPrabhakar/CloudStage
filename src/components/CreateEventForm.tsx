@@ -28,12 +28,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type EventCategory, type LoggedInArtist } from "@/lib/types";
-import { getEvents, getLoggedInArtist } from "@/lib/mock-data";
+import { type Event, type EventCategory, type Artist } from "@/lib/types";
 import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { addEvent } from "@/lib/firebase-service";
+import { addEvent, getArtistProfile } from "@/lib/firebase-service";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Skeleton } from "./ui/skeleton";
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -51,7 +53,7 @@ const formSchema = z.object({
   genre: z.string().min(1, "Genre is required."),
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
-  banner: z.any().optional(), // Banner is now optional as we use a placeholder for the backend
+  banner: z.any().optional(),
   previewVideo: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL.").refine(
     (url) => url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
@@ -68,7 +70,8 @@ export default function CreateEventForm() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loggedInArtist, setLoggedInArtist] = useState<LoggedInArtist | null>(null);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -89,25 +92,32 @@ export default function CreateEventForm() {
   });
   
   useEffect(() => {
-    // For now, we will use a demo artist until artist auth is migrated
-    const sessionArtist = getLoggedInArtist() || { id: 'demo-artist', name: 'Demo Artist', email: 'demo@test.com'};
-    if (!sessionArtist) {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
-      router.push('/artist/login');
-    } else {
-        setLoggedInArtist(sessionArtist);
-    }
-  }, [router, toast]);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const profile = await getArtistProfile(user.uid);
+            if (profile?.isApproved) {
+                setArtist(profile);
+            } else if (profile) {
+                router.push('/artist/pending');
+            } else {
+                router.push('/artist/login');
+            }
+        } else {
+            router.push('/artist/login');
+        }
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
 
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
     if (duplicateEventId) {
-      // Duplication from localStorage is disabled during Firebase migration
-      // This would need to be updated to fetch from Firestore by ID.
       toast({
         title: "Duplication Disabled",
-        description: "Event duplication is temporarily disabled.",
+        description: "Event duplication from Firestore is not yet implemented.",
         variant: "destructive"
       });
     }
@@ -117,7 +127,7 @@ export default function CreateEventForm() {
     setIsGenerating(true);
     const { title, genre, category } = form.getValues();
 
-    if (!title || !genre || !category || !loggedInArtist) {
+    if (!title || !genre || !category || !artist) {
       toast({
         variant: "destructive",
         title: "Missing Information",
@@ -130,7 +140,7 @@ export default function CreateEventForm() {
     try {
       const result = await generateEventDescription({
         title,
-        artist: loggedInArtist.name,
+        artist: artist.name,
         genre,
         type: category,
       });
@@ -154,19 +164,17 @@ export default function CreateEventForm() {
   }
 
   async function onSubmit(values: FormValues) {
-    if (!loggedInArtist) {
+    if (!artist) {
         toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
         return;
     }
 
-    // NOTE: In a real app, the banner file would be uploaded to a service like
-    // Cloud Storage, and we'd save the resulting URL. For now, we use a placeholder.
     const bannerUrl = "https://placehold.co/1280x720.png";
 
     const newEvent: Omit<Event, 'id' | 'createdAt' | 'moderationStatus'> = {
       title: values.title,
-      artist: loggedInArtist.name,
-      artistId: loggedInArtist.id,
+      artist: artist.name,
+      artistId: artist.id,
       description: values.description,
       category: values.category as EventCategory,
       genre: values.genre,
@@ -177,7 +185,7 @@ export default function CreateEventForm() {
       streamUrl: values.streamUrl,
       ticketPrice: values.ticketPrice,
       isBoosted: values.boost ?? false,
-      boostAmount: values.boost ? 100 : 0, // Mock boost amount
+      boostAmount: values.boost ? 100 : 0,
       views: 0,
       watchTime: 0,
       ticketsSold: 0,
@@ -199,8 +207,28 @@ export default function CreateEventForm() {
     }
   }
 
-  if (!loggedInArtist) {
-    return <div className="container mx-auto p-8">Loading form...</div>;
+  if (loading) {
+    return (
+        <div className="container mx-auto p-4 md:p-8">
+            <Skeleton className="h-8 w-48 mb-4" />
+            <Card className="max-w-4xl mx-auto">
+                <CardHeader>
+                    <Skeleton className="h-10 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <div className="grid grid-cols-2 gap-8">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-12 w-32" />
+                </CardContent>
+            </Card>
+        </div>
+    );
   }
 
   return (

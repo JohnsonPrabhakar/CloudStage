@@ -12,37 +12,43 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getArtists, getLoggedInArtist } from "@/lib/mock-data";
 import { CheckCircle, Crown, ChevronLeft } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getArtistProfile, updateArtistToPremium } from "@/lib/firebase-service";
+import { Skeleton } from "./ui/skeleton";
 
 export default function PremiumSubscription() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [artistId, setArtistId] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    const sessionArtist = getLoggedInArtist();
-    if (!sessionArtist) {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
-      router.push('/artist/login');
-    } else {
-      setArtistId(sessionArtist.id);
-    }
-  }, [router, toast]);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const profile = await getArtistProfile(user.uid);
+            if (profile?.isApproved) {
+                setArtistId(user.uid);
+            } else {
+                 router.push(profile ? '/artist/pending' : '/artist/login');
+            }
+        } else {
+             router.push('/artist/login');
+        }
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
 
 
   const handleSubscribe = (planName: string, price: number) => {
     if (!artistId) return;
     setLoading(planName);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const artists = getArtists();
-      const updatedArtists = artists.map((a) =>
-        a.id === artistId ? { ...a, isPremium: true } : a
-      );
-      localStorage.setItem("artists", JSON.stringify(updatedArtists));
+    setTimeout(async () => {
+      await updateArtistToPremium(artistId);
 
       toast({
         title: "Subscription Successful!",
@@ -77,8 +83,20 @@ export default function PremiumSubscription() {
     },
   ];
   
-  if (!artistId) {
-    return <div className="container mx-auto p-8">Loading...</div>;
+  if (authLoading) {
+    return (
+        <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
+            <Skeleton className="h-8 w-32 mb-4"/>
+            <div className="text-center space-y-2">
+                <Skeleton className="h-10 w-3/4 mx-auto"/>
+                <Skeleton className="h-5 w-1/2 mx-auto"/>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <Skeleton className="h-80 w-full" />
+                <Skeleton className="h-80 w-full" />
+             </div>
+        </div>
+    )
   }
 
   return (

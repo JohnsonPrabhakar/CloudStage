@@ -11,33 +11,31 @@ export interface Event {
   id: string;
   title: string;
   artist: string;
-  artistId: string;
+  artistId: string; // This will be the Firebase Auth UID
   description: string;
   category: EventCategory;
-  genre: string; // e.g., Rock, Pop. More specific than category.
+  genre: string;
   language: string;
   date: string;
-  createdAt?: any; // Firestore timestamp
-  status: "live" | "upcoming" | "past"; // computed based on date
+  createdAt?: any;
+  status: "live" | "upcoming" | "past";
   moderationStatus: "pending" | "approved" | "rejected";
   bannerUrl: string;
   streamUrl: string;
   ticketPrice: number;
   isBoosted: boolean;
   boostAmount?: number;
-  // Performance metrics
   views?: number;
-  watchTime?: number; // in minutes
+  watchTime?: number;
   ticketsSold?: number;
 }
 
 export type ArtistCategory = 'Music' | 'Stand-up Comedy' | 'Yoga' | 'Magic' | 'Devotional';
 
 export interface Artist {
-  id: string;
+  id: string; // Firebase Auth UID
   name: string;
   email: string;
-  password?: string; // Should not be sent to client after auth
   phone: string;
   location: string;
   about: string;
@@ -53,15 +51,6 @@ export interface Artist {
   type: 'Solo Artist' | 'Band';
   genres: string[];
 }
-
-export interface LoggedInArtist {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export type PendingArtist = Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres'> & { password_confirmation?: string };
-
 
 export type MovieGenre = 'Action' | 'Romance' | 'Comedy' | 'Thriller' | 'Drama' | 'Sci-Fi' | 'Horror';
 export type MovieLanguage = 'English' | 'Hindi' | 'Tamil' | 'Telugu';

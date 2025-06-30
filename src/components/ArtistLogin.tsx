@@ -18,7 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { getArtists, setLoggedInArtist } from "@/lib/mock-data";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { getArtistProfile } from "@/lib/firebase-service";
+import { FirebaseError } from "firebase/app";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address."),
@@ -38,40 +41,52 @@ export default function ArtistLogin() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-    
-    const artists = getArtists();
-    const foundArtist = artists.find(
-      (artist) => artist.email === values.email && artist.password === values.password
-    );
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
 
-    if (foundArtist) {
-      if (foundArtist.isApproved) {
-        setLoggedInArtist({
-            id: foundArtist.id,
-            name: foundArtist.name,
-            email: foundArtist.email,
-        });
-        toast({
-          title: "Login Successful",
-          description: "Redirecting to your dashboard...",
-        });
-        router.push("/artist/dashboard");
+      const artistProfile = await getArtistProfile(user.uid);
+
+      if (artistProfile) {
+        if (artistProfile.isApproved) {
+            toast({
+                title: "Login Successful",
+                description: "Redirecting to your dashboard...",
+            });
+            router.push("/artist/dashboard");
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Account Pending",
+                description: "Your account is awaiting admin approval.",
+            });
+            router.push('/artist/pending');
+        }
       } else {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Your account is still pending admin approval.",
-        });
-         setLoading(false);
+        // This case should ideally not happen if registration is done correctly
+        throw new Error("Artist profile not found.");
       }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid email or password.",
-      });
+
+    } catch (error) {
+      let title = "Login Failed";
+      let description = "An unexpected error occurred. Please try again.";
+
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            description = "Invalid email or password.";
+            break;
+          default:
+            description = "An error occurred during login. Please try again.";
+            break;
+        }
+      }
+      
+      toast({ variant: "destructive", title, description });
       setLoading(false);
     }
   }

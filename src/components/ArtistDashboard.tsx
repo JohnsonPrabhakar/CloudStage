@@ -23,8 +23,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type Artist, type LoggedInArtist } from "@/lib/types";
-import { getArtistById, getEvents, getLoggedInArtist, clearLoggedInArtist } from "@/lib/mock-data";
+import { type Event, type Artist } from "@/lib/types";
+import { getArtistEvents, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   PlusCircle,
   Crown,
@@ -36,68 +38,42 @@ import {
   LogOut,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Skeleton } from "./ui/skeleton";
 
-type ArtistDashboardProps = {
-  initialEvents: Event[];
-};
-
-export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps) {
+export default function ArtistDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [artist, setArtist] = useState<Artist | null>(null);
-  const [loggedInArtist, setLoggedInArtist] = useState<LoggedInArtist | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setIsClient(true);
-    const sessionArtist = getLoggedInArtist();
-    if (!sessionArtist) {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
-      router.push('/artist/login');
-      return;
-    }
-    setLoggedInArtist(sessionArtist);
-
-    const fullArtistProfile = getArtistById(sessionArtist.id);
-    setArtist(fullArtistProfile || null);
-
-    const allEvents = getEvents();
-    setMyEvents(allEvents.filter((e) => e.artistId === sessionArtist.id));
-  }, [router, toast]);
-  
-  // This effect will re-run when local storage changes are made on other pages.
-  useEffect(() => {
-    const handleStorageChange = () => {
-        const sessionArtist = getLoggedInArtist();
-        if (sessionArtist) {
-            const allEvents = getEvents();
-            const fullArtistProfile = getArtistById(sessionArtist.id);
-            setMyEvents(allEvents.filter(e => e.artistId === sessionArtist.id));
-            setArtist(fullArtistProfile || null);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const profile = await getArtistProfile(user.uid);
+            if (profile) {
+                if (profile.isApproved) {
+                    setArtist(profile);
+                    const events = await getArtistEvents(user.uid);
+                    setMyEvents(events);
+                } else {
+                    router.push('/artist/pending');
+                }
+            } else {
+                 router.push('/artist/login');
+            }
+        } else {
+            router.push('/artist/login');
         }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  const handleBoost = (eventId: string, amount: number) => {
-    const updatedEvents = myEvents.map((e) =>
-      e.id === eventId ? { ...e, isBoosted: true, boostAmount: amount } : e
-    );
-
-    const allEvents = getEvents();
-    const allEventsUpdated = allEvents.map(e => {
-        const updatedEvent = updatedEvents.find(ue => ue.id === e.id);
-        return updatedEvent || e;
+        setLoading(false);
     });
 
-    localStorage.setItem("events", JSON.stringify(allEventsUpdated));
-    setMyEvents(updatedEvents);
+    return () => unsubscribe();
+  }, [router]);
 
+  const handleBoost = async (eventId: string, amount: number) => {
+    await toggleEventBoost(eventId, true, amount);
+    setMyEvents(prevEvents => prevEvents.map(e => e.id === eventId ? {...e, isBoosted: true, boostAmount: amount} : e));
     toast({
       title: "Event Boosted! 🚀",
       description: `Your event has been successfully boosted for ₹${amount}.`,
@@ -130,24 +106,24 @@ export default function ArtistDashboard({ initialEvents }: ArtistDashboardProps)
     }
   };
 
-  const handleLogout = () => {
-    clearLoggedInArtist();
+  const handleLogout = async () => {
+    await signOut(auth);
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push("/artist/login");
   }
 
   const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
 
-  if (!isClient || !loggedInArtist) {
+  if (loading || !artist) {
     return (
       <div className="container mx-auto p-4 md:p-8 space-y-8 animate-pulse">
         <div className="h-10 w-1/4 bg-muted rounded"></div>
         <div className="h-24 bg-muted rounded-lg"></div>
         <div className="h-12 w-1/3 bg-muted rounded"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="h-48 bg-muted rounded-lg"></div>
-            <div className="h-48 bg-muted rounded-lg"></div>
-            <div className="h-48 bg-muted rounded-lg"></div>
+            <Skeleton className="h-48 rounded-lg" />
+            <Skeleton className="h-48 rounded-lg" />
+            <Skeleton className="h-48 rounded-lg" />
         </div>
       </div>
     );

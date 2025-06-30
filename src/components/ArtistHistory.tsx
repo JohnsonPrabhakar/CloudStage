@@ -13,29 +13,21 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { getLoggedInArtist } from '@/lib/mock-data';
 import { Copy, PlusCircle, ChevronLeft, Eye, Clock, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 
 type ArtistHistoryProps = {
-  initialEvents: Event[];
+  events: Event[];
 };
 
-export default function ArtistHistory({ initialEvents }: ArtistHistoryProps) {
+export default function ArtistHistory({ events }: ArtistHistoryProps) {
   const router = useRouter();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const sessionArtist = getLoggedInArtist();
-    if (!sessionArtist) {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
-      router.push('/artist/login');
-    }
-  }, [router, toast]);
 
   const handleDuplicate = (eventId: string) => {
+    // Note: Duplication from one event to another might need a more complex
+    // implementation when dealing with Firestore to avoid carrying over old IDs.
+    // For now, it just links to the create page.
     router.push(`/artist/create-event?duplicate=${eventId}`);
   };
 
@@ -67,9 +59,9 @@ export default function ArtistHistory({ initialEvents }: ArtistHistoryProps) {
           </div>
         </CardHeader>
         <CardContent>
-          {initialEvents.length > 0 ? (
+          {events.length > 0 ? (
              <div className="space-y-4">
-              {initialEvents.map((event) => (
+              {events.map((event) => (
                 <Card key={event.id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 p-4">
                    <div className="md:col-span-2">
                        <p className="font-bold">{event.title}</p>

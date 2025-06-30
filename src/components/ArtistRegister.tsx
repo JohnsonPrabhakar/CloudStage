@@ -28,8 +28,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type PendingArtist, type ArtistCategory } from "@/lib/types";
-import { addPendingArtist } from "@/lib/mock-data";
+import { type ArtistCategory } from "@/lib/types";
+import { registerArtist } from "@/lib/firebase-service";
+import { FirebaseError } from "firebase/app";
 
 const artistCategories: ArtistCategory[] = ['Music', 'Stand-up Comedy', 'Yoga', 'Magic', 'Devotional'];
 
@@ -73,29 +74,40 @@ export default function ArtistRegister() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
-    const profileFile = values.profilePicture?.[0];
-    const profileUrl = profileFile 
-        ? URL.createObjectURL(profileFile) 
-        : "https://placehold.co/128x128.png";
+    // Note: In a real app, the profile picture would be uploaded to Cloud Storage.
+    // For this prototype, we'll continue using a placeholder.
+    const profilePictureUrl = "https://placehold.co/128x128.png";
 
-    const newArtist: PendingArtist = {
-        ...values,
-        profilePictureUrl: profileUrl,
-    };
-    
-    delete (newArtist as any).profilePicture;
+    try {
+        await registerArtist({
+            ...values,
+            profilePictureUrl,
+        });
 
-    addPendingArtist(newArtist);
-    
-    toast({
-      title: "Registration Submitted!",
-      description: "Your profile is now pending admin approval. We will notify you via email.",
-    });
+        toast({
+            title: "Registration Submitted!",
+            description: "Your profile is now pending admin approval. You will be redirected to the login page.",
+        });
 
-    router.push("/artist/login");
+        router.push("/artist/login");
+
+    } catch (error) {
+        console.error("Registration failed:", error);
+        let description = "An unexpected error occurred.";
+        if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
+            description = "This email address is already registered.";
+        }
+        
+        toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description,
+        });
+        setLoading(false);
+    }
   }
 
   return (
@@ -216,7 +228,7 @@ export default function ArtistRegister() {
                         }}
                       />
                     </FormControl>
-                    <FormDescription>Optional. A good profile picture helps you stand out.</FormDescription>
+                    <FormDescription>Optional. A good profile picture helps you stand out. Upload is simulated.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

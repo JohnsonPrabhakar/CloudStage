@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Check,
   DollarSign,
@@ -40,39 +39,37 @@ import {
   Instagram,
   Youtube
 } from "lucide-react";
-import { type Event, type Artist, type PendingArtist } from "@/lib/types";
+import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
-import { getArtists, getPendingArtists, approveArtist, rejectArtist } from "@/lib/mock-data";
-import { getPendingEvents, updateEventStatus } from "@/lib/firebase-service";
+import { 
+    getPendingEvents, 
+    updateEventStatus, 
+    getPendingArtists as getPendingArtistsFromDb,
+    approveArtist as approveArtistInDb,
+    rejectArtist as rejectArtistInDb,
+} from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
-type AdminDashboardProps = {
-  initialArtists: Artist[];
-};
-
-export default function AdminDashboard({
-  initialArtists,
-}: AdminDashboardProps) {
+export default function AdminDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
-  const [artists, setArtists] = useState<Artist[]>(initialArtists);
-  const [pendingArtists, setPendingArtists] = useState<PendingArtist[]>([]);
+  const [pendingArtists, setPendingArtists] = useState<Artist[]>([]);
   const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refreshData = async () => {
      setLoading(true);
-     // Artist data still from mock-data
-     setArtists(getArtists());
-     setPendingArtists(getPendingArtists());
-     
-     // Event data from Firestore
+     // Fetch data from Firestore
      const events = await getPendingEvents();
      setPendingEvents(events);
+     const artists = await getPendingArtistsFromDb();
+     setPendingArtists(artists);
      
-     if(localStorage.getItem("pendingArtistNotifications") === "true") {
+     // Mock notification logic
+     if(artists.length > 0) {
         setHasPendingArtistNotification(true);
      }
      setLoading(false);
@@ -91,8 +88,6 @@ export default function AdminDashboard({
   }, [router]);
 
   // NOTE: Revenue and boosted event data is now static or mocked
-  // as it would require more complex Firestore queries.
-  const boostedEventsCount = 0; // Placeholder
   const revenueData = { total: 0 }; // Placeholder
   
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
@@ -112,14 +107,16 @@ export default function AdminDashboard({
     }
   };
   
-  const handleArtistApproval = (email: string) => {
-    approveArtist(email);
-    refreshData();
+  const handleArtistApproval = async (artistId: string) => {
+    await approveArtistInDb(artistId);
+    setPendingArtists(prev => prev.filter(a => a.id !== artistId));
+    toast({ title: "Artist Approved", description: "The artist can now log in." });
   };
 
-  const handleArtistRejection = (email: string) => {
-    rejectArtist(email);
-    refreshData();
+  const handleArtistRejection = async (artistId: string) => {
+    await rejectArtistInDb(artistId);
+    setPendingArtists(prev => prev.filter(a => a.id !== artistId));
+    toast({ title: "Artist Rejected", description: "The artist's profile has been removed." });
   };
 
   const handleLogout = () => {
@@ -133,6 +130,64 @@ export default function AdminDashboard({
     return (
       <div className="flex h-screen items-center justify-center"><p>Redirecting...</p></div>
     );
+  }
+  
+  const renderArtistTable = () => {
+    if (loading) {
+        return (
+            <div className="space-y-2">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+            </div>
+        )
+    }
+    if (pendingArtists.length > 0) {
+        return (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Artist</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Socials</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingArtists.map((artist) => (
+                  <TableRow key={artist.id}>
+                    <TableCell>
+                        <div className="font-medium">{artist.name}</div>
+                        <div className="text-sm text-muted-foreground">{artist.email}</div>
+                         <div className="text-sm text-muted-foreground">{artist.phone}</div>
+                    </TableCell>
+                     <TableCell className="text-sm">
+                        <div>Category: {artist.category} ({artist.subCategory})</div>
+                        <div>Experience: {artist.experience} years</div>
+                        <div>Location: {artist.location}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                         <Link href={artist.youtubeUrl} target="_blank"><Youtube className="h-5 w-5"/></Link>
+                         <Link href={artist.instagramUrl} target="_blank"><Instagram className="h-5 w-5"/></Link>
+                         <Link href={artist.facebookUrl} target="_blank"><Facebook className="h-5 w-5"/></Link>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleArtistApproval(artist.id)}>
+                        <Check className="h-4 w-4 mr-1" /> Approve
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleArtistRejection(artist.id)}>
+                        <X className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+        )
+    }
+    return <p className="text-muted-foreground text-center py-4">No pending artist registrations.</p>
   }
 
   return (
@@ -164,7 +219,6 @@ export default function AdminDashboard({
       <Tabs defaultValue="overview" onValueChange={(value) => {
         if (value === 'artist-approvals') {
           setHasPendingArtistNotification(false);
-          localStorage.setItem("pendingArtistNotifications", "false");
         }
       }}>
         <TabsList className="grid w-full grid-cols-4">
@@ -191,12 +245,12 @@ export default function AdminDashboard({
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Premium Artists</CardTitle>
+                <CardTitle className="text-sm font-medium">Pending Artists</CardTitle>
                 <Crown className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{artists.filter((a) => a.isPremium).length}</div>
-                <p className="text-xs text-muted-foreground">out of {artists.length} artists</p>
+                <div className="text-2xl font-bold">{pendingArtists.length}</div>
+                <p className="text-xs text-muted-foreground">Awaiting approval</p>
               </CardContent>
             </Card>
             <Card>
@@ -205,8 +259,8 @@ export default function AdminDashboard({
                 <Sparkles className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">+{boostedEventsCount}</div>
-                 <p className="text-xs text-muted-foreground">(Mock Data)</p>
+                 <div className="text-2xl font-bold">...</div>
+                 <p className="text-xs text-muted-foreground">(Fetching...)</p>
               </CardContent>
             </Card>
             <Card>
@@ -271,51 +325,7 @@ export default function AdminDashboard({
           <Card>
             <CardHeader><CardTitle>Pending Artist Approvals</CardTitle></CardHeader>
             <CardContent>
-              {pendingArtists.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Artist</TableHead>
-                      <TableHead>Details</TableHead>
-                      <TableHead>Socials</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingArtists.map((artist) => (
-                      <TableRow key={artist.email}>
-                        <TableCell>
-                            <div className="font-medium">{artist.name}</div>
-                            <div className="text-sm text-muted-foreground">{artist.email}</div>
-                             <div className="text-sm text-muted-foreground">{artist.phone}</div>
-                        </TableCell>
-                         <TableCell className="text-sm">
-                            <div>Category: {artist.category} ({artist.subCategory})</div>
-                            <div>Experience: {artist.experience} years</div>
-                            <div>Location: {artist.location}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                             <Link href={artist.youtubeUrl} target="_blank"><Youtube className="h-5 w-5"/></Link>
-                             <Link href={artist.instagramUrl} target="_blank"><Instagram className="h-5 w-5"/></Link>
-                             <Link href={artist.facebookUrl} target="_blank"><Facebook className="h-5 w-5"/></Link>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleArtistApproval(artist.email)}>
-                            <Check className="h-4 w-4 mr-1" /> Approve
-                          </Button>
-                          <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600" onClick={() => handleArtistRejection(artist.email)}>
-                            <X className="h-4 w-4 mr-1" /> Reject
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No pending artist registrations.</p>
-              )}
+              {renderArtistTable()}
             </CardContent>
           </Card>
         </TabsContent>
