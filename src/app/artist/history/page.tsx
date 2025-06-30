@@ -2,51 +2,66 @@
 
 import ArtistHistory from "@/components/ArtistHistory";
 import { useEffect, useState } from "react";
-import { type Event, type Artist } from '@/lib/types';
+import { type Event } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { getArtistEvents, getArtistProfile } from "@/lib/firebase-service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { WifiOff } from "lucide-react";
 
 export default function ArtistHistoryPage() {
   const [artistEvents, setArtistEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in, see if they are an approved artist.
-        const profile = await getArtistProfile(user.uid);
-        if (profile && profile.isApproved) {
-            // Fetch events for this artist
-            const events = await getArtistEvents(user.uid);
-            setArtistEvents(events);
-        } else if (profile && !profile.isApproved) {
-            // Not approved yet
-            toast({ variant: 'destructive', title: 'Approval Pending' });
-            router.push('/artist/pending');
-        } else {
-            // No profile, not an artist
-            toast({ variant: 'destructive', title: 'Access Denied' });
-            router.push('/artist/login');
-        }
+  const fetchHistory = async (currentUser: User) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profile = await getArtistProfile(currentUser.uid);
+      if (profile && profile.isApproved) {
+        const events = await getArtistEvents(currentUser.uid);
+        setArtistEvents(events);
+      } else if (profile && !profile.isApproved) {
+        toast({ variant: 'destructive', title: 'Approval Pending' });
+        router.push('/artist/pending');
       } else {
-        // User is signed out
-        toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+        toast({ variant: 'destructive', title: 'Access Denied' });
         router.push('/artist/login');
       }
+    } catch (err) {
+      console.error("Failed to fetch artist history:", err);
+      setError("Could not load your history. Please check your internet connection and try again.");
+    } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        fetchHistory(currentUser);
+      } else {
+        setUser(null);
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'Please log in.' });
+        router.push('/artist/login');
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, toast]);
 
 
-  if(loading) {
+  if (loading) {
     return (
         <div className="container mx-auto p-8 space-y-4">
             <Skeleton className="h-12 w-1/3" />
@@ -54,7 +69,20 @@ export default function ArtistHistoryPage() {
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
         </div>
-    )
+    );
+  }
+
+  if (error) {
+    return (
+        <div className="container mx-auto p-8 text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={() => user && fetchHistory(user)}>
+                Try Again
+            </Button>
+        </div>
+    );
   }
 
   return <ArtistHistory events={artistEvents} />;
