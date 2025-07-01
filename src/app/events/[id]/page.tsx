@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getArtistById } from "@/lib/mock-data";
-import { getEventById, createTicket, checkForExistingTicket, getSiteStatus } from "@/lib/firebase-service";
+import { getEventById, createTicket, checkForExistingTicket, getSiteStatus, getArtistProfile } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -67,8 +66,8 @@ export default function EventDetailPage() {
         
         if (foundEvent && foundEvent.moderationStatus === 'approved') {
             setEvent(foundEvent);
-            // Artist data is still from mock data for now
-            const foundArtist = getArtistById(foundEvent.artistId);
+            // Fetch the associated artist from Firestore
+            const foundArtist = await getArtistProfile(foundEvent.artistId);
             setArtist(foundArtist || null);
         } else {
             setEvent(null);
