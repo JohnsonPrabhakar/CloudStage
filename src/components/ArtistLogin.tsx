@@ -81,7 +81,7 @@ export default function ArtistLogin() {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
-            description = "Invalid email or password.";
+            description = "Invalid email or password. Please double-check your credentials or register if you're a new artist.";
             break;
           case 'auth/network-request-failed':
             description = "A network error occurred. Please check your internet connection.";
