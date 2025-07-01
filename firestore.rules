@@ -1,76 +1,68 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/cloudstage/documents {
 
-    // Helper functions
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
+    // Helper function to check if the user is an Admin
     function isAdmin() {
-      // In a production app, use custom claims. For this project, email is sufficient.
-      return request.auth.token.email == 'admin@cloudstage.in';
-    }
-
-    // Default deny all access to prevent unauthorized reads/writes.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // --- COLLECTIONS ---
-
-    // ARTISTS
-    match /artists/{artistId} {
-      // Anyone can read an artist's public profile.
-      allow read: if true;
-      // An authenticated user can create their own artist profile.
-      allow create: if isOwner(artistId);
-      // An artist can update their own profile. An admin can update any profile.
-      allow update: if isOwner(artistId) || isAdmin();
-      // Admins can delete artist profiles.
-      allow delete: if isAdmin();
-    }
-
-    // EVENTS
-    match /events/{eventId} {
-      // Admins can read any event.
-      // Logged-in artists can read their own events.
-      // The public can read approved events.
-      allow read: if isAdmin() ||
-                   (request.auth != null && request.auth.uid == resource.data.artistId) ||
-                   (resource.data.moderationStatus == 'approved');
-
-      // Admins can write to any event.
-      // An authenticated artist can create or update their own event.
-      allow write: if isAdmin() || (request.auth != null && request.auth.uid == request.resource.data.artistId);
+      // This requires a collection named 'admins' where the document ID is the user's UID.
+      // This is a secure way to manage admin roles.
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
     
-    // TICKETS
+    // --- CATCH-ALL ADMIN RULE ---
+    // A user who is an admin can read and write any document in the database.
+    // This rule is checked first.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- ARTIST PROFILES ---
+    match /artists/{artistId} {
+      // Any authenticated user can view an artist's profile.
+      allow get: if request.auth != null;
+      // An artist can create their own profile, or update their own profile.
+      allow create, update: if request.auth.uid == artistId;
+    }
+
+    // --- EVENTS ---
+    match /events/{eventId} {
+      // READ (get, list) access rules for events.
+      allow read: if 
+        // Allow if the event is approved (for public viewing on homepage, etc.)
+        resource.data.moderationStatus == 'approved' ||
+        // OR, allow if the logged-in user is the artist who owns this event
+        (request.auth != null && resource.data.artistId == request.auth.uid);
+
+      // WRITE (create, update) access rules for events.
+      allow create, update: if 
+        // Allow if the logged-in user is the artist creating/updating the event.
+        request.auth.uid != null && request.resource.data.artistId == request.auth.uid;
+    }
+
+    // --- TICKETS ---
     match /tickets/{ticketId} {
-      // Admins can read any ticket.
       // A user can read their own tickets.
-      allow read: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.userId);
-      // An authenticated user can create a ticket for themselves.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      // No one can update or delete tickets.
-      allow update, delete: if false;
+      allow read: if request.auth.uid == resource.data.userId;
+      // Any authenticated user can create a ticket.
+      allow create: if request.auth != null;
     }
 
-    // MOVIES
+    // --- MOVIES ---
     match /movies/{movieId} {
-      // Anyone can read movie details.
+      // Anyone can read movie documents.
       allow read: if true;
-      // Only an admin can create, update or delete movies.
+      // Only admins can add, edit, or delete movies.
       allow write: if isAdmin();
     }
-
-    // CONFIG
+    
+    // --- SITE CONFIGURATION ---
     match /config/{configId} {
-      // Anyone can read config settings.
-      allow read: if true;
-      // Only an admin can write config settings.
-      allow write: if isAdmin();
+        // Anyone can read the site configuration (like its online/offline status).
+        allow read: if true;
+        // Only an admin can change the site configuration.
+        allow write: if isAdmin();
     }
   }
 }
