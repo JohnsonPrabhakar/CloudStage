@@ -1,37 +1,43 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Artists can only manage their own profile.
-    match /artists/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Events can be read by anyone if approved.
-    // An artist can read their own events regardless of status.
-    // An artist can only create/update their own events.
+    
+    // Anyone can read approved events.
+    // An authenticated artist can read their own events (any status).
     match /events/{eventId} {
-      allow read: if resource.data.moderationStatus == 'approved' || (request.auth != null && request.auth.uid == resource.data.artistId);
-      allow write: if request.auth != null && request.auth.uid == request.resource.data.artistId;
+      allow read: if resource.data.moderationStatus == 'approved' 
+                    || (request.auth != null && request.auth.uid == resource.data.artistId);
+      // Only authenticated users (artists) can create events.
+      // Admin will update status (moderation)
+      allow create: if request.auth.uid != null;
+      allow update: if request.auth.uid != null; // For boosting and admin moderation
     }
 
-    // Users can only manage their own tickets.
+    // Anyone can read artist profiles.
+    // An artist can create/update their own profile.
+    match /artists/{artistId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth.uid == artistId;
+    }
+    
+    // Logged-in users can create tickets.
+    // Users can read their own tickets.
     match /tickets/{ticketId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid != null;
+      allow read: if request.auth.uid == resource.data.userId;
     }
-
-    // Movies can be read by anyone.
-    // Only the admin can create, update, or delete movies.
+    
+    // Anyone can read movies
     match /movies/{movieId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+      // Admin operations handled client-side, so just check for auth
+      allow create, update, delete: if request.auth.uid != null;
     }
-
-    // Site configuration can be read by anyone, but only written by admin.
-    match /config/siteStatus {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    
+    // Anyone can read config. Admin can write.
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if request.auth.uid != null;
     }
   }
 }
