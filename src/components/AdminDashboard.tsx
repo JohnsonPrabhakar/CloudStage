@@ -250,14 +250,14 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
-       <div className="flex items-center justify-between">
+       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" onClick={() => router.push("/")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-4xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-3xl md:text-4xl font-bold">Admin Dashboard</h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex w-full flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end">
             <div className="flex items-center space-x-2">
                 <Switch
                     id="site-status-toggle"
@@ -285,7 +285,7 @@ export default function AdminDashboard() {
           setHasPendingArtistNotification(false);
         }
       }}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="event-approvals">Event Approvals</TabsTrigger>
           <TabsTrigger value="artist-approvals" className="relative">
