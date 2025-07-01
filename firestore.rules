@@ -2,66 +2,82 @@
 rules_version = '2';
 
 service cloud.firestore {
-  match /databases/cloudstage/documents {
+  match /databases/{database}/documents {
 
+    // Helper Functions
+    function isOwner(resourceId) {
+      return request.auth.uid == resourceId;
+    }
     function isAdmin() {
-      return request.auth.token.email == 'admin@cloudstage.in';
+      // Make sure the user is authenticated before checking email
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    }
+    function isArtistApproved(artistId) {
+      // Check that the artist's profile exists and is approved.
+      // This is used to ensure only approved artists can create events.
+      return get(/databases/$(database)/documents/artists/$(artistId)).data.isApproved == true;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // ARTISTS
+    // ARTIST Rules
     match /artists/{artistId} {
-      allow create: if true;
-      // An artist can read/update their own profile. Admin can read/update any profile.
-      allow read, update: if isSignedIn() && (request.auth.uid == artistId || isAdmin());
-      // Only admin can delete artists (for rejection).
+      // READ: Anyone can view a public artist profile.
+      allow get: if true;
+      // LIST: Only Admins can list multiple artists (for the approval dashboard).
+      allow list: if isAdmin();
+      
+      // CREATE: A new user can create their own artist profile document.
+      allow create: if isOwner(artistId);
+
+      // UPDATE: Artists can update their own profile. Admins can update any profile.
+      allow update: if isOwner(artistId) || isAdmin();
+
+      // DELETE: Only Admins can delete artist profiles.
       allow delete: if isAdmin();
     }
 
-    // EVENTS
+    // EVENT Rules
     match /events/{eventId} {
-      // READ:
-      // 1. Anyone can read an 'approved' event.
-      // 2. The artist who owns the event can read it, regardless of status.
-      // This combined rule should allow both the homepage query and the artist dashboard query.
-      allow read: if resource.data.moderationStatus == 'approved' ||
-                   (isSignedIn() && request.auth.uid == resource.data.artistId);
+      // READ (get and list):
+      // - Anyone can read events that are 'approved'.
+      // - An artist can read their own events, regardless of status.
+      // - An admin can read any event.
+      allow read: if resource.data.moderationStatus == 'approved' || 
+                     (request.auth != null && request.auth.uid == resource.data.artistId) || 
+                     isAdmin();
+      
+      // CREATE: An approved artist can create an event for themselves.
+      allow create: if (request.auth.uid == request.resource.data.artistId) && isArtistApproved(request.auth.uid);
 
-      // CREATE:
-      // An artist can create an event for themselves. The approval check is handled by the backend logic and admin dashboard.
-      // This simplified rule prevents query evaluation from failing due to complexity.
-      allow create: if isSignedIn() && request.resource.data.artistId == request.auth.uid;
-
-      // UPDATE:
-      // The artist can update their own event (e.g., to boost it).
-      // The admin can update any event (e.g., to moderate it).
-      allow update: if isSignedIn() && (request.auth.uid == resource.data.artistId || isAdmin());
-
-      // DELETE:
-      // Events cannot be deleted to preserve history.
-      allow delete: if false;
+      // UPDATE: An artist can update their own event. An admin can update any event.
+      allow update: if (request.auth.uid == resource.data.artistId) || isAdmin();
+      
+      // DELETE: Only Admins can delete events.
+      allow delete: if isAdmin();
     }
 
-    // MOVIES
-    match /movies/{movieId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    // TICKETS
+    // TICKET Rules
     match /tickets/{ticketId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
-      allow update, delete: if false;
+      // READ: Users can read their own tickets. Admins can read any ticket.
+      allow get, list: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
+      
+      // CREATE: An authenticated user can create a ticket for themselves.
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
-
-    // CONFIG
-    match /config/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    
+    // MOVIE Rules
+    match /movies/{movieId} {
+        // READ: Anyone can read movie documents.
+        allow read: if true;
+        // WRITE: Only admins can create, update, or delete movies.
+        allow write: if isAdmin();
+    }
+    
+    // CONFIG Rules
+    match /config/{configId} {
+        // READ: Anyone can read site config (like site status).
+        allow read: if true;
+        // WRITE: Only admins can change site config.
+        allow write: if isAdmin();
     }
   }
 }
