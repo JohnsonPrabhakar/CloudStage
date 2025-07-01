@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getApprovedEvents } from "@/lib/firebase-service";
 import { EventCalendarView } from "./EventCalendarView";
 import { Button } from "./ui/button";
-import { Calendar, List, Loader2 } from "lucide-react";
+import { Calendar, List } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
 
 export function HomePageClient() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [liveEvents, setLiveEvents] = useState<Event[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [pastEvents, setPastEvents] = useState<Event[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [loading, setLoading] = useState(true);
 
@@ -30,42 +33,48 @@ export function HomePageClient() {
     fetchEvents();
   }, []);
 
-  const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
+  useEffect(() => {
+    // This logic is now in useEffect to prevent hydration mismatches.
+    // It runs only on the client-side after the component has mounted.
+    if (allEvents.length === 0 && !loading) return;
+
     const now = new Date();
-    // Logic to update status dynamically based on date
-    const eventsWithUpdatedStatus = allEvents.map(event => {
+    const categorized = allEvents.reduce(
+      (acc, event) => {
         const eventDate = new Date(event.date);
         let status: Event['status'] = 'past';
-        if (event.status !== 'live') { // Don't override if manually set to live
-             if (eventDate > now) status = 'upcoming';
-        }
-        // A simple check to simulate a live event
+
+        // A simple check to simulate a live event (e.g., started in the last hour)
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         if (eventDate > oneHourAgo && eventDate <= now) {
             status = 'live';
+        } else if (eventDate > now) {
+            status = 'upcoming';
         }
+        
+        const updatedEvent = { ...event, status };
 
-        return {...event, status};
-    });
-
-    return eventsWithUpdatedStatus.reduce(
-      (acc, event) => {
-        if (event.status === "live") {
-          acc.liveEvents.push(event);
-        } else if (event.status === "upcoming") {
-          acc.upcomingEvents.push(event);
+        if (status === "live") {
+          acc.live.push(updatedEvent);
+        } else if (status === "upcoming") {
+          acc.upcoming.push(updatedEvent);
         } else {
-          acc.pastEvents.push(event);
+          acc.past.push(updatedEvent);
         }
         return acc;
       },
-      { liveEvents: [], upcomingEvents: [], pastEvents: [] } as {
-        liveEvents: Event[];
-        upcomingEvents: Event[];
-        pastEvents: Event[];
+      { live: [], upcoming: [], past: [] } as {
+        live: Event[];
+        upcoming: Event[];
+        past: Event[];
       }
     );
-  }, [allEvents]);
+
+    setLiveEvents(categorized.live);
+    setUpcomingEvents(categorized.upcoming);
+    setPastEvents(categorized.past);
+
+  }, [allEvents, loading]);
 
   const renderEventGrid = (events: Event[], emptyMessage: string) => {
     if (loading) {
