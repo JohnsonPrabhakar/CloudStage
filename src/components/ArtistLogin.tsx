@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { getArtistProfile } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
 
@@ -50,35 +50,27 @@ export default function ArtistLogin() {
 
       const artistProfile = await getArtistProfile(user.uid);
 
-      if (artistProfile) {
-        if (artistProfile.isApproved) {
-            toast({
-                title: "Login Successful",
-                description: "Redirecting to your dashboard...",
-            });
-            router.push("/artist/dashboard");
-        } else {
-            toast({
-                variant: "default",
-                title: "Account Pending",
-                description: "Your account is awaiting admin approval.",
-            });
-            router.push('/artist/pending');
-        }
-      } else {
-        // A user account exists in Firebase Auth, but no artist profile was found.
-        // This means they are not a registered artist.
-        await signOut(auth); // Sign out to prevent confusion
+      if (artistProfile && artistProfile.isApproved) {
         toast({
-            variant: "destructive",
-            title: "Login Failed",
-            description: "No artist profile exists for this account. Please register first.",
+            title: "Login Successful",
+            description: "Redirecting to your dashboard...",
         });
-        setLoading(false);
+        router.push("/artist/dashboard");
+      } else {
+        // This handles two cases gracefully:
+        // 1. A registered artist whose account is pending approval.
+        // 2. A user whose account was created in Auth but failed to create a Firestore profile (the "limbo" state).
+        // In both cases, directing to the pending page is the correct, non-confusing user experience.
+        toast({
+            variant: "default",
+            title: "Account Pending",
+            description: "Your account is awaiting admin approval.",
+        });
+        router.push('/artist/pending');
       }
 
     } catch (error) {
-      console.error("Artist Login Failed:", error); // Log the real error for debugging
+      console.error("Artist Login Failed:", error);
       let title = "Login Failed";
       let description = "An unexpected error occurred. Please try again.";
 
