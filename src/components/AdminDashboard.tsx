@@ -50,11 +50,15 @@ import {
     getPendingArtists as getPendingArtistsFromDb,
     approveArtist as approveArtistInDb,
     rejectArtist as rejectArtistInDb,
+    getSiteStatus,
+    updateSiteStatus,
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -65,6 +69,7 @@ export default function AdminDashboard() {
   const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
 
   const refreshData = async () => {
      setLoading(true);
@@ -74,6 +79,8 @@ export default function AdminDashboard() {
        setPendingEvents(events);
        const artists = await getPendingArtistsFromDb();
        setPendingArtists(artists);
+       const status = await getSiteStatus();
+       setSiteStatus(status);
        
        if(artists.length > 0) {
           setHasPendingArtistNotification(true);
@@ -134,6 +141,22 @@ export default function AdminDashboard() {
     await signOut(auth);
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
     router.push("/admin");
+  };
+
+  const handleStatusToggle = async (isOnline: boolean) => {
+    const newStatus = isOnline ? 'online' : 'offline';
+    try {
+      setSiteStatus(newStatus); // Optimistic update
+      await updateSiteStatus(newStatus);
+      toast({
+          title: "Site Status Updated",
+          description: `Bookings are now ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}.`,
+      });
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Could not update site status.", variant: "destructive"});
+      // Revert optimistic update on failure
+      setSiteStatus(isOnline ? 'offline' : 'online');
+    }
   };
   
   if (!isAuthenticated) {
@@ -225,7 +248,18 @@ export default function AdminDashboard() {
           </Button>
           <h1 className="text-4xl font-bold">Admin Dashboard</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+                <Switch
+                    id="site-status-toggle"
+                    checked={siteStatus === 'online'}
+                    onCheckedChange={handleStatusToggle}
+                    aria-label="Toggle site booking status"
+                />
+                <Label htmlFor="site-status-toggle" className={siteStatus === 'online' ? 'text-green-500' : 'text-red-500'}>
+                    Bookings: {siteStatus === 'online' ? 'Online' : 'Offline'}
+                </Label>
+            </div>
             <Button asChild>
                 <Link href="/movies/upload">
                     <Upload className="mr-2 h-4 w-4" /> Upload Movie

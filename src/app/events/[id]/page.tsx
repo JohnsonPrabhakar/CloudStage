@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
 import { getArtistById } from "@/lib/mock-data";
-import { getEventById, createTicket, checkForExistingTicket } from "@/lib/firebase-service";
+import { getEventById, createTicket, checkForExistingTicket, getSiteStatus } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -28,6 +28,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -40,6 +41,8 @@ export default function EventDetailPage() {
   const [attendees, setAttendees] = useState(0);
   const [hasTicket, setHasTicket] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -48,13 +51,19 @@ export default function EventDetailPage() {
     return () => unsubscribe();
   }, []);
 
-  const fetchEvent = async () => {
+  const fetchEventAndStatus = async () => {
     if (params.id) {
       setLoading(true);
       setError(null);
       try {
         const eventId = params.id as string;
-        const foundEvent = await getEventById(eventId);
+        // Fetch event and site status in parallel
+        const [foundEvent, status] = await Promise.all([
+          getEventById(eventId),
+          getSiteStatus()
+        ]);
+        
+        setSiteStatus(status);
         
         if (foundEvent && foundEvent.moderationStatus === 'approved') {
             setEvent(foundEvent);
@@ -75,7 +84,7 @@ export default function EventDetailPage() {
   }
 
   useEffect(() => {
-    fetchEvent();
+    fetchEventAndStatus();
   }, [params.id]);
 
   useEffect(() => {
@@ -163,7 +172,7 @@ export default function EventDetailPage() {
             <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
             <h1 className="text-3xl font-bold">Connection Error</h1>
             <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-            <Button onClick={fetchEvent}>
+            <Button onClick={fetchEventAndStatus}>
                 Try Again
             </Button>
         </div>
@@ -202,6 +211,24 @@ export default function EventDetailPage() {
           </Button>
         );
       case "upcoming":
+        if (siteStatus === 'offline') {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="w-full">
+                    <Button size="lg" className="w-full text-lg py-6" disabled>
+                      Bookings Currently Offline
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>The booking system is temporarily disabled for maintenance. Please check back later.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
         if (hasTicket) {
              return (
               <Button size="lg" className="w-full text-lg py-6" disabled>

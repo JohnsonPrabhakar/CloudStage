@@ -282,3 +282,25 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     throw error;
   }
 };
+
+
+// CONFIG/SITE STATUS FUNCTIONS
+export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
+  const statusDoc = doc(db, 'config', 'siteStatus');
+  try {
+    const snapshot = await getDoc(statusDoc);
+    if (snapshot.exists() && snapshot.data().status === 'offline') {
+      return 'offline';
+    }
+  } catch (error) {
+    console.error("Could not fetch site status, defaulting to online:", error);
+  }
+  // Default to online if doc doesn't exist, status is 'online', or there's an error
+  return 'online';
+};
+
+export const updateSiteStatus = async (status: 'online' | 'offline') => {
+  const statusDoc = doc(db, 'config', 'siteStatus');
+  // Use setDoc with merge to create the document if it doesn't exist
+  await setDoc(statusDoc, { status }, { merge: true });
+};
