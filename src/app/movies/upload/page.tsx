@@ -99,10 +99,33 @@ export default function UploadMoviePage() {
   const watchYoutubeUrl = form.watch("youtubeUrl");
   const watchMovieFile = form.watch("movieFile");
 
+  const convertToEmbedUrl = (url: string): string => {
+    if (!url) return "";
+    let videoId = null;
+
+    if (url.includes("youtube.com/watch?v=")) {
+      videoId = url.split("v=")[1]?.split('&')[0];
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1]?.split('?')[0];
+    } else if (url.includes("youtube.com/embed/")) {
+      return url; // Already correct
+    } else if (url.includes("youtube.com/live/")) {
+      videoId = url.split("live/")[1]?.split('?')[0];
+    }
+
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url; // Return original if no standard format is found
+  };
+
   const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const url = e.target.value;
-      form.setValue("youtubeUrl", url, { shouldValidate: true });
-      const videoId = url.split('embed/')[1]?.split('?')[0];
+      const originalUrl = e.target.value;
+      const embedUrl = convertToEmbedUrl(originalUrl);
+      
+      form.setValue("youtubeUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
+
+      const videoId = embedUrl.split('embed/')[1]?.split('?')[0];
       if (videoId) {
           setYoutubeThumbnailPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
       } else {
@@ -287,15 +310,18 @@ export default function UploadMoviePage() {
                   name="youtubeUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>YouTube Embed URL</FormLabel>
+                      <FormLabel>YouTube URL</FormLabel>
                       <FormControl>
                         <Input 
-                            placeholder="https://youtube.com/embed/..." 
+                            placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
                             {...field}
                             onChange={handleYoutubeUrlChange}
                             disabled={!!watchMovieFile && watchMovieFile.length > 0}
                         />
                       </FormControl>
+                       <FormDescription>
+                        The URL will be automatically converted to the required format.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -359,3 +385,5 @@ export default function UploadMoviePage() {
     </div>
   );
 }
+
+    

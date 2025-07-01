@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -122,6 +123,40 @@ export default function CreateEventForm() {
       });
     }
   }, [searchParams, form, toast]);
+
+  const convertToEmbedUrl = (url: string): string => {
+    if (!url) return "";
+    let videoId = null;
+
+    if (url.includes("youtube.com/watch?v=")) {
+      videoId = url.split("v=")[1]?.split('&')[0];
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1]?.split('?')[0];
+    } else if (url.includes("youtube.com/embed/")) {
+      return url; // Already correct
+    } else if (url.includes("youtube.com/live/")) {
+        // Live URLs can be embedded directly, or we can convert them to embed format
+        // for consistency. Let's convert.
+        videoId = url.split("live/")[1]?.split('?')[0];
+    }
+
+    if (videoId) {
+      // Note: YouTube uses /embed/ for both live and VOD
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url; // Return original if no standard format is found
+  };
+  
+  const handleStreamUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const originalUrl = e.target.value;
+    // Allow /live/ URLs to pass through, but convert others
+    if (originalUrl.includes("youtube.com/live/")) {
+        form.setValue("streamUrl", originalUrl, { shouldValidate: true, shouldDirty: true });
+    } else {
+        const embedUrl = convertToEmbedUrl(originalUrl);
+        form.setValue("streamUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
+    }
+  };
 
   async function handleGenerateDescription() {
     setIsGenerating(true);
@@ -425,20 +460,24 @@ export default function CreateEventForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
-                        Stream URL
+                        YouTube Stream URL
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>🎥 Paste your YouTube Live URL here (from YouTube Studio).<br/> CloudStage will embed it automatically.</p>
+                              <p>Paste any YouTube URL (live or video).<br/> It will be converted automatically.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="https://youtube.com/embed/..." {...field} />
+                        <Input 
+                          placeholder="Paste any YouTube URL..." 
+                          {...field}
+                          onChange={handleStreamUrlChange}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -481,3 +520,5 @@ export default function CreateEventForm() {
     </div>
   );
 }
+
+    
