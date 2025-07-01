@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { getArtistProfile } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
 
@@ -58,7 +58,6 @@ export default function ArtistLogin() {
           });
           router.push("/artist/dashboard");
         } else {
-          // Case: Profile exists but is not approved. Send to pending page.
           toast({
             variant: "default",
             title: "Account Pending",
@@ -67,15 +66,15 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // Case: Auth user exists, but Firestore profile is missing (the "limbo" state).
-        // This is treated as a failed login because the user is not a complete artist.
-        // We sign them out and instruct them to register properly.
+        // This is the "limbo" state. User is authenticated but has no profile.
+        // Guide them to the registration page to complete their profile.
         toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Your user account exists, but your artist profile is missing. Please register again to create your profile.",
+            title: "Let's Complete Your Profile",
+            description: "We've found your account, but your artist profile is missing. Let's get that set up now.",
         });
-        await signOut(auth); // Log out to prevent the user from being stuck.
+        // Redirect to registration page. The user is kept logged in
+        // so the registration page can pick up their UID and email.
+        router.push('/artist/register');
       }
 
     } catch (error) {

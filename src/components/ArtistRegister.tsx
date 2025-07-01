@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,15 +27,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { registerArtist } from "@/lib/firebase-service";
+import { registerArtist, createArtistProfileForUser } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Loader2 } from "lucide-react";
 
 const artistCategories = ['Music', 'Stand-up Comedy', 'Yoga', 'Magic', 'Devotional'] as const;
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  password: z.string().min(8, "Password must be at least 8 characters.").optional(),
   phone: z.string().min(10, "Please enter a valid phone number."),
   location: z.string().min(2, "Location is required."),
   about: z.string().min(20, "Please tell us a bit more about you (at least 20 characters)."),
@@ -51,6 +54,8 @@ export default function ArtistRegister() {
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -69,23 +74,47 @@ export default function ArtistRegister() {
     },
   });
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+        setAuthChecked(true);
+        if (user) {
+            // If user is already logged in, it's a profile completion flow.
+            // Pre-fill email and disable it. Password is not needed.
+            form.setValue('email', user.email || '');
+        }
+    });
+    return () => unsubscribe();
+  }, [form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
+    
+    // Manual validation for password if it's a new registration
+    if (!currentUser && !values.password) {
+        form.setError("password", { message: "Password is required for new registration." });
+        setLoading(false);
+        return;
+    }
+
     try {
-        await registerArtist({
-            ...values,
-            youtubeUrl: values.youtubeUrl || "",
-            instagramUrl: values.instagramUrl || "",
-            facebookUrl: values.facebookUrl || "",
-        });
-
-        toast({
-            title: "Registration Submitted!",
-            description: "Your profile is now pending admin approval. You will be redirected to the login page.",
-        });
-
-        router.push("/artist/login");
-
+        if (currentUser) {
+            // Flow for an existing authenticated user who is completing their profile
+            await createArtistProfileForUser(currentUser.uid, values);
+            toast({
+                title: "Profile Completed!",
+                description: "Your profile is now pending admin approval.",
+            });
+            router.push("/artist/pending"); // Go directly to pending page
+        } else {
+            // Standard flow for a brand new user registration
+            await registerArtist(values as Required<z.infer<typeof formSchema>>);
+            toast({
+                title: "Registration Submitted!",
+                description: "Your profile is now pending admin approval. You will be redirected to the login page.",
+            });
+            router.push("/artist/login");
+        }
     } catch (error) {
         console.error("Registration failed:", error);
         let description = "An unexpected error occurred. Please try again.";
@@ -126,14 +155,31 @@ export default function ArtistRegister() {
     }
   }
 
+  if (!authChecked) {
+      return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+            <p>Checking authentication status...</p>
+        </div>
+      );
+  }
+
+  const isCompletingProfile = !!currentUser;
+  const pageTitle = isCompletingProfile ? "Complete Your Artist Profile" : "Artist Registration";
+  const pageDescription = isCompletingProfile 
+    ? "Just a few more details and you'll be all set. Your profile will be submitted for review once you're done."
+    : "Join CloudStage! Fill out your profile to start creating events. Already have an account? ";
+  const buttonText = isCompletingProfile ? "Submit for Approval" : "Create Account & Submit";
+
+
   return (
     <div className="container mx-auto p-4 md:p-8">
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-3xl">Artist Registration</CardTitle>
+          <CardTitle className="text-3xl">{pageTitle}</CardTitle>
           <CardDescription>
-            Join CloudStage! Fill out your profile to start creating events. Already have an account?{" "}
-            <Link href="/artist/login" className="text-primary hover:underline">Log in</Link>.
+            {pageDescription}
+            {!isCompletingProfile && <Link href="/artist/login" className="text-primary hover:underline">Log in</Link>}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,25 +207,29 @@ export default function ArtistRegister() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@artist.com" {...field} />
+                        <Input type="email" placeholder="you@artist.com" {...field} disabled={isCompletingProfile} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                {!isCompletingProfile && (
+                    <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                )}
+                
                 <FormField
                   control={form.control}
                   name="phone"
@@ -319,7 +369,7 @@ export default function ArtistRegister() {
               </div>
 
               <Button type="submit" size="lg" className="w-full md:w-auto" disabled={loading}>
-                {loading ? "Submitting..." : "Submit for Approval"}
+                {loading ? "Submitting..." : buttonText}
               </Button>
             </form>
           </Form>

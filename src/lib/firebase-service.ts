@@ -96,14 +96,11 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEvents = async (artistId: string): Promise<Event[]> => {
-  // This function has been simplified to use a single, more reliable query.
-  // This avoids complex queries that can be rejected by Firestore security rules.
   const q = query(eventsCollection, where('artistId', '==', artistId));
   const snapshot = await getDocs(q);
   
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
-  // Sort all combined events by date on the client-side
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return events;
@@ -127,35 +124,43 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
 
 // ARTIST-RELATED FUNCTIONS
 
+// Helper to build the profile object from form data
+const buildArtistProfileObject = (data: any): Omit<Artist, 'id'> => {
+  const profilePictureUrl = `https://placehold.co/128x128.png?text=${data.name.charAt(0)}`;
+  return {
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    location: data.location,
+    about: data.about,
+    profilePictureUrl,
+    youtubeUrl: data.youtubeUrl || "",
+    instagramUrl: data.instagramUrl || "",
+    facebookUrl: data.facebookUrl || "",
+    experience: data.experience,
+    category: data.category,
+    subCategory: data.subCategory,
+    isPremium: false,
+    isApproved: false,
+    type: 'Solo Artist',
+    genres: [data.subCategory],
+  };
+};
+
+// NEW: Creates just the Firestore profile document for an existing user.
+export const createArtistProfileForUser = async (uid: string, data: any) => {
+    const artistProfile = buildArtistProfileObject(data);
+    await setDoc(doc(db, "artists", uid), artistProfile);
+};
+
+// REFACTORED: The main registration function.
 export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres' | 'profilePictureUrl'> & {password: string}) => {
     // 1. Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
 
-    // 2. Use a placeholder for the profile picture URL
-    const profilePictureUrl = `https://placehold.co/128x128.png?text=${data.name.charAt(0)}`;
-
-    // 3. Create artist profile in Firestore
-    const artistProfile: Omit<Artist, 'id'> = {
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        location: data.location,
-        about: data.about,
-        profilePictureUrl: profilePictureUrl,
-        youtubeUrl: data.youtubeUrl || "",
-        instagramUrl: data.instagramUrl || "",
-        facebookUrl: data.facebookUrl || "",
-        experience: data.experience,
-        category: data.category,
-        subCategory: data.subCategory,
-        isPremium: false,
-        isApproved: false,
-        type: 'Solo Artist', // Default value
-        genres: [data.subCategory], // Default value
-    };
-
-    await setDoc(doc(db, "artists", user.uid), artistProfile);
+    // 2. Create artist profile in Firestore
+    await createArtistProfileForUser(user.uid, data);
 }
 
 export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
