@@ -208,7 +208,7 @@ export default function CreateEventForm() {
         return;
     }
 
-    const eventData = {
+    const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'> = {
       title: values.title,
       artist: artist.name,
       artistId: artist.id,
