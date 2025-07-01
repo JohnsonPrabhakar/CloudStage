@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Ticket, Film } from "lucide-react";
+import Image from "next/image";
 
 export function Header() {
   const navItems = [
@@ -30,6 +31,12 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
+            <Image
+              src="/logo.png"
+              alt="CloudStage Logo"
+              width={40}
+              height={40}
+            />
             <span className="text-xl font-bold">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -63,6 +70,12 @@ export function Header() {
                       href="/"
                       className="flex items-center space-x-2"
                     >
+                      <Image
+                        src="/logo.png"
+                        alt="CloudStage Logo"
+                        width={32}
+                        height={32}
+                      />
                       <span className="text-xl font-bold">CloudStage</span>
                     </Link>
                   </SheetTitle>
@@ -85,6 +98,12 @@ export function Header() {
 
           <div className="flex-1 md:hidden">
             <Link href="/" className="flex items-center justify-center space-x-2">
+                  <Image
+                    src="/logo.png"
+                    alt="CloudStage Logo"
+                    width={32}
+                    height={32}
+                  />
                   <span className="text-xl font-bold">CloudStage</span>
             </Link>
           </div>
