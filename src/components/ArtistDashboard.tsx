@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Event, type Artist } from "@/lib/types";
 import { getArtistEvents, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
   PlusCircle,
   Crown,
@@ -41,7 +41,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Skeleton } from "./ui/skeleton";
+import { FirebaseError } from "firebase/app";
 
 export default function ArtistDashboard() {
   const router = useRouter();
@@ -51,32 +51,39 @@ export default function ArtistDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchArtistData = async (user: User) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profile = await getArtistProfile(user.uid);
+      if (profile) {
+        if (profile.isApproved) {
+          setArtist(profile);
+          const events = await getArtistEvents(user.uid);
+          setMyEvents(events);
+        } else {
+          router.push('/artist/pending');
+        }
+      } else {
+        toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please register as an artist.' });
+        router.push('/artist/register');
+      }
+    } catch (err) {
+      console.error("Failed to fetch artist data:", err);
+      if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
+        setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
+      } else {
+        setError("Could not load your dashboard. Please check your internet connection and try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setError(null);
-        setLoading(true);
-        try {
-          const profile = await getArtistProfile(user.uid);
-          if (profile) {
-            if (profile.isApproved) {
-              setArtist(profile);
-              const events = await getArtistEvents(user.uid);
-              setMyEvents(events);
-            } else {
-              router.push('/artist/pending');
-            }
-          } else {
-            // This user is authenticated but has no artist profile.
-            toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please register as an artist.' });
-            router.push('/artist/register');
-          }
-        } catch (err) {
-          console.error("Failed to fetch artist data:", err);
-          setError("Could not load your dashboard. Please check your internet connection and try again.");
-        } finally {
-          setLoading(false);
-        }
+        fetchArtistData(user);
       } else {
         router.push('/artist/login');
         setLoading(false);
@@ -84,6 +91,7 @@ export default function ArtistDashboard() {
     });
 
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, toast]);
 
   const handleBoost = async (eventId: string, amount: number) => {

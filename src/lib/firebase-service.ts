@@ -96,38 +96,12 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEvents = async (artistId: string): Promise<Event[]> => {
-  // This function was updated to handle a specific Firestore security rule limitation.
-  // By fetching events in separate batches by status, we ensure each query is simple
-  // enough for the security rules to validate, preventing "Missing or insufficient
-  // permissions" errors that can occur with more complex, combined queries.
-  const pendingQuery = query(
-    eventsCollection,
-    where('artistId', '==', artistId),
-    where('moderationStatus', '==', 'pending')
-  );
-  const approvedQuery = query(
-    eventsCollection,
-    where('artistId', '==', artistId),
-    where('moderationStatus', '==', 'approved')
-  );
-  const rejectedQuery = query(
-    eventsCollection,
-    where('artistId', '==', artistId),
-    where('moderationStatus', '==', 'rejected')
-  );
-
-  const [pendingSnapshot, approvedSnapshot, rejectedSnapshot] =
-    await Promise.all([
-      getDocs(pendingQuery),
-      getDocs(approvedQuery),
-      getDocs(rejectedQuery),
-    ]);
-
-  const events: Event[] = [
-    ...pendingSnapshot.docs.map((doc) => fromFirestore<Event>(doc)),
-    ...approvedSnapshot.docs.map((doc) => fromFirestore<Event>(doc)),
-    ...rejectedSnapshot.docs.map((doc) => fromFirestore<Event>(doc)),
-  ];
+  // This function has been simplified to use a single, more reliable query.
+  // This avoids complex queries that can be rejected by Firestore security rules.
+  const q = query(eventsCollection, where('artistId', '==', artistId));
+  const snapshot = await getDocs(q);
+  
+  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
   // Sort all combined events by date on the client-side
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
