@@ -41,8 +41,8 @@ export function MoviesClient() {
   const filteredMovies = useMemo(() => {
     return movies.filter(movie => {
         const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesGenre = selectedGenre === 'all' || movie.genre === selectedGenre;
-        const matchesLanguage = selectedLanguage === 'all' || movie.language === selectedLanguage;
+        const matchesGenre = selectedGenre === 'all' || movie.genre.toLowerCase() === selectedGenre.toLowerCase();
+        const matchesLanguage = selectedLanguage === 'all' || movie.language.toLowerCase() === selectedLanguage.toLowerCase();
         return matchesSearch && matchesGenre && matchesLanguage;
     });
   }, [movies, searchQuery, selectedGenre, selectedLanguage]);

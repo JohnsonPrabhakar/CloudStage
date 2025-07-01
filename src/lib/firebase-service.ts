@@ -13,6 +13,7 @@ import {
   setDoc,
   deleteDoc,
   limit,
+  orderBy,
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -292,6 +293,8 @@ export const addMovie = async (
     
     await addDoc(moviesCollection, {
       ...movieData,
+      genre: movieData.genre.toLowerCase(),
+      language: movieData.language.toLowerCase(),
       videoUrl,
       posterUrl,
       createdAt: serverTimestamp(),
@@ -309,7 +312,7 @@ export const addMovie = async (
 
 export const getAllMovies = async (): Promise<Movie[]> => {
   try {
-    const q = query(moviesCollection);
+    const q = query(moviesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => fromFirestore<Movie>(doc));
   } catch (error) {
