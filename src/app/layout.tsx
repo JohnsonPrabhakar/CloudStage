@@ -24,10 +24,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
           rel="stylesheet"
         />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" 
-          rel="stylesheet" 
-        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#800000" />
       </head>
