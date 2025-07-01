@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Sheet,
@@ -13,6 +14,8 @@ import { Menu, Ticket, Film } from "lucide-react";
 import Image from "next/image";
 
 export function Header() {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
@@ -56,7 +59,7 @@ export function Header() {
         {/* Mobile Navigation */}
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <Menu className="h-5 w-5" />
@@ -69,6 +72,7 @@ export function Header() {
                     <Link
                       href="/"
                       className="flex items-center space-x-2"
+                      onClick={() => setIsSheetOpen(false)}
                     >
                       <Image
                         src="/logo.png"
@@ -86,6 +90,7 @@ export function Header() {
                       key={item.href}
                       href={item.href}
                       className="transition-colors hover:text-primary flex items-center gap-2 text-lg"
+                      onClick={() => setIsSheetOpen(false)}
                     >
                       {item.icon}
                       {item.label}
