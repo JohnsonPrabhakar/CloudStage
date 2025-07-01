@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { getArtistProfile } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
 
@@ -59,18 +59,20 @@ export default function ArtistLogin() {
             router.push("/artist/dashboard");
         } else {
             toast({
-                variant: "destructive",
+                variant: "default",
                 title: "Account Pending",
                 description: "Your account is awaiting admin approval.",
             });
             router.push('/artist/pending');
         }
       } else {
-        // This case should ideally not happen if registration is done correctly
+        // This is a valid user who is not an artist. Sign them out.
+        await signOut(auth);
         throw new Error("Artist profile not found.");
       }
 
     } catch (error) {
+      console.error("Artist Login Failed:", error); // Log the real error for debugging
       let title = "Login Failed";
       let description = "An unexpected error occurred. Please try again.";
 
@@ -81,10 +83,15 @@ export default function ArtistLogin() {
           case 'auth/invalid-credential':
             description = "Invalid email or password.";
             break;
+          case 'auth/network-request-failed':
+            description = "A network error occurred. Please check your internet connection.";
+            break;
           default:
-            description = "An error occurred during login. Please check your internet connection and try again.";
+            description = `An unexpected server error occurred. Please try again later.`;
             break;
         }
+      } else if (error instanceof Error && error.message.includes("Artist profile not found")) {
+        description = "No artist profile exists for this account. Please register first.";
       }
       
       toast({ variant: "destructive", title, description });
