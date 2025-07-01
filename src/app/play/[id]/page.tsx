@@ -6,16 +6,20 @@ import EventPlayer from "@/components/EventPlayer";
 import { getEventById } from "@/lib/firebase-service";
 import { type Event } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { WifiOff } from "lucide-react";
 
 export default function PlayPage() {
   const params = useParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-        if (params.id) {
-            setLoading(true);
+  const fetchEvent = async () => {
+    if (params.id) {
+        setLoading(true);
+        setError(null);
+        try {
             const eventId = params.id as string;
             const foundEvent = await getEventById(eventId);
             if (foundEvent && foundEvent.moderationStatus === 'approved') {
@@ -23,10 +27,20 @@ export default function PlayPage() {
             } else {
                 setEvent(null);
             }
+        } catch (err) {
+            console.error("Failed to fetch event for player:", err);
+            setError("Could not load the event. Please check your internet connection and try again.");
+        } finally {
+            setLoading(false);
         }
+    } else {
         setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
 
@@ -47,9 +61,22 @@ export default function PlayPage() {
     );
   }
 
+  if (error) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-65px)] text-center">
+            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+            <h1 className="text-3xl font-bold">Connection Error</h1>
+            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
+            <Button onClick={fetchEvent}>
+                Try Again
+            </Button>
+        </div>
+    )
+  }
+
   if (!event) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[calc(100vh-65px)]">
         <h1 className="text-2xl font-bold">Event not found or not available.</h1>
       </div>
     );
@@ -57,7 +84,7 @@ export default function PlayPage() {
   
   if (!event.streamUrl) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[calc(100vh-65px)]">
         <h1 className="text-2xl font-bold">This event is not yet available for streaming.</h1>
       </div>
     );
