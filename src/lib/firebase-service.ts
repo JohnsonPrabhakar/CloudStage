@@ -17,7 +17,6 @@ import {
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { getDownloadURL, ref as storageRef, uploadBytes, uploadBytesResumable, type UploadTaskSnapshot, deleteObject } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -120,18 +119,13 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
 
 // ARTIST-RELATED FUNCTIONS
 
-export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres' | 'profilePictureUrl'> & {password: string}, profilePictureFile?: File) => {
+export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'isPremium' | 'type' | 'genres' | 'profilePictureUrl'> & {password: string}) => {
     // 1. Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
 
-    // 2. Handle profile picture upload
-    let profilePictureUrl = 'https://placehold.co/128x128.png';
-    if(profilePictureFile) {
-        const fileRef = storageRef(storage, `artist-profiles/${user.uid}_${profilePictureFile.name}`);
-        const snapshot = await uploadBytes(fileRef, profilePictureFile);
-        profilePictureUrl = await getDownloadURL(snapshot.ref);
-    }
+    // 2. Use a placeholder for the profile picture URL
+    const profilePictureUrl = `https://placehold.co/128x128.png?text=${data.name.charAt(0)}`;
 
     // 3. Create artist profile in Firestore
     const artistProfile: Omit<Artist, 'id'> = {
@@ -179,8 +173,6 @@ export const approveArtist = async (uid: string) => {
 }
 
 export const rejectArtist = async (uid: string) => {
-    // Note: Deleting the user from Firebase Auth requires Admin SDK and is a backend operation.
-    // For this client-side prototype, we will just delete their Firestore profile.
     const artistDoc = doc(db, 'artists', uid);
     await deleteDoc(artistDoc);
 }
@@ -194,7 +186,6 @@ export const updateArtistToPremium = async(uid: string) => {
 
 // TICKET-RELATED FUNCTIONS
 
-// Check if a user already has a ticket for a specific event
 export const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
   const q = query(
     ticketsCollection,
@@ -206,7 +197,6 @@ export const checkForExistingTicket = async (userId: string, eventId: string): P
   return !snapshot.empty;
 };
 
-// Create a new ticket document in Firestore
 export const createTicket = async (userId: string, eventId: string): Promise<{ success: boolean; message: string }> => {
   const alreadyExists = await checkForExistingTicket(userId, eventId);
   if (alreadyExists) {
@@ -228,7 +218,6 @@ export const createTicket = async (userId: string, eventId: string): Promise<{ s
   }
 };
 
-// Get all tickets for a specific user
 export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
   const q = query(ticketsCollection, where('userId', '==', userId));
   const snapshot = await getDocs(q);
@@ -236,74 +225,20 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 };
 
 // MOVIE-RELATED FUNCTIONS
-const handleMovieUpload = async (
-    file: File,
-    path: 'movie-posters' | 'movies',
-    onProgress?: (progress: number) => void
-): Promise<string> => {
-    const fileRef = storageRef(storage, `${path}/${Date.now()}_${file.name}`);
-    
-    if (onProgress) {
-        // Use resumable for progress tracking
-        const uploadTask = uploadBytesResumable(fileRef, file);
-        return new Promise<string>((resolve, reject) => {
-            uploadTask.on('state_changed',
-                (snapshot: UploadTaskSnapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    onProgress(progress);
-                },
-                (error) => {
-                    console.error("File upload failed:", error);
-                    reject(error);
-                },
-                async () => {
-                    try {
-                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        resolve(downloadURL);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
-    } else {
-        // Simple upload if no progress tracking is needed
-        const snapshot = await uploadBytes(fileRef, file);
-        return getDownloadURL(snapshot.ref);
-    }
-};
-
-const deleteStorageFile = async (url: string) => {
-    if (!url || !url.includes('firebasestorage.googleapis.com')) return;
-    try {
-        const fileRef = storageRef(storage, url);
-        await deleteObject(fileRef);
-    } catch (error: any) {
-        // It's okay if the file doesn't exist (e.g., already deleted)
-        if (error.code !== 'storage/object-not-found') {
-            console.error("Error deleting storage file:", error);
-        }
-    }
-};
-
 export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
-  uploadDetails: { youtubeUrl?: string; movieFile?: File; posterFile?: File },
-  onProgress?: (progress: number) => void
+  uploadDetails: { youtubeUrl: string; }
 ): Promise<void> => {
   let posterUrl = '';
   let videoUrl = '';
-  const { youtubeUrl, movieFile, posterFile } = uploadDetails;
+  const { youtubeUrl } = uploadDetails;
 
   if (youtubeUrl) {
     videoUrl = youtubeUrl;
     const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
     posterUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
-  } else if (movieFile && posterFile) {
-    posterUrl = await handleMovieUpload(posterFile, 'movie-posters');
-    videoUrl = await handleMovieUpload(movieFile, 'movies', onProgress);
   } else {
-    throw new Error("Invalid upload details.");
+    throw new Error("Invalid upload details. YouTube URL is required.");
   }
 
   await addDoc(moviesCollection, {
@@ -320,43 +255,17 @@ export const updateMovie = async (
     movieId: string,
     movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>,
     uploadDetails: {
-        youtubeUrl?: string;
-        movieFile?: File;
-        posterFile?: File;
-        existingPosterUrl?: string;
-        existingVideoUrl?: string;
-    },
-    onProgress?: (progress: number) => void
+        youtubeUrl: string;
+    }
 ): Promise<void> => {
     let { posterUrl, videoUrl } = await getDoc(doc(db, "movies", movieId)).then(d => d.data() as Movie);
-    const { youtubeUrl, movieFile, posterFile, existingPosterUrl, existingVideoUrl } = uploadDetails;
+    const { youtubeUrl } = uploadDetails;
 
-    // Handle poster update
-    if (posterFile) {
-        if(existingPosterUrl) await deleteStorageFile(existingPosterUrl);
-        posterUrl = await handleMovieUpload(posterFile, 'movie-posters');
-    }
-
-    // Handle video update
-    if (movieFile) {
-        if(existingVideoUrl) await deleteStorageFile(existingVideoUrl);
-        videoUrl = await handleMovieUpload(movieFile, 'movies', onProgress);
-    } else if (youtubeUrl) {
-        if (existingVideoUrl && existingVideoUrl !== youtubeUrl) {
-           await deleteStorageFile(existingVideoUrl);
-        }
-        videoUrl = youtubeUrl;
-        // Also update poster if youtube link changes and no new poster is uploaded
-        if (!posterFile) {
-             const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
-             const newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-             if (newPosterUrl !== existingPosterUrl) {
-                await deleteStorageFile(existingPosterUrl || '');
-                posterUrl = newPosterUrl;
-             }
-        }
-    }
-
+    // Video URL must be a youtube URL
+    videoUrl = youtubeUrl;
+    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
+    posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    
     await updateDoc(doc(db, "movies", movieId), {
         ...movieData,
         genre: movieData.genre.toLowerCase(),
@@ -367,10 +276,6 @@ export const updateMovie = async (
 };
 
 export const deleteMovie = async (movie: Movie): Promise<void> => {
-    // Delete files from storage first
-    await deleteStorageFile(movie.posterUrl);
-    await deleteStorageFile(movie.videoUrl);
-
     // Then delete the document from Firestore
     await deleteDoc(doc(db, 'movies', movie.id));
 }
