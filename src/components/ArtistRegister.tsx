@@ -75,6 +75,9 @@ export default function ArtistRegister() {
     try {
         await registerArtist({
             ...values,
+            youtubeUrl: values.youtubeUrl || "",
+            instagramUrl: values.instagramUrl || "",
+            facebookUrl: values.facebookUrl || "",
         });
 
         toast({
@@ -317,5 +320,3 @@ export default function ArtistRegister() {
     </div>
   );
 }
-
-    
