@@ -71,7 +71,6 @@ export default function ArtistRegister() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-
     try {
         await registerArtist({
             ...values,
@@ -97,14 +96,22 @@ export default function ArtistRegister() {
               description = "This email address is already registered. Please try logging in instead.";
               form.setError("email", {
                   type: "server",
-                  message: "This email is already in use. Please try logging in.",
+                  message: "This email is already in use. Please log in.",
               });
               break;
-            case 'auth/configuration-not-found':
-               description = "The Email/Password sign-in provider is not enabled in your Firebase console. Please enable it to allow registrations.";
-               break;
+            case 'auth/invalid-email':
+                description = "The email address is not valid. Please check and try again.";
+                form.setError("email", { type: "server", message: description });
+                break;
+            case 'auth/weak-password':
+                description = "The password is too weak. It must be at least 8 characters.";
+                form.setError("password", { type: "server", message: description });
+                break;
+            case 'auth/network-request-failed':
+              description = "A network error occurred. Please check your internet connection.";
+              break;
             default:
-              description = "An unexpected error occurred during registration. Please check your internet connection and try again.";
+              description = "An error occurred during registration. Please try again later.";
               break;
           }
         }
@@ -114,6 +121,7 @@ export default function ArtistRegister() {
             title: "Registration Failed",
             description,
         });
+    } finally {
         setLoading(false);
     }
   }
