@@ -1,0 +1,53 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check for admin role (currently non-functional, needs setup)
+    function isAdmin(userId) {
+      // This will not work until a 'users' collection with roles is implemented.
+      // For now, it will always return false.
+      return exists(/databases/$(database)/documents/users/$(userId)) && get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin';
+    }
+
+    // ARTISTS can be read by anyone, but only created/updated by the artist themselves.
+    match /artists/{artistId} {
+      allow read: if true;
+      allow create, update: if request.auth != null && request.auth.uid == artistId;
+      // INSECURE: Currently allows any logged-in user to reject an artist.
+      // Should be: allow delete: if isAdmin(request.auth.uid);
+      allow delete: if request.auth != null;
+    }
+
+    // EVENTS can be read by the public if approved, or by the owner artist.
+    match /events/{eventId} {
+      allow read: if resource.data.moderationStatus == 'approved' || (request.auth != null && request.auth.uid == resource.data.artistId);
+      allow create: if request.auth != null && request.resource.data.artistId == request.auth.uid;
+      // INSECURE: Allows any logged in user to moderate.
+      // Should be: allow update: if (request.auth.uid == resource.data.artistId) || isAdmin(request.auth.uid);
+      allow update: if request.auth != null; 
+      allow delete: if request.auth != null && request.auth.uid == resource.data.artistId;
+    }
+
+    // TICKETS can only be managed by the user who owns them.
+    match /tickets/{ticketId} {
+      allow read, create: if request.auth != null && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+      allow update, delete: if false; 
+    }
+
+    // MOVIES can be read by anyone.
+    // INSECURE: Allows any logged in user to manage movies.
+    match /movies/{movieId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // CONFIG can be read by anyone.
+    // INSECURE: Allows any logged in user to change site status.
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
