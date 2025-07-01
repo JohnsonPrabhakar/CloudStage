@@ -242,17 +242,20 @@ export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
   uploadDetails: { youtubeUrl: string; }
 ): Promise<void> => {
-  let posterUrl = '';
-  let videoUrl = '';
   const { youtubeUrl } = uploadDetails;
 
-  if (youtubeUrl) {
-    videoUrl = youtubeUrl;
-    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
-    posterUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
-  } else {
-    throw new Error("Invalid upload details. YouTube URL is required.");
+  if (!youtubeUrl) {
+    throw new Error("A YouTube URL is required.");
   }
+  
+  const videoUrl = youtubeUrl;
+  const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
+
+  if (!videoId) {
+    throw new Error("Could not extract Video ID from the YouTube URL. Please use a standard YouTube video or live stream URL.");
+  }
+  
+  const posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
   await addDoc(moviesCollection, {
     ...movieData,
@@ -271,15 +274,29 @@ export const updateMovie = async (
         youtubeUrl: string;
     }
 ): Promise<void> => {
-    let { posterUrl, videoUrl } = await getDoc(doc(db, "movies", movieId)).then(d => d.data() as Movie);
+    const movieRef = doc(db, "movies", movieId);
+    const movieSnap = await getDoc(movieRef);
+
+    if (!movieSnap.exists()) {
+        throw new Error("Movie to update not found");
+    }
+    
     const { youtubeUrl } = uploadDetails;
 
-    // Video URL must be a youtube URL
-    videoUrl = youtubeUrl;
-    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
-    posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    if (!youtubeUrl) {
+      throw new Error("A YouTube URL is required.");
+    }
+
+    const videoUrl = youtubeUrl;
+    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
     
-    await updateDoc(doc(db, "movies", movieId), {
+    if (!videoId) {
+        throw new Error("Could not extract Video ID from the YouTube URL. Please use a standard YouTube video or live stream URL.");
+    }
+    
+    const posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    
+    await updateDoc(movieRef, {
         ...movieData,
         genre: movieData.genre.toLowerCase(),
         language: movieData.language.toLowerCase(),
