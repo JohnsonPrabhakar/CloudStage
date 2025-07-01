@@ -80,6 +80,19 @@ const deleteFileByUrl = async (url: string) => {
   }
 }
 
+// --- YOUTUBE HELPER ---
+const getYouTubeVideoId = (url: string): string | null => {
+  if (!url) return null;
+  let videoId = null;
+  const urlObj = new URL(url);
+  if (urlObj.hostname === 'youtu.be') {
+    videoId = urlObj.pathname.slice(1);
+  } else if (urlObj.hostname.includes('youtube.com')) {
+    videoId = urlObj.searchParams.get('v');
+  }
+  return videoId;
+};
+
 
 // EVENT-RELATED FUNCTIONS
 
@@ -279,32 +292,44 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 };
 
 // --- MOVIE-RELATED FUNCTIONS ---
+type MoviePayload = {
+  movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>;
+  files: { movieFile?: File; posterFile?: File };
+  youtubeUrl?: string;
+};
 
-export const addMovie = async (
-  movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
-  files: { movieFile: File, posterFile: File }
-): Promise<void> => {
+export const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
   const movieRef = doc(collection(db, 'movies'));
   const movieId = movieRef.id;
 
-  const videoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
-  const posterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
+  let finalVideoUrl = '';
+  let finalPosterUrl = '';
+
+  if (youtubeUrl) {
+    const videoId = getYouTubeVideoId(youtubeUrl);
+    if (!videoId) {
+      throw new Error("Invalid YouTube URL provided.");
+    }
+    finalVideoUrl = `https://www.youtube.com/embed/${videoId}`;
+    finalPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  } else if (files.movieFile && files.posterFile) {
+    finalVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
+    finalPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
+  } else {
+    throw new Error("Either a YouTube URL or a movie and poster file are required.");
+  }
 
   await setDoc(movieRef, {
     ...movieData,
     genre: movieData.genre.toLowerCase(),
     language: movieData.language.toLowerCase(),
-    videoUrl,
-    posterUrl,
+    videoUrl: finalVideoUrl,
+    posterUrl: finalPosterUrl,
     createdAt: serverTimestamp(),
   });
 };
 
-export const updateMovie = async (
-    movieId: string,
-    movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>,
-    files: { movieFile?: File; posterFile?: File }
-): Promise<void> => {
+export const updateMovie = async (movieId: string, { movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
     const movieRef = doc(db, "movies", movieId);
     const movieSnap = await getDoc(movieRef);
 
@@ -316,17 +341,25 @@ export const updateMovie = async (
     let newVideoUrl = oldData.videoUrl;
     let newPosterUrl = oldData.posterUrl;
 
-    if (files.movieFile) {
-        if (!oldData.videoUrl.includes('youtube.com')) {
-          await deleteFileByUrl(oldData.videoUrl);
-        }
-        newVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
-    }
-    if (files.posterFile) {
-         if (!oldData.posterUrl.includes('youtube.com')) {
-          await deleteFileByUrl(oldData.posterUrl);
-        }
-        newPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
+    if (youtubeUrl) {
+      const videoId = getYouTubeVideoId(youtubeUrl);
+      if (!videoId) {
+        throw new Error("Invalid YouTube URL provided.");
+      }
+      newVideoUrl = `https://www.youtube.com/embed/${videoId}`;
+      newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      // If old data was not from youtube, delete old files
+      if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
+      if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
+    } else {
+      if (files.movieFile) {
+          if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
+          newVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
+      }
+      if (files.posterFile) {
+          if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
+          newPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
+      }
     }
     
     await updateDoc(movieRef, {
@@ -337,6 +370,7 @@ export const updateMovie = async (
         posterUrl: newPosterUrl,
     });
 };
+
 
 export const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteFileByUrl(movie.posterUrl);
