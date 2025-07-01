@@ -40,10 +40,7 @@ const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  youtubeUrl: z.string().url("Must be a valid URL.").refine(
-    (url) => !url || url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
-    "Please provide a valid YouTube Live or Embed URL."
-  ).optional().or(z.literal('')),
+  youtubeUrl: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
   posterImage: z.any().optional(),
@@ -123,11 +120,7 @@ export default function UploadMoviePage() {
 
   const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const originalUrl = e.target.value;
-      let finalUrl = originalUrl;
-
-      if (!originalUrl.includes("youtube.com/live/")) {
-          finalUrl = convertToEmbedUrl(originalUrl);
-      }
+      const finalUrl = convertToEmbedUrl(originalUrl);
       
       form.setValue("youtubeUrl", finalUrl, { shouldValidate: true, shouldDirty: true });
 
@@ -168,7 +161,10 @@ export default function UploadMoviePage() {
         title: "Movie Added!",
         description: `${values.title} has been successfully added to the library.`,
       });
-      router.push("/movies");
+      form.reset();
+      setPosterPreview(null);
+      setMovieFileName(null);
+      setYoutubeThumbnailPreview(null);
     } catch(error) {
       console.error(error);
       toast({
@@ -253,7 +249,7 @@ export default function UploadMoviePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Genre</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a genre" />
@@ -275,7 +271,7 @@ export default function UploadMoviePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Language</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a language" />
@@ -423,3 +419,5 @@ export default function UploadMoviePage() {
     </div>
   );
 }
+
+    
