@@ -27,11 +27,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type ArtistCategory } from "@/lib/types";
 import { registerArtist } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
 
-const artistCategories: ArtistCategory[] = ['Music', 'Stand-up Comedy', 'Yoga', 'Magic', 'Devotional'];
+const artistCategories = ['Music', 'Stand-up Comedy', 'Yoga', 'Magic', 'Devotional'] as const;
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
