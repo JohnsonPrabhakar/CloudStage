@@ -29,9 +29,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { addMovie, updateMovie } from "@/lib/firebase-service";
-import { ChevronLeft, Film, Loader2 } from "lucide-react";
+import { ChevronLeft, Film, Loader2, AlertCircle } from "lucide-react";
 import { type Movie } from "@/lib/types";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
+
 
 const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
 const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
@@ -41,22 +42,8 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters."),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
-  uploadType: z.enum(['youtube', 'local']),
-  youtubeUrl: z.string().optional(),
   movieFile: z.any().optional(),
   posterFile: z.any().optional(),
-}).superRefine((data, ctx) => {
-    if (data.uploadType === 'youtube' && (!data.youtubeUrl || !data.youtubeUrl.includes('youtube.com'))) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "A valid YouTube URL is required for this upload type.",
-            path: ['youtubeUrl'],
-        })
-    }
-    if (data.uploadType === 'local' && !data.movieFile) {
-        // This validation will only apply on create, since on edit the file may already exist.
-        // We handle this in the onSubmit logic.
-    }
 });
 
 
@@ -71,9 +58,9 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   
-  const [youtubeThumbnailPreview, setYoutubeThumbnailPreview] = useState<string | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
-  const [uploadType, setUploadType] = useState<'youtube' | 'local'>('youtube');
+  const [isYoutubeMovie, setIsYoutubeMovie] = useState<boolean>(false);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -82,87 +69,47 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
       description: "",
       genre: "Action",
       language: "English",
-      uploadType: 'youtube',
-      youtubeUrl: "",
     },
   });
 
   useEffect(() => {
     if (mode === 'edit' && initialData) {
-      const isYoutube = initialData.videoUrl.includes('youtube.com');
-      const currentUploadType = isYoutube ? 'youtube' : 'local';
-      setUploadType(currentUploadType);
-      
+      if (initialData.videoUrl.includes('youtube.com')) {
+        setIsYoutubeMovie(true);
+      }
       form.reset({
         title: initialData.title,
         description: initialData.description,
         genre: initialData.genre.charAt(0).toUpperCase() + initialData.genre.slice(1),
         language: initialData.language.charAt(0).toUpperCase() + initialData.language.slice(1),
-        uploadType: currentUploadType,
-        youtubeUrl: isYoutube ? initialData.videoUrl : '',
       });
-      
       setPosterPreview(initialData.posterUrl);
-
     }
   }, [mode, initialData, form]);
   
-  const convertToEmbedUrl = (url: string): string => {
-    if (!url) return "";
-    let videoId = url.split('embed/')[1]?.split('?')[0]
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-    
-    videoId = url.split('watch?v=')[1]?.split('&')[0];
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-    
-    videoId = url.split('youtu.be/')[1]?.split('?')[0];
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-
-    return url;
-  };
-
-  const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const originalUrl = e.target.value;
-      const finalUrl = convertToEmbedUrl(originalUrl);
-      
-      form.setValue("youtubeUrl", finalUrl, { shouldValidate: true, shouldDirty: true });
-
-      const videoId = finalUrl.split('embed/')[1]?.split('?')[0];
-      if (videoId) {
-          setYoutubeThumbnailPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
-          setPosterPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
-      } else {
-          setYoutubeThumbnailPreview(null);
-          setPosterPreview(null);
-      }
-  };
-
   async function onSubmit(values: FormValues) {
+    const { isSubmitting, setIsSubmitting } = form.formState;
+    if (isSubmitting) return;
+
     try {
-        let uploadDetails: any;
+        setIsSubmitting(true);
+        const movieFile = values.movieFile?.[0];
+        const posterFile = values.posterFile?.[0];
 
-        if (values.uploadType === 'youtube') {
-            if (!values.youtubeUrl) {
-                toast({ variant: 'destructive', title: 'Missing URL', description: 'Please provide a YouTube URL.' });
-                return;
-            }
-            uploadDetails = { youtubeUrl: values.youtubeUrl };
-        } else {
-            const movieFile = values.movieFile?.[0];
-            const posterFile = values.posterFile?.[0];
-
-            if (mode === 'create' && (!movieFile || !posterFile)) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Missing Files',
-                    description: 'For local uploads, both a movie file and a poster image are required.'
-                });
-                return;
-            }
-            uploadDetails = { movieFile, posterFile };
+        if (mode === 'create' && (!movieFile || !posterFile)) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Files',
+                description: 'For new movie uploads, both a movie file and a poster image are required.'
+            });
+            setIsSubmitting(false);
+            return;
         }
 
-        const action = mode === 'create' ? addMovie : (data: any, uploads: any) => updateMovie(initialData!.id, data, uploads);
+        const action = mode === 'create' 
+            ? (data: any, files: any) => addMovie(data, files) 
+            : (data: any, files: any) => updateMovie(initialData!.id, data, files);
+            
         const successTitle = mode === 'create' ? "Movie Added!" : "Movie Updated!";
         
         await action(
@@ -172,7 +119,10 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
             genre: values.genre,
             language: values.language,
             },
-            uploadDetails
+            { // files
+              movieFile,
+              posterFile,
+            }
         );
         
         toast({
@@ -190,6 +140,8 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
             description: error.message || "There was an error saving the movie. Please try again.",
             variant: "destructive"
         });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -218,214 +170,168 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
           <CardDescription>{pageDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Movie Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter the movie title" {...field} disabled={isSubmitting} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                 <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                       <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="A brief summary of the movie..."
-                          className="resize-y min-h-[100px]"
-                          {...field}
-                          disabled={isSubmitting}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <FormField
-                  control={form.control}
-                  name="genre"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Genre</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a genre" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {movieGenres.map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="language"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Language</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a language" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {movieLanguages.map(lang => (
-                            <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {isYoutubeMovie && mode === 'edit' ? (
+              <div className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Editing Not Supported for YouTube Movies</AlertTitle>
+                  <AlertDescription>
+                    This movie was added via a YouTube link. The current form only supports editing locally uploaded files. Please delete this movie and re-upload it as a local file if you need to make changes.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Title</Label>
+                    <Input value={initialData?.title} disabled />
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea value={initialData?.description} disabled />
+                  </div>
+                </div>
               </div>
-               
-              <FormField
-                control={form.control}
-                name="uploadType"
-                render={({ field }) => (
-                    <FormItem className="space-y-3">
-                        <FormLabel>Upload Source</FormLabel>
-                        <FormControl>
-                            <RadioGroup
-                                onValueChange={(value: 'youtube' | 'local') => {
-                                    field.onChange(value);
-                                    setUploadType(value);
-                                }}
-                                value={field.value}
-                                className="flex gap-8"
-                                disabled={isSubmitting}
-                            >
-                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                        <RadioGroupItem value="youtube" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">From YouTube URL</FormLabel>
-                                </FormItem>
-                                 <FormItem className="flex items-center space-x-3 space-y-0">
-                                    <FormControl>
-                                        <RadioGroupItem value="local" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">From Local File</FormLabel>
-                                </FormItem>
-                            </RadioGroup>
-                        </FormControl>
-                    </FormItem>
-                )}
-               />
-               
-               {uploadType === 'youtube' ? (
-                <div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                   <FormField
                     control={form.control}
-                    name="youtubeUrl"
+                    name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>YouTube URL</FormLabel>
+                        <FormLabel>Movie Title</FormLabel>
                         <FormControl>
-                          <Input 
-                              placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
-                              {...field}
-                              value={field.value ?? ''}
-                              onChange={handleYoutubeUrlChange}
-                              disabled={isSubmitting}
-                          />
+                          <Input placeholder="Enter the movie title" {...field} disabled={isSubmitting} />
                         </FormControl>
-                        <FormDescription>
-                          The movie poster will be automatically generated from this link.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {youtubeThumbnailPreview && (
-                      <div className="mt-4">
-                          <p className="text-sm text-muted-foreground mb-2">Poster Preview:</p>
-                          <Image src={youtubeThumbnailPreview} alt="YouTube thumbnail preview" width={150} height={90} className="rounded-md border object-cover" data-ai-hint="movie thumbnail"/>
-                      </div>
-                  )}
-                </div>
-               ) : (
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="A brief summary of the movie..."
+                            className="resize-y min-h-[100px]"
+                            {...field}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <FormField
-                      control={form.control}
-                      name="movieFile"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Movie File</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="genre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Genre</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                           <FormControl>
-                             <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a genre" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormDescription>{mode === 'edit' ? "Upload new file to replace existing one." : "Upload the video file (MP4 format)."}</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="posterFile"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Poster Image</FormLabel>
+                          <SelectContent>
+                            {movieGenres.map(cat => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="language"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Language</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                           <FormControl>
-                            <Input 
-                              type="file" 
-                              accept="image/jpeg, image/png"
-                              onChange={(e) => {
-                                field.onChange(e.target.files);
-                                if (e.target.files && e.target.files[0]) {
-                                  setPosterPreview(URL.createObjectURL(e.target.files[0]));
-                                }
-                              }}
-                              disabled={isSubmitting}
-                            />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a language" />
+                            </SelectTrigger>
                           </FormControl>
-                           <FormDescription>{mode === 'edit' ? "Upload new image to replace existing one." : "Upload a poster image (JPG, PNG)."}</FormDescription>
-                           {posterPreview && (
-                              <div className="mt-4">
-                                  <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover" data-ai-hint="movie poster"/>
-                              </div>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <SelectContent>
+                            {movieLanguages.map(lang => (
+                              <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-               )}
                 
-                <div className="flex flex-col gap-4 pt-4">
-                    <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Processing...
-                            </>
-                        ) : buttonText}
-                    </Button>
-                </div>
-            </form>
-          </Form>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FormField
+                        control={form.control}
+                        name="movieFile"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Movie File</FormLabel>
+                            <FormControl>
+                              <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
+                            </FormControl>
+                            <FormDescription>{mode === 'edit' ? "Upload new file to replace existing one." : "Upload the video file (MP4 format)."}</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="posterFile"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Poster Image</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="file" 
+                                accept="image/jpeg, image/png"
+                                onChange={(e) => {
+                                  field.onChange(e.target.files);
+                                  if (e.target.files && e.target.files[0]) {
+                                    setPosterPreview(URL.createObjectURL(e.target.files[0]));
+                                  }
+                                }}
+                                disabled={isSubmitting}
+                              />
+                            </FormControl>
+                            <FormDescription>{mode === 'edit' ? "Upload new image to replace existing one." : "Upload a poster image (JPG, PNG)."}</FormDescription>
+                            {posterPreview && (
+                                <div className="mt-4">
+                                    <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover" data-ai-hint="movie poster"/>
+                                </div>
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  </div>
+                  
+                  <div className="flex flex-col gap-4 pt-4">
+                      <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
+                          {isSubmitting ? (
+                              <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Processing...
+                              </>
+                          ) : buttonText}
+                      </Button>
+                  </div>
+              </form>
+            </Form>
+          )}
         </CardContent>
       </Card>
     </div>

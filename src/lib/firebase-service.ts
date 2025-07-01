@@ -280,35 +280,15 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 
 // --- MOVIE-RELATED FUNCTIONS ---
 
-type MovieUploadDetails = 
-  | { youtubeUrl: string; movieFile?: never; posterFile?: never }
-  | { youtubeUrl?: never; movieFile: File; posterFile: File };
-
 export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
-  uploadDetails: MovieUploadDetails
+  files: { movieFile: File, posterFile: File }
 ): Promise<void> => {
   const movieRef = doc(collection(db, 'movies'));
   const movieId = movieRef.id;
 
-  let videoUrl: string;
-  let posterUrl: string;
-
-  if (uploadDetails.youtubeUrl) {
-    const { youtubeUrl } = uploadDetails;
-    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
-
-    if (!videoId) {
-      throw new Error("Could not extract Video ID from the YouTube URL. Please use a valid embed URL.");
-    }
-    
-    videoUrl = youtubeUrl;
-    posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  } else {
-    const { movieFile, posterFile } = uploadDetails;
-    videoUrl = await uploadFile(movieFile, `movies/${movieId}/movie.mp4`);
-    posterUrl = await uploadFile(posterFile, `movies/${movieId}/poster.jpg`);
-  }
+  const videoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
+  const posterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
 
   await setDoc(movieRef, {
     ...movieData,
@@ -320,14 +300,10 @@ export const addMovie = async (
   });
 };
 
-type MovieUpdateUploadDetails = 
-  | { youtubeUrl: string; movieFile?: never; posterFile?: never }
-  | { youtubeUrl?: never; movieFile?: File; posterFile?: File };
-
 export const updateMovie = async (
     movieId: string,
     movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>,
-    uploadDetails: MovieUpdateUploadDetails
+    files: { movieFile?: File; posterFile?: File }
 ): Promise<void> => {
     const movieRef = doc(db, "movies", movieId);
     const movieSnap = await getDoc(movieRef);
@@ -340,25 +316,17 @@ export const updateMovie = async (
     let newVideoUrl = oldData.videoUrl;
     let newPosterUrl = oldData.posterUrl;
 
-    if (uploadDetails.youtubeUrl) {
-        await deleteFileByUrl(oldData.videoUrl);
-        await deleteFileByUrl(oldData.posterUrl);
-        
-        const videoId = uploadDetails.youtubeUrl.split('embed/')[1]?.split('?')[0];
-        if (!videoId) throw new Error("Could not extract Video ID from the YouTube URL.");
-        
-        newVideoUrl = uploadDetails.youtubeUrl;
-        newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-
-    } else {
-        if (uploadDetails.movieFile) {
-            await deleteFileByUrl(oldData.videoUrl);
-            newVideoUrl = await uploadFile(uploadDetails.movieFile, `movies/${movieId}/movie.mp4`);
+    if (files.movieFile) {
+        if (!oldData.videoUrl.includes('youtube.com')) {
+          await deleteFileByUrl(oldData.videoUrl);
         }
-        if (uploadDetails.posterFile) {
-             await deleteFileByUrl(oldData.posterUrl);
-            newPosterUrl = await uploadFile(uploadDetails.posterFile, `movies/${movieId}/poster.jpg`);
+        newVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
+    }
+    if (files.posterFile) {
+         if (!oldData.posterUrl.includes('youtube.com')) {
+          await deleteFileByUrl(oldData.posterUrl);
         }
+        newPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
     }
     
     await updateDoc(movieRef, {
