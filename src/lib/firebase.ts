@@ -17,8 +17,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Connect to the default database instance
-const db = getFirestore(app);
+// Connect to the named 'cloudstage' database instance
+const db = getFirestore(app, 'cloudstage');
 
 const auth = getAuth(app);
 const storage = getStorage(app);
