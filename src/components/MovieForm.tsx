@@ -144,6 +144,10 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
     let uploadDetails: any;
 
     if (values.uploadType === 'youtube') {
+        if (!values.youtubeUrl) {
+            toast({ variant: 'destructive', title: 'Missing URL', description: 'Please provide a YouTube URL.' });
+            return;
+        }
         uploadDetails = { youtubeUrl: values.youtubeUrl };
     } else {
         const movieFile = values.movieFile?.[0];
@@ -288,8 +292,8 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {movieLanguages.map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          {movieLanguages.map(lang => (
+                            <SelectItem key={lang} value={lang}>{lang}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -313,6 +317,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                                 }}
                                 value={field.value}
                                 className="flex gap-8"
+                                disabled={isSubmitting}
                             >
                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                     <FormControl>
@@ -344,6 +349,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                           <Input 
                               placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
                               {...field}
+                              value={field.value ?? ''}
                               onChange={handleYoutubeUrlChange}
                               disabled={isSubmitting}
                           />
