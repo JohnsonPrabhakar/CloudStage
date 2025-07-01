@@ -4,56 +4,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is signed in
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the user is the owner of a document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // For this app, we allow any signed-in user to perform admin-like actions through the UI,
-    // which has its own email-based checks. A production app would use custom claims for true role-based access.
+    // Helper function to check if the user is an admin
     function isAdmin() {
-      return isSignedIn();
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
-
-    // Events can be read by anyone. They can be created and updated by the artist who owns them.
-    match /events/{eventId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.artistId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.artistId == request.auth.uid || isAdmin());
-      allow delete: if false; // Disallow deleting events from the client
-    }
-
-    // Artist profiles can be read by anyone. They can only be updated by the owner.
+    
+    // Artists Collection
     match /artists/{artistId} {
+      // Anyone can read public artist profiles
       allow read: if true;
-      allow create: if isOwner(artistId); // Allow a user to create their own artist document
-      allow update: if isOwner(artistId);
-      allow delete: if isAdmin(); // Allow admin to reject/remove artists
+      // A user can create their own artist profile after signing up
+      allow create: if request.auth != null && request.auth.uid == artistId;
+      // An artist can update their own profile
+      allow update: if request.auth != null && request.auth.uid == artistId;
+      // An artist or an admin can delete a profile
+      allow delete: if request.auth != null && (request.auth.uid == artistId || isAdmin());
     }
 
-    // Movies can be read by anyone. Write operations are restricted.
-    match /movies/{movieId} {
-      allow read: if true;
-      allow write: if isAdmin(); // Admin can create, update, delete movies via the UI
+    // Events Collection
+    match /events/{eventId} {
+      // Allow read if event is approved, or if the requester is the artist or an admin
+      allow read: if resource.data.moderationStatus == 'approved' 
+                    || (request.auth != null && request.auth.uid == resource.data.artistId) 
+                    || isAdmin();
+      
+      // Allow artist to create an event for themselves
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.artistId;
+      
+      // Allow artist or admin to update an event
+      allow update: if request.auth != null && (request.auth.uid == resource.data.artistId || isAdmin());
     }
 
-    // Tickets can only be created and read by the user who owns them.
+    // Tickets Collection
     match /tickets/{ticketId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if false;
-      allow delete: if false;
+      // A user can manage their own tickets
+      allow read, create: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Movies Collection
+    match /movies/{movieId} {
+        // Anyone can read movie info
+        allow read: if true;
+        // Only admin can manage movies
+        allow create, update, delete: if isAdmin();
     }
 
-    // Site configuration can be read by anyone but only written by an admin.
+    // Config Collection (for site status)
     match /config/{configId} {
-      allow read: if true;
-      allow write: if isAdmin();
+        // Anyone can read site status
+        allow read: if true;
+        // Only admin can update site status
+        allow update: if isAdmin();
     }
   }
 }
