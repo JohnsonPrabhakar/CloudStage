@@ -96,22 +96,16 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEvents = async(artistId: string): Promise<Event[]> => {
-    // Firestore security rules might struggle with complex OR queries combined with auth checks.
-    // Fetching events based on status separately is a more robust approach.
-    const statuses: Event['moderationStatus'][] = ['pending', 'approved', 'rejected'];
-    let allEvents: Event[] = [];
-
-    for (const status of statuses) {
-        const q = query(eventsCollection, where('artistId', '==', artistId), where('moderationStatus', '==', status));
-        const snapshot = await getDocs(q);
-        const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-        allEvents = [...allEvents, ...events];
-    }
+    // This query is intentionally simple (filtering only by artistId) to work reliably
+    // with Firestore security rules. Sorting is handled on the client.
+    const q = query(eventsCollection, where('artistId', '==', artistId));
+    const snapshot = await getDocs(q);
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
     
-    // Sort events by date, descending, as they are no longer ordered by Firestore
-    allEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Sort events by date on the client-side to avoid complex queries
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    return allEvents;
+    return events;
 }
 
 export const updateEventStatus = async (id: string, status: 'approved' | 'rejected') => {
