@@ -32,6 +32,7 @@ import { addMovie } from "@/lib/firebase-service";
 import { ChevronLeft, Film, Loader2 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { Progress } from "@/components/ui/progress";
 
 const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
 const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
@@ -40,8 +41,8 @@ const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   youtubeUrl: z.string().url("Must be a valid URL.").refine(
-    (url) => !url || url.includes("youtube.com/embed/"),
-    "Please provide a valid YouTube Embed URL (e.g., https://youtube.com/embed/...)."
+    (url) => !url || url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
+    "Please provide a valid YouTube Live or Embed URL."
   ).optional().or(z.literal('')),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
@@ -70,6 +71,7 @@ export default function UploadMoviePage() {
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [movieFileName, setMovieFileName] = useState<string | null>(null);
   const [youtubeThumbnailPreview, setYoutubeThumbnailPreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -121,11 +123,15 @@ export default function UploadMoviePage() {
 
   const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const originalUrl = e.target.value;
-      const embedUrl = convertToEmbedUrl(originalUrl);
-      
-      form.setValue("youtubeUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
+      let finalUrl = originalUrl;
 
-      const videoId = embedUrl.split('embed/')[1]?.split('?')[0];
+      if (!originalUrl.includes("youtube.com/live/")) {
+          finalUrl = convertToEmbedUrl(originalUrl);
+      }
+      
+      form.setValue("youtubeUrl", finalUrl, { shouldValidate: true, shouldDirty: true });
+
+      const videoId = finalUrl.split('embed/')[1]?.split('?')[0] || finalUrl.split('live/')[1]?.split('?')[0];
       if (videoId) {
           setYoutubeThumbnailPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
       } else {
@@ -136,6 +142,10 @@ export default function UploadMoviePage() {
   async function onSubmit(values: FormValues) {
     const posterFile = values.posterImage?.[0];
     const movieFile = values.movieFile?.[0];
+
+    if (movieFile) {
+      setUploadProgress(0);
+    }
 
     try {
       await addMovie(
@@ -149,6 +159,9 @@ export default function UploadMoviePage() {
           youtubeUrl: values.youtubeUrl || undefined,
           movieFile: movieFile,
           posterFile: posterFile,
+        },
+        (progress) => {
+            setUploadProgress(progress);
         }
       );
       toast({
@@ -163,6 +176,8 @@ export default function UploadMoviePage() {
         description: "There was an error uploading the movie. Please try again.",
         variant: "destructive"
       });
+    } finally {
+        setUploadProgress(null);
     }
   }
 
@@ -175,12 +190,15 @@ export default function UploadMoviePage() {
     );
   }
 
+  const isSubmitting = form.formState.isSubmitting;
+
   return (
     <div className="container mx-auto p-4 md:p-8">
        <Button
         variant="ghost"
         onClick={() => router.back()}
         className="mb-4"
+        disabled={isSubmitting}
       >
         <ChevronLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
@@ -202,7 +220,7 @@ export default function UploadMoviePage() {
                     <FormItem>
                       <FormLabel>Movie Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter the movie title" {...field} />
+                        <Input placeholder="Enter the movie title" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -220,6 +238,7 @@ export default function UploadMoviePage() {
                           placeholder="A brief summary of the movie..."
                           className="resize-y min-h-[100px]"
                           {...field}
+                          disabled={isSubmitting}
                         />
                       </FormControl>
                       <FormMessage />
@@ -234,7 +253,7 @@ export default function UploadMoviePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Genre</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a genre" />
@@ -256,7 +275,7 @@ export default function UploadMoviePage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Language</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a language" />
@@ -275,7 +294,7 @@ export default function UploadMoviePage() {
               </div>
 
                <div className="space-y-2">
-                 <p className="text-sm font-medium text-center text-muted-foreground">--- OR ---</p>
+                 <p className="text-sm font-medium text-center text-muted-foreground">--- Video Source ---</p>
                </div>
                
                <FormField
@@ -294,7 +313,7 @@ export default function UploadMoviePage() {
                             onChange(files);
                             setMovieFileName(files?.[0]?.name || null);
                           }}
-                          disabled={!!watchYoutubeUrl}
+                          disabled={!!watchYoutubeUrl || isSubmitting}
                         />
                       </FormControl>
                        <FormDescription>
@@ -316,7 +335,7 @@ export default function UploadMoviePage() {
                             placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
                             {...field}
                             onChange={handleYoutubeUrlChange}
-                            disabled={!!watchMovieFile && watchMovieFile.length > 0}
+                            disabled={!!(watchMovieFile && watchMovieFile.length > 0) || isSubmitting}
                         />
                       </FormControl>
                        <FormDescription>
@@ -326,6 +345,10 @@ export default function UploadMoviePage() {
                     </FormItem>
                   )}
                 />
+                
+                <div className="space-y-2">
+                 <p className="text-sm font-medium text-center text-muted-foreground">--- Poster Image ---</p>
+               </div>
 
                 <FormField
                   control={form.control}
@@ -361,6 +384,7 @@ export default function UploadMoviePage() {
                               setPosterPreview(null);
                             }
                           }}
+                          disabled={isSubmitting}
                         />
                       </FormControl>
                        <FormDescription>
@@ -374,10 +398,24 @@ export default function UploadMoviePage() {
                   )}
                 />
 
-
-              <Button type="submit" size="lg" className="w-full md:w-auto" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Uploading..." : "Add Movie"}
-              </Button>
+                <div className="flex flex-col gap-4">
+                    <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {uploadProgress !== null ? "Uploading..." : "Processing..."}
+                            </>
+                        ) : "Add Movie"}
+                    </Button>
+                    {uploadProgress !== null && (
+                        <div className="space-y-1">
+                            <Progress value={uploadProgress} />
+                            <p className="text-sm text-muted-foreground text-center">
+                                {Math.round(uploadProgress)}% complete
+                            </p>
+                        </div>
+                    )}
+                </div>
             </form>
           </Form>
         </CardContent>
@@ -385,5 +423,3 @@ export default function UploadMoviePage() {
     </div>
   );
 }
-
-    

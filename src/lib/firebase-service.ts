@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes, uploadBytesResumable, type UploadTaskSnapshot } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -237,7 +237,8 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 // MOVIE-RELATED FUNCTIONS
 export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
-  uploadDetails: { youtubeUrl?: string; movieFile?: File; posterFile?: File }
+  uploadDetails: { youtubeUrl?: string; movieFile?: File; posterFile?: File },
+  onProgress?: (progress: number) => void
 ): Promise<void> => {
   try {
     let posterUrl = '';
@@ -248,21 +249,43 @@ export const addMovie = async (
     if (youtubeUrl) {
       // YouTube link logic
       videoUrl = youtubeUrl;
-      const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
+      const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
       if (videoId) {
         posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
       } else {
         posterUrl = `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
       }
     } else if (movieFile && posterFile) {
-      // Local file upload logic
-      const movieStorageRef = ref(storage, `movies/${Date.now()}_${movieFile.name}`);
-      const movieSnapshot = await uploadBytes(movieStorageRef, movieFile);
-      videoUrl = await getDownloadURL(movieSnapshot.ref);
-
+      // Local file upload logic: Poster first (fast), then movie with progress.
       const posterStorageRef = ref(storage, `movie-posters/${Date.now()}_${posterFile.name}`);
       const posterSnapshot = await uploadBytes(posterStorageRef, posterFile);
       posterUrl = await getDownloadURL(posterSnapshot.ref);
+
+      const movieStorageRef = ref(storage, `movies/${Date.now()}_${movieFile.name}`);
+      const uploadTask = uploadBytesResumable(movieStorageRef, movieFile);
+
+      // Wrap the upload task in a promise to await its completion while tracking progress
+      videoUrl = await new Promise<string>((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot: UploadTaskSnapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            onProgress?.(progress); // Use optional chaining to call the callback if it exists
+          },
+          (error) => {
+            console.error("Movie file upload failed:", error);
+            reject(error);
+          },
+          async () => {
+            // On completion, get the URL and resolve the promise
+            try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                resolve(downloadURL);
+            } catch (error) {
+                reject(error);
+            }
+          }
+        );
+      });
     } else {
       throw new Error("Invalid upload details provided. Either a YouTube URL or a movie file and poster are required.");
     }
@@ -276,6 +299,9 @@ export const addMovie = async (
 
   } catch (error) {
     console.error("Error adding movie to Firestore: ", error);
+    if (error instanceof Error) {
+        throw new Error(`Could not create movie. Reason: ${error.message}`);
+    }
     throw new Error("Could not create movie.");
   }
 };
