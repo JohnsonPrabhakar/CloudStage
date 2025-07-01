@@ -66,10 +66,15 @@ export default function ArtistLogin() {
             router.push('/artist/pending');
         }
       } else {
-        // A user account exists in Firebase Auth, but there is no corresponding
-        // artist document in Firestore. This is an invalid state for an artist trying to log in.
+        // A user account exists in Firebase Auth, but no artist profile was found.
+        // This means they are not a registered artist.
         await signOut(auth); // Sign out to prevent confusion
-        throw new Error("Artist profile not found.");
+        toast({
+            variant: "destructive",
+            title: "Login Failed",
+            description: "No artist profile exists for this account. Please register first.",
+        });
+        setLoading(false);
       }
 
     } catch (error) {
@@ -91,8 +96,6 @@ export default function ArtistLogin() {
             description = `An unexpected server error occurred. Please try again later.`;
             break;
         }
-      } else if (error instanceof Error && error.message.includes("Artist profile not found")) {
-        description = "No artist profile exists for this account. Please register first.";
       }
       
       toast({ variant: "destructive", title, description });
