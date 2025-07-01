@@ -111,7 +111,7 @@ export default function ArtistRegister() {
               description = "A network error occurred. Please check your internet connection.";
               break;
             default:
-              description = "An error occurred during registration. Please try again later.";
+              description = `An error occurred during registration. It's possible your account was created but the artist profile was not. Please try logging in or contact support.`;
               break;
           }
         }

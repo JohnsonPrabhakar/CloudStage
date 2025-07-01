@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { getArtistProfile } from "@/lib/firebase-service";
 import { FirebaseError } from "firebase/app";
 
@@ -50,23 +50,35 @@ export default function ArtistLogin() {
 
       const artistProfile = await getArtistProfile(user.uid);
 
-      if (artistProfile && artistProfile.isApproved) {
-        toast({
+      // Explicitly check for all three possible states:
+      // 1. Profile exists and is approved.
+      // 2. Profile exists and is pending.
+      // 3. Profile does not exist (null).
+      if (artistProfile) {
+        if (artistProfile.isApproved) {
+          toast({
             title: "Login Successful",
             description: "Redirecting to your dashboard...",
-        });
-        router.push("/artist/dashboard");
-      } else {
-        // This handles two cases gracefully:
-        // 1. A registered artist whose account is pending approval.
-        // 2. A user whose account was created in Auth but failed to create a Firestore profile (the "limbo" state).
-        // In both cases, directing to the pending page is the correct, non-confusing user experience.
-        toast({
+          });
+          router.push("/artist/dashboard");
+        } else {
+          // Case 2: Profile exists but is not approved.
+          toast({
             variant: "default",
             title: "Account Pending",
             description: "Your account is awaiting admin approval.",
+          });
+          router.push('/artist/pending');
+        }
+      } else {
+        // Case 3: Auth user exists, but Firestore profile is missing.
+        // This is the "limbo" state we need to handle gracefully.
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "Your user account exists, but your artist profile is missing. Please register again to create your profile.",
         });
-        router.push('/artist/pending');
+        await signOut(auth); // Log out to prevent the user from being stuck.
       }
 
     } catch (error) {
@@ -91,6 +103,7 @@ export default function ArtistLogin() {
       }
       
       toast({ variant: "destructive", title, description });
+    } finally {
       setLoading(false);
     }
   }
