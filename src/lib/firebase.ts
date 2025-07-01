@@ -4,6 +4,7 @@ import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
+// Note: The build process may inject the correct config for deployment.
 const firebaseConfig = {
   apiKey: "AIzaSyD42IX8jBpr8yw3ENmUKcJIyyrR1dIHQV8",
   authDomain: "cloud-stage-d1a9a.firebaseapp.com",
@@ -16,7 +17,10 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+
+// Connect to the specific 'cloudstage' database instead of the default.
+const db = getFirestore(app, "cloudstage");
+
 const auth = getAuth(app);
 const storage = getStorage(app);
 
