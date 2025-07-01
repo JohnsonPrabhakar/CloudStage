@@ -1,83 +1,78 @@
 
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
-    function isOwner(resourceId) {
-      return request.auth.uid == resourceId;
+    // Helper function to check if a user is an authenticated artist
+    function isArtist(userId) {
+      return exists(/databases/$(database)/documents/artists/$(userId));
     }
+
+    // Helper function to check if a user is the admin
     function isAdmin() {
-      // Make sure the user is authenticated before checking email
       return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
-    function isArtistApproved(artistId) {
-      // Check that the artist's profile exists and is approved.
-      // This is used to ensure only approved artists can create events.
-      return get(/databases/$(database)/documents/artists/$(artistId)).data.isApproved == true;
+
+    // Helper function to check if an artist's profile is approved
+    function isArtistApproved(userId) {
+        return get(/databases/$(database)/documents/artists/$(userId)).data.isApproved == true;
     }
 
-    // ARTIST Rules
-    match /artists/{artistId} {
-      // READ: Anyone can view a public artist profile.
-      allow get: if true;
-      // LIST: Only Admins can list multiple artists (for the approval dashboard).
-      allow list: if isAdmin();
-      
-      // CREATE: A new user can create their own artist profile document.
-      allow create: if isOwner(artistId);
-
-      // UPDATE: Artists can update their own profile. Admins can update any profile.
-      allow update: if isOwner(artistId) || isAdmin();
-
-      // DELETE: Only Admins can delete artist profiles.
-      allow delete: if isAdmin();
-    }
-
-    // EVENT Rules
+    // Events can be read by anyone if they are approved.
+    // Artists can read their own events regardless of status.
     match /events/{eventId} {
-      // READ (get and list):
-      // - Anyone can read events that are 'approved'.
-      // - An artist can read their own events, regardless of status.
-      // - An admin can read any event.
-      allow read: if resource.data.moderationStatus == 'approved' || 
-                     (request.auth != null && request.auth.uid == resource.data.artistId) || 
-                     isAdmin();
+      allow read: if resource.data.moderationStatus == 'approved'
+                  || (isArtist(request.auth.uid) && request.auth.uid == resource.data.artistId);
       
-      // CREATE: An approved artist can create an event for themselves.
-      allow create: if (request.auth.uid == request.resource.data.artistId) && isArtistApproved(request.auth.uid);
+      // Events can only be created by an approved artist.
+      allow create: if isArtist(request.auth.uid) 
+                      && isArtistApproved(request.auth.uid)
+                      && request.auth.uid == request.resource.data.artistId;
 
-      // UPDATE: An artist can update their own event. An admin can update any event.
-      allow update: if (request.auth.uid == resource.data.artistId) || isAdmin();
+      // Events can be updated by the admin (for moderation) or by the artist owner.
+      allow update: if isAdmin() || (isArtist(request.auth.uid) && request.auth.uid == resource.data.artistId);
       
-      // DELETE: Only Admins can delete events.
+      // Events can't be deleted by clients.
+      allow delete: if false;
+    }
+
+    // Artists can read any approved artist's profile.
+    // An artist can read their own profile.
+    // Admins can read any profile.
+    match /artists/{artistId} {
+      allow read: if resource.data.isApproved == true 
+                  || (request.auth.uid != null && request.auth.uid == artistId) 
+                  || isAdmin();
+                  
+      // Allow artists to register.
+      allow create: if request.auth.uid == artistId;
+
+      // An artist can update their own profile. Admin can also update profiles.
+      allow update: if (request.auth.uid != null && request.auth.uid == artistId) || isAdmin();
+      
+      // Admin can delete artist profiles (rejection).
       allow delete: if isAdmin();
     }
-
-    // TICKET Rules
-    match /tickets/{ticketId} {
-      // READ: Users can read their own tickets. Admins can read any ticket.
-      allow get, list: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
-      
-      // CREATE: An authenticated user can create a ticket for themselves.
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
     
-    // MOVIE Rules
+    // Movies can be read by anyone.
+    // Only admins can create, update, or delete movies.
     match /movies/{movieId} {
-        // READ: Anyone can read movie documents.
-        allow read: if true;
-        // WRITE: Only admins can create, update, or delete movies.
-        allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Tickets can be created by any authenticated user.
+    // Users can only read or manage their own tickets.
+    match /tickets/{ticketId} {
+       allow read: if (request.auth.uid != null && request.auth.uid == resource.data.userId) || isAdmin();
+       allow create: if request.auth.uid != null && request.auth.uid == request.resource.data.userId;
+       allow update, delete: if false; // Simplification: no updates/deletes from client
     }
     
-    // CONFIG Rules
+    // Config can be read by anyone (for site status) but only written by admin.
     match /config/{configId} {
-        // READ: Anyone can read site config (like site status).
-        allow read: if true;
-        // WRITE: Only admins can change site config.
-        allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
