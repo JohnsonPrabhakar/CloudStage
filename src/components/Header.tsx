@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +10,33 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Ticket, Film } from "lucide-react";
+
+const Logo = ({ className }: { className?: string }) => (
+  <svg
+    width="35"
+    height="35"
+    viewBox="0 0 100 100"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect width="100" height="100" rx="20" fill="hsl(var(--primary))" />
+    <path
+      d="M30 70L50 30L70 70"
+      stroke="hsl(var(--primary-foreground))"
+      strokeWidth="10"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M40 60H60"
+      stroke="hsl(var(--primary-foreground))"
+      strokeWidth="10"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 
 export function Header() {
   const navItems = [
@@ -31,14 +57,7 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center gap-2">
-            <Image
-              src="/logo.png"
-              alt="CloudStage Logo"
-              width={35}
-              height={35}
-              priority
-              className="rounded-md"
-            />
+            <Logo className="rounded-md" />
             <span className="font-bold text-lg">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -72,13 +91,7 @@ export function Header() {
                       href="/"
                       className="flex items-center gap-2"
                     >
-                      <Image
-                        src="/logo.png"
-                        alt="CloudStage Logo"
-                        width={35}
-                        height={35}
-                        className="rounded-md"
-                      />
+                      <Logo className="rounded-md" />
                        <span className="font-bold text-lg">CloudStage</span>
                     </Link>
                   </SheetTitle>
@@ -101,13 +114,7 @@ export function Header() {
 
           <div className="flex-1 md:hidden">
             <Link href="/" className="flex items-center justify-center gap-2">
-                <Image
-                src="/logo.png"
-                alt="CloudStage Logo"
-                width={35}
-                height={35}
-                className="h-9 w-auto object-contain rounded-md"
-                />
+                <Logo className="h-9 w-auto object-contain rounded-md" />
                 <span className="font-bold text-lg">CloudStage</span>
             </Link>
           </div>
