@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -34,6 +34,7 @@ import {
   Loader2,
   WifiOff,
   Film,
+  Building,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -45,6 +46,9 @@ import {
     rejectArtist as rejectArtistInDb,
     getSiteStatus,
     updateSiteStatus,
+    getArtistsCount,
+    getEventsCount,
+    getTicketsCount,
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
@@ -54,6 +58,12 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import ManageMovies from "./ManageMovies";
+
+type Stats = {
+  artists: number | null;
+  events: number | null;
+  tickets: number | null;
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -65,17 +75,25 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
+  const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
      setLoading(true);
      setError(null);
      try {
-       const events = await getPendingEvents();
+       const [events, artists, status, artistsCount, eventsCount, ticketsCount] = await Promise.all([
+          getPendingEvents(),
+          getPendingArtistsFromDb(),
+          getSiteStatus(),
+          getArtistsCount(),
+          getEventsCount(),
+          getTicketsCount()
+       ]);
+       
        setPendingEvents(events);
-       const artists = await getPendingArtistsFromDb();
        setPendingArtists(artists);
-       const status = await getSiteStatus();
        setSiteStatus(status);
+       setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
        
        if(artists.length > 0) {
           setHasPendingArtistNotification(true);
@@ -86,7 +104,7 @@ export default function AdminDashboard() {
      } finally {
         setLoading(false);
      }
-  }
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -98,10 +116,7 @@ export default function AdminDashboard() {
       }
     });
     return () => unsubscribe();
-  }, [router]);
-
-  // NOTE: Revenue and boosted event data is now static or mocked
-  const revenueData = { total: 0 }; // Placeholder
+  }, [router, refreshData]);
   
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {
@@ -149,7 +164,6 @@ export default function AdminDashboard() {
       });
     } catch (error) {
       toast({ title: "Update Failed", description: "Could not update site status.", variant: "destructive"});
-      // Revert optimistic update on failure
       setSiteStatus(isOnline ? 'offline' : 'online');
     }
   };
@@ -279,49 +293,49 @@ export default function AdminDashboard() {
             {hasPendingArtistNotification && <Bell className="h-4 w-4 absolute top-1 right-1 text-primary animate-pulse"/>}
           </TabsTrigger>
           <TabsTrigger value="manage-movies">Manage Movies</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue & Ads</TabsTrigger>
+          <TabsTrigger value="revenue">Platform Stats</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₹{revenueData.total.toLocaleString("en-IN")}</div>
-                <p className="text-xs text-muted-foreground">(Mock Data)</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Artists</CardTitle>
-                <Crown className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{pendingArtists.length}</div>
-                <p className="text-xs text-muted-foreground">Awaiting approval</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Boosted Events</CardTitle>
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                 <div className="text-2xl font-bold">...</div>
-                 <p className="text-xs text-muted-foreground">(Fetching...)</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Events</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Artists</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{pendingEvents.length}</div>
-                <p className="text-xs text-muted-foreground">Awaiting approval</p>
+                <div className="text-2xl font-bold">{stats.artists ?? <Skeleton className="h-8 w-16" />}</div>
+                <p className="text-xs text-muted-foreground">Onboarded on the platform</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                <Building className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.events ?? <Skeleton className="h-8 w-16" />}</div>
+                <p className="text-xs text-muted-foreground">Created across all artists</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Tickets Issued</CardTitle>
+                <Ticket className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                 <div className="text-2xl font-bold">{stats.tickets ?? <Skeleton className="h-8 w-16" />}</div>
+                 <p className="text-xs text-muted-foreground">For all upcoming events</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingEvents.length + pendingArtists.length}</div>
+                <p className="text-xs text-muted-foreground">{pendingEvents.length} events & {pendingArtists.length} artists</p>
               </CardContent>
             </Card>
           </div>
@@ -388,11 +402,31 @@ export default function AdminDashboard() {
         <TabsContent value="revenue">
           <Card>
             <CardHeader>
-              <CardTitle>Revenue & Ad Breakdown</CardTitle>
-              <CardDescription>This data is currently mocked and not connected to Firestore.</CardDescription>
+              <CardTitle>Platform Statistics</CardTitle>
+              <CardDescription>A real-time overview of key metrics from the Firestore database.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-               <p className="text-sm text-muted-foreground">Revenue charts and stats will be re-enabled after backend integration for monetization is complete.</p>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Artists</CardDescription>
+                        <CardTitle className="text-4xl">{stats.artists ?? "..."}</CardTitle>
+                      </CardHeader>
+                  </Card>
+                  <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Events Created</CardDescription>
+                        <CardTitle className="text-4xl">{stats.events ?? "..."}</CardTitle>
+                      </CardHeader>
+                  </Card>
+                   <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Tickets Issued</CardDescription>
+                        <CardTitle className="text-4xl">{stats.tickets ?? "..."}</CardTitle>
+                      </CardHeader>
+                  </Card>
+               </div>
+               <p className="text-sm text-muted-foreground pt-4">Razorpay integration for revenue breakdown is scheduled for a future development phase.</p>
             </CardContent>
           </Card>
         </TabsContent>

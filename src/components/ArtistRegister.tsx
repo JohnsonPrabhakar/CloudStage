@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -32,10 +33,10 @@ import { FirebaseError } from "firebase/app";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const artistCategories = ['Music', 'Stand-up Comedy', 'Yoga', 'Magic', 'Devotional'] as const;
 
-// This schema now allows an empty string for the password, which will be handled by the onSubmit logic.
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email."),
@@ -45,6 +46,7 @@ const formSchema = z.object({
   phone: z.string().min(10, "Please enter a valid phone number."),
   location: z.string().min(2, "Location is required."),
   about: z.string().min(20, "Please tell us a bit more about you (at least 20 characters)."),
+  profilePicture: z.any().optional(),
   instagramUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   facebookUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   youtubeUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
@@ -60,6 +62,7 @@ export default function ArtistRegister() {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,9 +86,7 @@ export default function ArtistRegister() {
         setCurrentUser(user);
         setAuthChecked(true);
         if (user) {
-            // If user is already logged in, it's a profile completion flow.
             form.setValue('email', user.email || '');
-            // Inform the user they are completing their profile
             toast({
                 title: "Welcome Back!",
                 description: "Let's complete your artist profile."
@@ -98,26 +99,24 @@ export default function ArtistRegister() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
-    // Safeguard: Manually validate password for new registrations.
-    // This is necessary because the schema now allows empty passwords to pass for profile completion.
     if (!currentUser && (!values.password || values.password.length < 8)) {
         form.setError("password", { message: "Password is required and must be at least 8 characters." });
         setLoading(false);
         return;
     }
+    
+    const profilePictureFile = values.profilePicture?.[0];
 
     try {
         if (currentUser) {
-            // Flow for an existing authenticated user who is completing their profile
-            await createArtistProfileForUser(currentUser.uid, values);
+            await createArtistProfileForUser(currentUser.uid, values, profilePictureFile);
             toast({
                 title: "Profile Completed!",
                 description: "Your profile is now pending admin approval.",
             });
             router.push("/artist/pending");
         } else {
-            // Standard flow for a brand new user registration
-            await registerArtist(values as Required<z.infer<typeof formSchema>>);
+            await registerArtist(values as Required<z.infer<typeof formSchema>>, profilePictureFile);
             toast({
                 title: "Registration Submitted!",
                 description: "Your profile is now pending admin approval. You will be redirected to the login page.",
@@ -137,7 +136,6 @@ export default function ArtistRegister() {
                   message: "This email is already in use. Please log in.",
               });
               break;
-            // ... other error cases
           }
         }
         
@@ -182,6 +180,37 @@ export default function ArtistRegister() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               
+              <FormField
+                control={form.control}
+                name="profilePicture"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-4">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={profilePicPreview ?? ''} alt="Profile preview" />
+                      <AvatarFallback>
+                        <Loader2 className="h-8 w-8 animate-spin"/>
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                      <FormLabel>Profile Picture</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="file"
+                          accept="image/jpeg, image/png"
+                          onChange={(e) => {
+                            field.onChange(e.target.files);
+                            if (e.target.files && e.target.files[0]) {
+                              setProfilePicPreview(URL.createObjectURL(e.target.files[0]));
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </div>
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField
                   control={form.control}

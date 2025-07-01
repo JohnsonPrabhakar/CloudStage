@@ -49,9 +49,13 @@ const formSchema = z.object({
     if (data.uploadType === 'youtube' && (!data.youtubeUrl || !data.youtubeUrl.includes('youtube.com'))) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "A valid YouTube URL is required.",
+            message: "A valid YouTube URL is required for this upload type.",
             path: ['youtubeUrl'],
         })
+    }
+    if (data.uploadType === 'local' && !data.movieFile) {
+        // This validation will only apply on create, since on edit the file may already exist.
+        // We handle this in the onSubmit logic.
     }
 });
 
@@ -98,32 +102,23 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
         youtubeUrl: isYoutube ? initialData.videoUrl : '',
       });
       
-      if(isYoutube) {
-          setYoutubeThumbnailPreview(initialData.posterUrl);
-      } else {
-          setPosterPreview(initialData.posterUrl);
-      }
+      setPosterPreview(initialData.posterUrl);
+
     }
   }, [mode, initialData, form]);
   
   const convertToEmbedUrl = (url: string): string => {
     if (!url) return "";
-    let videoId = null;
+    let videoId = url.split('embed/')[1]?.split('?')[0]
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+    
+    videoId = url.split('watch?v=')[1]?.split('&')[0];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+    
+    videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
 
-    if (url.includes("youtube.com/watch?v=")) {
-      videoId = url.split("v=")[1]?.split('&')[0];
-    } else if (url.includes("youtu.be/")) {
-      videoId = url.split("youtu.be/")[1]?.split('?')[0];
-    } else if (url.includes("youtube.com/embed/")) {
-      return url; // Already correct
-    } else if (url.includes("youtube.com/live/")) {
-      videoId = url.split("live/")[1]?.split('?')[0];
-    }
-
-    if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-    return url; // Return original if no standard format is found
+    return url;
   };
 
   const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,67 +127,69 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
       
       form.setValue("youtubeUrl", finalUrl, { shouldValidate: true, shouldDirty: true });
 
-      const videoId = finalUrl.split('embed/')[1]?.split('?')[0] || finalUrl.split('live/')[1]?.split('?')[0];
+      const videoId = finalUrl.split('embed/')[1]?.split('?')[0];
       if (videoId) {
           setYoutubeThumbnailPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+          setPosterPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
       } else {
           setYoutubeThumbnailPreview(null);
+          setPosterPreview(null);
       }
   };
 
   async function onSubmit(values: FormValues) {
-    let uploadDetails: any;
-
-    if (values.uploadType === 'youtube') {
-        if (!values.youtubeUrl) {
-            toast({ variant: 'destructive', title: 'Missing URL', description: 'Please provide a YouTube URL.' });
-            return;
-        }
-        uploadDetails = { youtubeUrl: values.youtubeUrl };
-    } else {
-        const movieFile = values.movieFile?.[0];
-        const posterFile = values.posterFile?.[0];
-
-        if (mode === 'create' && (!movieFile || !posterFile)) {
-            toast({
-                variant: 'destructive',
-                title: 'Missing Files',
-                description: 'For local uploads, both a movie file and a poster image are required.'
-            });
-            return;
-        }
-        uploadDetails = { movieFile, posterFile };
-    }
-
-    const action = mode === 'create' ? addMovie : (data: any, uploads: any) => updateMovie(initialData!.id, data, uploads);
-    const successTitle = mode === 'create' ? "Movie Added!" : "Movie Updated!";
-    const successDescription = `${values.title} has been successfully ${mode === 'create' ? 'added' : 'updated'}.`;
-
     try {
-      await action(
-        { // movieData
-          title: values.title,
-          description: values.description,
-          genre: values.genre,
-          language: values.language,
-        },
-        uploadDetails
-      );
-      toast({
-        title: successTitle,
-        description: successDescription,
-      });
-      
-      router.push("/admin/dashboard");
-      router.refresh(); // Refresh to ensure the admin list is updated.
+        let uploadDetails: any;
+
+        if (values.uploadType === 'youtube') {
+            if (!values.youtubeUrl) {
+                toast({ variant: 'destructive', title: 'Missing URL', description: 'Please provide a YouTube URL.' });
+                return;
+            }
+            uploadDetails = { youtubeUrl: values.youtubeUrl };
+        } else {
+            const movieFile = values.movieFile?.[0];
+            const posterFile = values.posterFile?.[0];
+
+            if (mode === 'create' && (!movieFile || !posterFile)) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Missing Files',
+                    description: 'For local uploads, both a movie file and a poster image are required.'
+                });
+                return;
+            }
+            uploadDetails = { movieFile, posterFile };
+        }
+
+        const action = mode === 'create' ? addMovie : (data: any, uploads: any) => updateMovie(initialData!.id, data, uploads);
+        const successTitle = mode === 'create' ? "Movie Added!" : "Movie Updated!";
+        
+        await action(
+            { // movieData
+            title: values.title,
+            description: values.description,
+            genre: values.genre,
+            language: values.language,
+            },
+            uploadDetails
+        );
+        
+        toast({
+            title: successTitle,
+            description: `${values.title} has been successfully ${mode === 'create' ? 'added' : 'updated'}.`,
+        });
+        
+        router.push("/admin/dashboard?tab=manage-movies");
+        router.refresh();
 
     } catch(error: any) {
-      console.error(error);
-      toast({
-        title: "Action Failed",
-        description: error.message || "There was an error saving the movie. Please try again.",
-        variant: "destructive"
-      });
+        console.error(error);
+        toast({
+            title: "Action Failed",
+            description: error.message || "There was an error saving the movie. Please try again.",
+            variant: "destructive"
+        });
     }
   }
 
@@ -380,7 +377,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                           <FormControl>
                              <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
                           </FormControl>
-                          <FormDescription>Upload the video file (MP4 format).</FormDescription>
+                          <FormDescription>{mode === 'edit' ? "Upload new file to replace existing one." : "Upload the video file (MP4 format)."}</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -404,7 +401,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                               disabled={isSubmitting}
                             />
                           </FormControl>
-                           <FormDescription>Upload a poster image (JPG, PNG).</FormDescription>
+                           <FormDescription>{mode === 'edit' ? "Upload new image to replace existing one." : "Upload a poster image (JPG, PNG)."}</FormDescription>
                            {posterPreview && (
                               <div className="mt-4">
                                   <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover" data-ai-hint="movie poster"/>
@@ -417,7 +414,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                 </div>
                )}
                 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 pt-4">
                     <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
                         {isSubmitting ? (
                             <>

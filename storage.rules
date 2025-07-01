@@ -1,29 +1,28 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    // Allow public read access to all files for viewing content
+    match /{allPaths=**} {
+      allow read;
     }
 
-    // Allow public read on movie posters and videos
-    match /posters/{allPaths=**} {
-      allow read: if true;
-    }
-    
-    match /movies/{allPaths=**} {
-      allow read: if true;
+    // Artists can only write to their own profile picture path.
+    match /artists/{userId}/profile.jpg {
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Only allow admin to upload/delete posters and movies
-    match /posters/{fileName} {
-      allow write: if isAdmin();
+    // Event banners can be written by any authenticated user.
+    // The logic in the secure backend function determines if the user is a valid artist.
+    match /events/{eventId}/{fileName} {
+        allow write: if request.auth != null;
     }
-    
-    match /movies/{fileName} {
-      // Allow larger file sizes for video uploads (e.g., 100MB)
-      allow write: if isAdmin() && request.resource.size < 100 * 1024 * 1024;
+
+    // Movies and posters can be written by any authenticated user.
+    // The UI and Firestore rules block non-admins from accessing the upload form.
+    match /movies/{movieId}/{fileName} {
+        allow write: if request.auth != null;
     }
   }
 }

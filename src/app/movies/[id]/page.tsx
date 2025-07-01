@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -56,6 +57,7 @@ export default function MovieWatchPage() {
         addReaction(reactionIcons[Math.floor(Math.random() * reactionIcons.length)]);
     }, 10000); // every 10 seconds
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addReaction = (icon: string) => {
@@ -176,7 +178,7 @@ export default function MovieWatchPage() {
             <iframe
                 width="100%"
                 height="100%"
-                src={`${movie.videoUrl}?autoplay=1`}
+                src={`${movie.videoUrl.includes('?') ? movie.videoUrl + '&' : movie.videoUrl + '?'}autoplay=1`}
                 title={movie.title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -200,8 +202,8 @@ export default function MovieWatchPage() {
         <div className="md:col-span-2 space-y-6">
             <h1 className="text-4xl font-extrabold">{movie.title}</h1>
             <div className="flex items-center gap-4 flex-wrap">
-                <Badge variant="outline">{movie.language}</Badge>
-                <Badge variant="secondary">{movie.genre}</Badge>
+                <Badge variant="outline" className="capitalize">{movie.language}</Badge>
+                <Badge variant="secondary" className="capitalize">{movie.genre}</Badge>
             </div>
              <div>
                 <h2 className="text-2xl font-bold border-b pb-2 mb-4">

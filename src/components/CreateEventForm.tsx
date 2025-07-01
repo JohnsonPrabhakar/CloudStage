@@ -33,10 +33,11 @@ import { type Event, type EventCategory, type Artist } from "@/lib/types";
 import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { addEvent, getArtistProfile } from "@/lib/firebase-service";
+import { addEvent, getArtistProfile, getEventById } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
+import { format } from 'date-fns';
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -55,7 +56,6 @@ const formSchema = z.object({
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
   banner: z.any().optional(),
-  previewVideo: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL.").refine(
     (url) => url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
     "Please provide a valid YouTube Live or Embed URL."
@@ -75,8 +75,7 @@ export default function CreateEventForm() {
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string | null>(null);
-
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -116,11 +115,27 @@ export default function CreateEventForm() {
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
     if (duplicateEventId) {
-      toast({
-        title: "Duplication Disabled",
-        description: "Event duplication from Firestore is not yet implemented.",
-        variant: "destructive"
-      });
+      const fetchAndSetEvent = async () => {
+        const eventToDuplicate = await getEventById(duplicateEventId);
+        if (eventToDuplicate) {
+          form.reset({
+            title: `${eventToDuplicate.title} (Copy)`,
+            category: eventToDuplicate.category,
+            genre: eventToDuplicate.genre,
+            language: eventToDuplicate.language,
+            date: '', // User must set a new date
+            streamUrl: eventToDuplicate.streamUrl,
+            ticketPrice: eventToDuplicate.ticketPrice,
+            description: eventToDuplicate.description,
+            boost: false,
+          });
+          toast({
+            title: "Event Duplicated",
+            description: "Event details have been pre-filled. Please set a new date and time.",
+          });
+        }
+      }
+      fetchAndSetEvent();
     }
   }, [searchParams, form, toast]);
 
@@ -133,29 +148,18 @@ export default function CreateEventForm() {
     } else if (url.includes("youtu.be/")) {
       videoId = url.split("youtu.be/")[1]?.split('?')[0];
     } else if (url.includes("youtube.com/embed/")) {
-      return url; // Already correct
+      return url;
     } else if (url.includes("youtube.com/live/")) {
-        // Live URLs can be embedded directly, or we can convert them to embed format
-        // for consistency. Let's convert.
         videoId = url.split("live/")[1]?.split('?')[0];
     }
 
-    if (videoId) {
-      // Note: YouTube uses /embed/ for both live and VOD
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-    return url; // Return original if no standard format is found
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
   };
   
   const handleStreamUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const originalUrl = e.target.value;
-    // Allow /live/ URLs to pass through, but convert others
-    if (originalUrl.includes("youtube.com/live/")) {
-        form.setValue("streamUrl", originalUrl, { shouldValidate: true, shouldDirty: true });
-    } else {
-        const embedUrl = convertToEmbedUrl(originalUrl);
-        form.setValue("streamUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
-    }
+    const embedUrl = convertToEmbedUrl(originalUrl);
+    form.setValue("streamUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
   };
 
   async function handleGenerateDescription() {
@@ -204,9 +208,7 @@ export default function CreateEventForm() {
         return;
     }
 
-    const bannerUrl = "https://placehold.co/1280x720.png";
-
-    const newEvent: Omit<Event, 'id' | 'createdAt' | 'moderationStatus'> = {
+    const eventData = {
       title: values.title,
       artist: artist.name,
       artistId: artist.id,
@@ -216,7 +218,6 @@ export default function CreateEventForm() {
       language: values.language,
       date: new Date(values.date).toISOString(),
       status: new Date(values.date) > new Date() ? "upcoming" : "past",
-      bannerUrl: bannerUrl,
       streamUrl: values.streamUrl,
       ticketPrice: values.ticketPrice,
       isBoosted: values.boost ?? false,
@@ -226,8 +227,10 @@ export default function CreateEventForm() {
       ticketsSold: 0,
     };
     
+    const bannerFile = values.banner?.[0];
+
     try {
-        await addEvent(newEvent);
+        await addEvent(eventData, bannerFile);
         toast({
             title: "Event Submitted!",
             description: "Your event is now pending admin approval.",
@@ -317,7 +320,7 @@ export default function CreateEventForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Event Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a category" />
@@ -404,14 +407,13 @@ export default function CreateEventForm() {
                 )}
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                  <FormField
                   control={form.control}
                   name="banner"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Banner Image (JPG, PNG)</FormLabel>
-                      {bannerPreview && <Image src={bannerPreview} alt="Banner preview" width={200} height={100} className="rounded-md border object-cover"/>}
                       <FormControl>
                         <Input 
                           type="file" 
@@ -424,34 +426,11 @@ export default function CreateEventForm() {
                           }}
                         />
                       </FormControl>
-                      <FormDescription>Image will not be uploaded. A placeholder will be used.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormField
-                  control={form.control}
-                  name="previewVideo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Preview Video (MP4, optional)</FormLabel>
-                      {videoPreview && <video src={videoPreview} controls className="w-full rounded-md border"/>}
-                      <FormControl>
-                        <Input 
-                          type="file" 
-                          accept="video/mp4"
-                          onChange={(e) => {
-                            field.onChange(e.target.files);
-                            if (e.target.files && e.target.files[0]) {
-                              setVideoPreview(URL.createObjectURL(e.target.files[0]));
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {bannerPreview && <Image src={bannerPreview} alt="Banner preview" width={200} height={100} className="rounded-md border object-cover"/>}
               </div>
 
                <FormField
@@ -467,7 +446,7 @@ export default function CreateEventForm() {
                               <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Paste any YouTube URL (live or video).<br/> It will be converted automatically.</p>
+                              <p>Paste any YouTube URL (live, watch, or embed).<br/> It will be converted automatically.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -520,5 +499,3 @@ export default function CreateEventForm() {
     </div>
   );
 }
-
-    
