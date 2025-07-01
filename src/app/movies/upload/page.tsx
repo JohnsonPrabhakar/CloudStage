@@ -39,13 +39,26 @@ const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   youtubeUrl: z.string().url("Must be a valid URL.").refine(
-    (url) => url.includes("youtube.com/embed/"),
+    (url) => !url || url.includes("youtube.com/embed/"),
     "Please provide a valid YouTube Embed URL (e.g., https://youtube.com/embed/...)."
-  ),
+  ).optional().or(z.literal('')),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
   posterImage: z.instanceof(FileList).optional(),
+  movieFile: z.instanceof(FileList).optional(),
+}).refine(data => !!data.youtubeUrl || (data.movieFile && data.movieFile.length > 0), {
+    message: "You must provide either a YouTube URL or upload a movie file.",
+    path: ["youtubeUrl"],
+}).refine(data => {
+    if (data.movieFile && data.movieFile.length > 0) {
+        return data.posterImage && data.posterImage.length > 0;
+    }
+    return true;
+}, {
+    message: "A poster image is required when uploading a movie file.",
+    path: ["posterImage"],
 });
+
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -54,6 +67,8 @@ export default function UploadMoviePage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [movieFileName, setMovieFileName] = useState<string | null>(null);
+  const [youtubeThumbnailPreview, setYoutubeThumbnailPreview] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -76,22 +91,41 @@ export default function UploadMoviePage() {
       genre: "Action",
       language: "English",
       posterImage: undefined,
+      movieFile: undefined,
     },
   });
+  
+  const watchYoutubeUrl = form.watch("youtubeUrl");
+  const watchMovieFile = form.watch("movieFile");
+
+  const handleYoutubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const url = e.target.value;
+      form.setValue("youtubeUrl", url, { shouldValidate: true });
+      const videoId = url.split('embed/')[1]?.split('?')[0];
+      if (videoId) {
+          setYoutubeThumbnailPreview(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+      } else {
+          setYoutubeThumbnailPreview(null);
+      }
+  };
 
   async function onSubmit(values: FormValues) {
     const posterFile = values.posterImage?.[0];
+    const movieFile = values.movieFile?.[0];
 
     try {
       await addMovie(
-        {
+        { // movieData
           title: values.title,
           description: values.description,
-          youtubeUrl: values.youtubeUrl,
           genre: values.genre,
           language: values.language,
         },
-        posterFile
+        { // uploadDetails
+          youtubeUrl: values.youtubeUrl || undefined,
+          movieFile: movieFile,
+          posterFile: posterFile,
+        }
       );
       toast({
         title: "Movie Added!",
@@ -216,6 +250,37 @@ export default function UploadMoviePage() {
                 />
               </div>
 
+               <div className="space-y-2">
+                 <p className="text-sm font-medium text-center text-muted-foreground">--- OR ---</p>
+               </div>
+               
+               <FormField
+                  control={form.control}
+                  name="movieFile"
+                  render={({ field: { onChange, value, ...rest } }) => (
+                    <FormItem>
+                      <FormLabel>Upload Movie File</FormLabel>
+                      <FormControl>
+                         <Input 
+                          type="file" 
+                          accept="video/mp4,video/webm,video/mov"
+                           {...rest}
+                          onChange={(e) => {
+                            const files = e.target.files;
+                            onChange(files);
+                            setMovieFileName(files?.[0]?.name || null);
+                          }}
+                          disabled={!!watchYoutubeUrl}
+                        />
+                      </FormControl>
+                       <FormDescription>
+                        Provide this OR a YouTube URL. Local file upload takes precedence.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                <FormField
                   control={form.control}
                   name="youtubeUrl"
@@ -223,7 +288,12 @@ export default function UploadMoviePage() {
                     <FormItem>
                       <FormLabel>YouTube Embed URL</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://youtube.com/embed/..." {...field} />
+                        <Input 
+                            placeholder="https://youtube.com/embed/..." 
+                            {...field}
+                            onChange={handleYoutubeUrlChange}
+                            disabled={!!watchMovieFile && watchMovieFile.length > 0}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -235,8 +305,20 @@ export default function UploadMoviePage() {
                   name="posterImage"
                   render={({ field: { onChange, value, ...rest } }) => (
                     <FormItem>
-                      <FormLabel>Upload Poster</FormLabel>
+                      <FormLabel>
+                        Upload Poster
+                        {!!watchMovieFile && watchMovieFile.length > 0 && <span className="text-destructive"> *</span>}
+                      </FormLabel>
+                      
                       {posterPreview && <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover"/>}
+                      
+                      {youtubeThumbnailPreview && !posterPreview && !watchMovieFile?.length && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-2">YouTube Thumbnail (auto-generated):</p>
+                            <Image src={youtubeThumbnailPreview} alt="YouTube thumbnail preview" width={150} height={90} className="rounded-md border object-cover" data-ai-hint="movie thumbnail"/>
+                          </div>
+                      )}
+                      
                       <FormControl>
                          <Input 
                           type="file" 
@@ -252,15 +334,20 @@ export default function UploadMoviePage() {
                               setPosterPreview(null);
                             }
                           }}
+                          disabled={!!watchYoutubeUrl}
                         />
                       </FormControl>
                        <FormDescription>
-                        Optional. If left blank, a placeholder image will be used.
+                        {!!watchMovieFile && watchMovieFile.length > 0 
+                          ? "Required when uploading a movie file."
+                          : "Optional. If using a YouTube URL, a thumbnail will be auto-generated."
+                        }
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
 
               <Button type="submit" size="lg" className="w-full md:w-auto" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Uploading..." : "Add Movie"}

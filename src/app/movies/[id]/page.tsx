@@ -27,22 +27,23 @@ export default function MovieWatchPage() {
   const [error, setError] = useState<string | null>(null);
   const [reactions, setReactions] = useState<{ id: number; icon: string; left: string }[]>([]);
 
-  useEffect(() => {
-    const fetchMovie = async () => {
-        if (params.id) {
-            setLoading(true);
-            setError(null);
-            try {
-                const foundMovie = await getMovieById(params.id as string);
-                setMovie(foundMovie || null);
-            } catch (err) {
-                console.error(err);
-                setError("Could not load movie details. Please check your internet connection and try again.");
-            } finally {
-                setLoading(false);
-            }
+  const fetchMovie = async () => {
+    if (params.id) {
+        setLoading(true);
+        setError(null);
+        try {
+            const foundMovie = await getMovieById(params.id as string);
+            setMovie(foundMovie || null);
+        } catch (err) {
+            console.error(err);
+            setError("Could not load movie details. Please check your internet connection and try again.");
+        } finally {
+            setLoading(false);
         }
     }
+  }
+
+  useEffect(() => {
     fetchMovie();
   }, [params.id]);
 
@@ -94,8 +95,8 @@ export default function MovieWatchPage() {
   
   const isValidStreamUrl = (url: string) => {
     try {
-        const urlObj = new URL(url);
-        return urlObj.protocol === 'https:' && urlObj.hostname.includes('youtube.com');
+        new URL(url);
+        return true;
     } catch (e) {
         return false;
     }
@@ -129,14 +130,14 @@ export default function MovieWatchPage() {
             <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
             <h1 className="text-3xl font-bold">Connection Error</h1>
             <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-            <Button onClick={() => window.location.reload()}>
+            <Button onClick={fetchMovie}>
                 Try Again
             </Button>
         </div>
     )
   }
 
-  if (!movie || !isValidStreamUrl(movie.youtubeUrl)) {
+  if (!movie || !isValidStreamUrl(movie.videoUrl)) {
     return (
       <div className="container mx-auto p-8 text-center">
         <h1 className="text-4xl font-bold">Video Unavailable</h1>
@@ -150,6 +151,8 @@ export default function MovieWatchPage() {
       </div>
     );
   }
+  
+  const isYoutubeVideo = movie.videoUrl.includes('youtube.com');
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -166,15 +169,28 @@ export default function MovieWatchPage() {
         {reactions.map(r => (
             <div key={r.id} className="reaction-animation" style={{ left: r.left }}>{r.icon}</div>
         ))}
-        <iframe
-            width="100%"
-            height="100%"
-            src={`${movie.youtubeUrl}?autoplay=1`}
-            title={movie.title}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-        ></iframe>
+        {isYoutubeVideo ? (
+            <iframe
+                width="100%"
+                height="100%"
+                src={`${movie.videoUrl}?autoplay=1`}
+                title={movie.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+            ></iframe>
+        ) : (
+             <video
+                src={movie.videoUrl}
+                width="100%"
+                height="100%"
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+            >
+                Your browser does not support the video tag.
+            </video>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">

@@ -235,19 +235,41 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 };
 
 // MOVIE-RELATED FUNCTIONS
-
-export const addMovie = async (movieData: Omit<Movie, 'id' | 'posterUrl' | 'createdAt'>, posterFile?: File): Promise<void> => {
+export const addMovie = async (
+  movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
+  uploadDetails: { youtubeUrl?: string; movieFile?: File; posterFile?: File }
+): Promise<void> => {
   try {
-    let posterUrl = `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
+    let posterUrl = '';
+    let videoUrl = '';
 
-    if (posterFile) {
-      const storageRef = ref(storage, `movie-posters/${Date.now()}_${posterFile.name}`);
-      const snapshot = await uploadBytes(storageRef, posterFile);
-      posterUrl = await getDownloadURL(snapshot.ref);
+    const { youtubeUrl, movieFile, posterFile } = uploadDetails;
+
+    if (youtubeUrl) {
+      // YouTube link logic
+      videoUrl = youtubeUrl;
+      const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
+      if (videoId) {
+        posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      } else {
+        posterUrl = `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
+      }
+    } else if (movieFile && posterFile) {
+      // Local file upload logic
+      const movieStorageRef = ref(storage, `movies/${Date.now()}_${movieFile.name}`);
+      const movieSnapshot = await uploadBytes(movieStorageRef, movieFile);
+      videoUrl = await getDownloadURL(movieSnapshot.ref);
+
+      const posterStorageRef = ref(storage, `movie-posters/${Date.now()}_${posterFile.name}`);
+      const posterSnapshot = await uploadBytes(posterStorageRef, posterFile);
+      posterUrl = await getDownloadURL(posterSnapshot.ref);
+    } else {
+      throw new Error("Invalid upload details provided. Either a YouTube URL or a movie file and poster are required.");
     }
     
     await addDoc(moviesCollection, {
       ...movieData,
+      videoUrl,
       posterUrl,
       createdAt: serverTimestamp(),
     });
@@ -257,6 +279,7 @@ export const addMovie = async (movieData: Omit<Movie, 'id' | 'posterUrl' | 'crea
     throw new Error("Could not create movie.");
   }
 };
+
 
 export const getAllMovies = async (): Promise<Movie[]> => {
   try {

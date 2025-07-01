@@ -59,7 +59,7 @@ export interface Movie {
   id: string;
   title: string;
   description: string;
-  youtubeUrl: string;
+  videoUrl: string;
   genre: MovieGenre;
   language: MovieLanguage;
   posterUrl: string;
