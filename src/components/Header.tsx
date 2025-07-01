@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Clapperboard, Ticket, Film } from "lucide-react";
 
@@ -9,7 +15,11 @@ export function Header() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
-    { label: "My Tickets", href: "/my-tickets", icon: <Ticket className="h-4 w-4" /> },
+    {
+      label: "My Tickets",
+      href: "/my-tickets",
+      icon: <Ticket className="h-4 w-4" />,
+    },
     { label: "Artist Dashboard", href: "/artist/dashboard" },
     { label: "Admin", href: "/admin" },
   ];
@@ -48,16 +58,23 @@ export function Header() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left">
-                <Link href="/" className="mr-6 flex items-center space-x-2 mb-6">
-                  <Clapperboard className="h-6 w-6 text-primary" />
-                  <span className="font-bold">CloudStage</span>
-                </Link>
-                <nav className="flex flex-col space-y-4">
+                <SheetHeader>
+                  <SheetTitle>
+                    <Link
+                      href="/"
+                      className="flex items-center space-x-2"
+                    >
+                      <Clapperboard className="h-6 w-6 text-primary" />
+                      <span className="font-bold">CloudStage</span>
+                    </Link>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="grid gap-4 py-6">
                   {navItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="transition-colors hover:text-primary flex items-center gap-2"
+                      className="transition-colors hover:text-primary flex items-center gap-2 text-lg"
                     >
                       {item.icon}
                       {item.label}
@@ -72,7 +89,7 @@ export function Header() {
             <span className="font-bold sm:inline-block">CloudStage</span>
           </Link>
           <nav className="flex items-center">
-             <Button>Get Started</Button>
+            <Button>Get Started</Button>
           </nav>
         </div>
       </div>
