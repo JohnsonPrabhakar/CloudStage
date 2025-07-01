@@ -65,8 +65,11 @@ export default function ArtistDashboard() {
           router.push('/artist/pending');
         }
       } else {
-        toast({ variant: 'destructive', title: 'Profile Not Found', description: 'Please register as an artist.' });
-        router.push('/artist/register');
+        // If a user is authenticated but has no artist profile, they are not an artist.
+        // Sign them out and redirect to the artist login page.
+        await signOut(auth);
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'You must be logged in with an approved artist account.' });
+        router.push('/artist/login');
       }
     } catch (err) {
       console.error("Failed to fetch artist data:", err);
