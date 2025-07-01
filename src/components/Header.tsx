@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Clapperboard, Ticket, Film } from "lucide-react";
+import { Menu, Ticket, Film } from "lucide-react";
 
 export function Header() {
   const navItems = [
@@ -28,11 +29,14 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Clapperboard className="h-6 w-6 text-primary" />
-            <span className="hidden font-bold sm:inline-block">
-              CloudStage
-            </span>
+          <Link href="/" className="mr-6 flex items-center">
+            <Image
+              src="/logo.png"
+              alt="CloudStage Logo"
+              width={140}
+              height={40}
+              priority
+            />
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
@@ -62,10 +66,14 @@ export function Header() {
                   <SheetTitle>
                     <Link
                       href="/"
-                      className="flex items-center space-x-2"
+                      className="flex items-center"
                     >
-                      <Clapperboard className="h-6 w-6 text-primary" />
-                      <span className="font-bold">CloudStage</span>
+                      <Image
+                        src="/logo.png"
+                        alt="CloudStage Logo"
+                        width={140}
+                        height={40}
+                      />
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -84,9 +92,14 @@ export function Header() {
               </SheetContent>
             </Sheet>
           </div>
-          <Link href="/" className="flex items-center space-x-2 md:hidden">
-            <Clapperboard className="h-6 w-6 text-primary" />
-            <span className="font-bold sm:inline-block">CloudStage</span>
+          <Link href="/" className="flex items-center md:hidden">
+            <Image
+              src="/logo.png"
+              alt="CloudStage Logo"
+              width={140}
+              height={40}
+              className="h-10 w-auto object-contain"
+            />
           </Link>
           <nav className="flex items-center">
             <Button>Get Started</Button>
