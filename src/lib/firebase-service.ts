@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { getDownloadURL, ref, uploadBytes, uploadBytesResumable, type UploadTaskSnapshot } from 'firebase/storage';
+import { getDownloadURL, ref as storageRef, uploadBytes, uploadBytesResumable, type UploadTaskSnapshot, deleteObject } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -128,8 +128,8 @@ export const registerArtist = async (data: Omit<Artist, 'id' | 'isApproved' | 'i
     // 2. Handle profile picture upload
     let profilePictureUrl = 'https://placehold.co/128x128.png';
     if(profilePictureFile) {
-        const storageRef = ref(storage, `artist-profiles/${user.uid}_${profilePictureFile.name}`);
-        const snapshot = await uploadBytes(storageRef, profilePictureFile);
+        const fileRef = storageRef(storage, `artist-profiles/${user.uid}_${profilePictureFile.name}`);
+        const snapshot = await uploadBytes(fileRef, profilePictureFile);
         profilePictureUrl = await getDownloadURL(snapshot.ref);
     }
 
@@ -236,79 +236,144 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
 };
 
 // MOVIE-RELATED FUNCTIONS
+const handleMovieUpload = async (
+    file: File,
+    path: 'movie-posters' | 'movies',
+    onProgress?: (progress: number) => void
+): Promise<string> => {
+    const fileRef = storageRef(storage, `${path}/${Date.now()}_${file.name}`);
+    
+    if (onProgress) {
+        // Use resumable for progress tracking
+        const uploadTask = uploadBytesResumable(fileRef, file);
+        return new Promise<string>((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot: UploadTaskSnapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    onProgress(progress);
+                },
+                (error) => {
+                    console.error("File upload failed:", error);
+                    reject(error);
+                },
+                async () => {
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        resolve(downloadURL);
+                    } catch (error) {
+                        reject(error);
+                    }
+                }
+            );
+        });
+    } else {
+        // Simple upload if no progress tracking is needed
+        const snapshot = await uploadBytes(fileRef, file);
+        return getDownloadURL(snapshot.ref);
+    }
+};
+
+const deleteStorageFile = async (url: string) => {
+    if (!url || !url.includes('firebasestorage.googleapis.com')) return;
+    try {
+        const fileRef = storageRef(storage, url);
+        await deleteObject(fileRef);
+    } catch (error: any) {
+        // It's okay if the file doesn't exist (e.g., already deleted)
+        if (error.code !== 'storage/object-not-found') {
+            console.error("Error deleting storage file:", error);
+        }
+    }
+};
+
 export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
   uploadDetails: { youtubeUrl?: string; movieFile?: File; posterFile?: File },
   onProgress?: (progress: number) => void
 ): Promise<void> => {
-  try {
-    let posterUrl = '';
-    let videoUrl = '';
+  let posterUrl = '';
+  let videoUrl = '';
+  const { youtubeUrl, movieFile, posterFile } = uploadDetails;
 
-    const { youtubeUrl, movieFile, posterFile } = uploadDetails;
-
-    if (youtubeUrl) {
-      // YouTube link logic
-      videoUrl = youtubeUrl;
-      const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
-      if (videoId) {
-        posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-      } else {
-        posterUrl = `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
-      }
-    } else if (movieFile && posterFile) {
-      // Local file upload logic: Poster first (fast), then movie with progress.
-      const posterStorageRef = ref(storage, `movie-posters/${Date.now()}_${posterFile.name}`);
-      const posterSnapshot = await uploadBytes(posterStorageRef, posterFile);
-      posterUrl = await getDownloadURL(posterSnapshot.ref);
-
-      const movieStorageRef = ref(storage, `movies/${Date.now()}_${movieFile.name}`);
-      const uploadTask = uploadBytesResumable(movieStorageRef, movieFile);
-
-      // Wrap the upload task in a promise to await its completion while tracking progress
-      videoUrl = await new Promise<string>((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot: UploadTaskSnapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            onProgress?.(progress); // Use optional chaining to call the callback if it exists
-          },
-          (error) => {
-            console.error("Movie file upload failed:", error);
-            reject(error);
-          },
-          async () => {
-            // On completion, get the URL and resolve the promise
-            try {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                resolve(downloadURL);
-            } catch (error) {
-                reject(error);
-            }
-          }
-        );
-      });
-    } else {
-      throw new Error("Invalid upload details provided. Either a YouTube URL or a movie file and poster are required.");
-    }
-    
-    await addDoc(moviesCollection, {
-      ...movieData,
-      genre: movieData.genre.toLowerCase(),
-      language: movieData.language.toLowerCase(),
-      videoUrl,
-      posterUrl,
-      createdAt: serverTimestamp(),
-    });
-
-  } catch (error) {
-    console.error("Error adding movie to Firestore: ", error);
-    if (error instanceof Error) {
-        throw new Error(`Could not create movie. Reason: ${error.message}`);
-    }
-    throw new Error("Could not create movie.");
+  if (youtubeUrl) {
+    videoUrl = youtubeUrl;
+    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
+    posterUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : `https://placehold.co/400x600.png?text=${encodeURIComponent(movieData.title)}`;
+  } else if (movieFile && posterFile) {
+    posterUrl = await handleMovieUpload(posterFile, 'movie-posters');
+    videoUrl = await handleMovieUpload(movieFile, 'movies', onProgress);
+  } else {
+    throw new Error("Invalid upload details.");
   }
+
+  await addDoc(moviesCollection, {
+    ...movieData,
+    genre: movieData.genre.toLowerCase(),
+    language: movieData.language.toLowerCase(),
+    videoUrl,
+    posterUrl,
+    createdAt: serverTimestamp(),
+  });
 };
 
+export const updateMovie = async (
+    movieId: string,
+    movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>,
+    uploadDetails: {
+        youtubeUrl?: string;
+        movieFile?: File;
+        posterFile?: File;
+        existingPosterUrl?: string;
+        existingVideoUrl?: string;
+    },
+    onProgress?: (progress: number) => void
+): Promise<void> => {
+    let { posterUrl, videoUrl } = await getDoc(doc(db, "movies", movieId)).then(d => d.data() as Movie);
+    const { youtubeUrl, movieFile, posterFile, existingPosterUrl, existingVideoUrl } = uploadDetails;
+
+    // Handle poster update
+    if (posterFile) {
+        if(existingPosterUrl) await deleteStorageFile(existingPosterUrl);
+        posterUrl = await handleMovieUpload(posterFile, 'movie-posters');
+    }
+
+    // Handle video update
+    if (movieFile) {
+        if(existingVideoUrl) await deleteStorageFile(existingVideoUrl);
+        videoUrl = await handleMovieUpload(movieFile, 'movies', onProgress);
+    } else if (youtubeUrl) {
+        if (existingVideoUrl && existingVideoUrl !== youtubeUrl) {
+           await deleteStorageFile(existingVideoUrl);
+        }
+        videoUrl = youtubeUrl;
+        // Also update poster if youtube link changes and no new poster is uploaded
+        if (!posterFile) {
+             const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0];
+             const newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+             if (newPosterUrl !== existingPosterUrl) {
+                await deleteStorageFile(existingPosterUrl || '');
+                posterUrl = newPosterUrl;
+             }
+        }
+    }
+
+    await updateDoc(doc(db, "movies", movieId), {
+        ...movieData,
+        genre: movieData.genre.toLowerCase(),
+        language: movieData.language.toLowerCase(),
+        videoUrl,
+        posterUrl,
+    });
+};
+
+export const deleteMovie = async (movie: Movie): Promise<void> => {
+    // Delete files from storage first
+    await deleteStorageFile(movie.posterUrl);
+    await deleteStorageFile(movie.videoUrl);
+
+    // Then delete the document from Firestore
+    await deleteDoc(doc(db, 'movies', movie.id));
+}
 
 export const getAllMovies = async (): Promise<Movie[]> => {
   try {

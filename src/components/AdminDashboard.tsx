@@ -11,14 +11,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +33,7 @@ import {
   Youtube,
   Loader2,
   WifiOff,
+  Film,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -59,6 +52,8 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import ManageMovies from "./ManageMovies";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -261,11 +256,6 @@ export default function AdminDashboard() {
                 </Label>
             </div>
             <Button asChild>
-                <Link href="/movies/upload">
-                    <Upload className="mr-2 h-4 w-4" /> Upload Movie
-                </Link>
-            </Button>
-            <Button asChild>
                 <Link href="/admin/boosted">
                     <TrendingUp className="mr-2 h-4 w-4" /> View Boosted Events
                 </Link>
@@ -281,13 +271,14 @@ export default function AdminDashboard() {
           setHasPendingArtistNotification(false);
         }
       }}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="event-approvals">Event Approvals</TabsTrigger>
           <TabsTrigger value="artist-approvals" className="relative">
             Pending Artists
             {hasPendingArtistNotification && <Bell className="h-4 w-4 absolute top-1 right-1 text-primary animate-pulse"/>}
           </TabsTrigger>
+          <TabsTrigger value="manage-movies">Manage Movies</TabsTrigger>
           <TabsTrigger value="revenue">Revenue & Ads</TabsTrigger>
         </TabsList>
 
@@ -390,6 +381,10 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="manage-movies">
+            <ManageMovies />
+        </TabsContent>
+        
         <TabsContent value="revenue">
           <Card>
             <CardHeader>
