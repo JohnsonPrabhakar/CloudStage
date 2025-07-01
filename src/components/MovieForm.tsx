@@ -32,6 +32,7 @@ import { addMovie, updateMovie } from "@/lib/firebase-service";
 import { ChevronLeft, Film, Loader2 } from "lucide-react";
 import { type Movie } from "@/lib/types";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Label } from "./ui/label";
 
 
 const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
