@@ -66,8 +66,9 @@ export default function ArtistLogin() {
             router.push('/artist/pending');
         }
       } else {
-        // This is a valid user who is not an artist. Sign them out.
-        await signOut(auth);
+        // A user account exists in Firebase Auth, but there is no corresponding
+        // artist document in Firestore. This is an invalid state for an artist trying to log in.
+        await signOut(auth); // Sign out to prevent confusion
         throw new Error("Artist profile not found.");
       }
 
