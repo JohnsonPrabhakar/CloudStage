@@ -28,15 +28,18 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
+        {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center">
+          <Link href="/" className="mr-6 flex items-center gap-2">
             <Image
               src="/logo.png"
               alt="CloudStage Logo"
-              width={140}
-              height={40}
+              width={35}
+              height={35}
               priority
+              className="rounded-md"
             />
+            <span className="font-bold text-lg">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
@@ -52,6 +55,7 @@ export function Header() {
           </nav>
         </div>
 
+        {/* Mobile Navigation */}
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="md:hidden">
             <Sheet>
@@ -66,14 +70,16 @@ export function Header() {
                   <SheetTitle>
                     <Link
                       href="/"
-                      className="flex items-center"
+                      className="flex items-center gap-2"
                     >
                       <Image
                         src="/logo.png"
                         alt="CloudStage Logo"
-                        width={140}
-                        height={40}
+                        width={35}
+                        height={35}
+                        className="rounded-md"
                       />
+                       <span className="font-bold text-lg">CloudStage</span>
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -92,18 +98,28 @@ export function Header() {
               </SheetContent>
             </Sheet>
           </div>
-          <Link href="/" className="flex items-center md:hidden">
-            <Image
-              src="/logo.png"
-              alt="CloudStage Logo"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain"
-            />
-          </Link>
-          <nav className="flex items-center">
-            <Button>Get Started</Button>
-          </nav>
+
+          <div className="flex-1 md:hidden">
+            <Link href="/" className="flex items-center justify-center gap-2">
+                <Image
+                src="/logo.png"
+                alt="CloudStage Logo"
+                width={35}
+                height={35}
+                className="h-9 w-auto object-contain rounded-md"
+                />
+                <span className="font-bold text-lg">CloudStage</span>
+            </Link>
+          </div>
+          
+          <div className="hidden md:flex">
+            <nav className="flex items-center">
+                <Button asChild>
+                    <Link href="/artist/register">Get Started</Link>
+                </Button>
+            </nav>
+          </div>
+
         </div>
       </div>
     </header>
