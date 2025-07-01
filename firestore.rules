@@ -2,74 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+    
     // --- Helper Functions ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
     function isAdmin() {
-      // Make sure to use the actual admin email address here.
-      return request.auth.token.email == 'admin@cloudstage.in';
-    }
-
-    // --- Public Access Rules ---
-    // Anyone can read approved events, artist profiles, movies, and site config.
-    match /events/{eventId} {
-      allow read: if resource.data.moderationStatus == 'approved';
-    }
-    match /artists/{artistId} {
-      allow read: if true;
-    }
-     match /movies/{movieId} {
-      allow read: if true;
-    }
-    match /config/{docId} {
-      allow read: if true;
-    }
-
-    // --- Artist-Specific Rules ---
-    // Artists can read their own profile data for the dashboard.
-    // They can also create their profile for the first time.
-    match /artists/{userId} {
-      allow read, create, update: if isOwner(userId) || isAdmin();
-    }
-
-    // Artists can read all of their own events (pending, approved, rejected).
-    // They can create new events. They can update their own events.
-    match /events/{eventId} {
-       allow read, update: if isOwner(resource.data.artistId);
-       allow create: if isOwner(request.resource.data.artistId);
-    }
-
-    // --- User-Specific Rules ---
-    // Logged-in users can create tickets for themselves.
-    // They can only read tickets where their userId matches.
-    match /tickets/{ticketId} {
-        allow create: if isOwner(request.resource.data.userId);
-        allow read: if isOwner(resource.data.userId);
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
     
-    // --- Admin-Only Rules ---
-    // The admin has extra permissions to manage the platform.
-    match /events/{eventId} {
-      // Admin can read/update any event (e.g., for moderation).
-      allow read, update: if isAdmin();
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
+
+    function isArtist(uid) {
+      // An artist is someone who has a document in the 'artists' collection with their UID.
+      return exists(/databases/$(database)/documents/artists/$(uid));
+    }
+    
+    function isApprovedArtist(uid) {
+      // An approved artist is one whose 'isApproved' field is true.
+      return isArtist(uid) && get(/databases/$(database)/documents/artists/$(uid)).data.isApproved == true;
+    }
+
+    // --- Collections Rules ---
+
+    // Artists: Anyone can create (register). Only owners or admin can update. Public read. Admin can do anything.
     match /artists/{artistId} {
-        // Admin can read/update any artist profile.
-        allow read, update: if isAdmin();
+      allow read: if true;
+      allow create: if isOwner(artistId); // During registration, a user creates their own artist doc
+      allow update: if isOwner(artistId) || isAdmin();
+      allow delete: if isAdmin(); // Only admin can reject/delete artists
     }
+
+    // Events: Approved artists can create. Only the original artist can update. Public can read approved events. Admin can do anything.
+    match /events/{eventId} {
+      allow read: if resource.data.moderationStatus == 'approved' || isOwner(resource.data.artistId) || isAdmin();
+      allow create: if isApprovedArtist(request.auth.uid) && request.resource.data.artistId == request.auth.uid;
+      allow update: if isOwner(resource.data.artistId) || isAdmin();
+      allow delete: if isOwner(resource.data.artistId) || isAdmin();
+    }
+    
+    // Tickets: Logged-in users can create and read their own tickets. Admin has full read access.
+    match /tickets/{ticketId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    // Movies: Public read. Only admin can write/delete.
     match /movies/{movieId} {
-        // Admin can perform all actions on movies.
-        allow read, create, update, delete: if isAdmin();
+      allow read: if true;
+      allow write, delete: if isAdmin();
     }
-    match /config/{docId} {
-        // Admin can update site-wide configuration.
+    
+    // Config: Public read. Admin write.
+    match /config/{configId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
   }
