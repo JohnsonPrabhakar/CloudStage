@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -44,8 +45,8 @@ const formSchema = z.object({
   ).optional().or(z.literal('')),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
-  posterImage: z.instanceof(FileList).optional(),
-  movieFile: z.instanceof(FileList).optional(),
+  posterImage: z.any().optional(),
+  movieFile: z.any().optional(),
 }).refine(data => !!data.youtubeUrl || (data.movieFile && data.movieFile.length > 0), {
     message: "You must provide either a YouTube URL or upload a movie file.",
     path: ["youtubeUrl"],
@@ -312,7 +313,7 @@ export default function UploadMoviePage() {
                       
                       {posterPreview && <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover"/>}
                       
-                      {youtubeThumbnailPreview && !posterPreview && !watchMovieFile?.length && (
+                      {youtubeThumbnailPreview && !posterPreview && !(watchMovieFile && watchMovieFile.length > 0) && (
                           <div>
                             <p className="text-sm text-muted-foreground mb-2">YouTube Thumbnail (auto-generated):</p>
                             <Image src={youtubeThumbnailPreview} alt="YouTube thumbnail preview" width={150} height={90} className="rounded-md border object-cover" data-ai-hint="movie thumbnail"/>
@@ -334,7 +335,6 @@ export default function UploadMoviePage() {
                               setPosterPreview(null);
                             }
                           }}
-                          disabled={!!watchYoutubeUrl}
                         />
                       </FormControl>
                        <FormDescription>
