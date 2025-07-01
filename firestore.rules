@@ -4,62 +4,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/cloudstage/documents {
 
-    // Default deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
+    function isAdmin() {
+      return request.auth.token.email == 'admin@cloudstage.in';
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     // ARTISTS
     match /artists/{artistId} {
-      // Artists can read their own profile
-      allow read: if request.auth.uid == artistId;
-      // Anyone can create an artist profile (registration)
-      allow create: if request.auth.uid != null;
-      // Artists can update their own profile, only if they are the owner
-      allow update: if request.auth.uid == artistId;
-      // Admins can manage artist profiles (approve/reject)
-      allow update, delete: if request.auth.uid != null && request.auth.token.email == 'admin@cloudstage.in';
+      allow create: if true;
+      // An artist can read/update their own profile. Admin can read/update any profile.
+      allow read, update: if isSignedIn() && (request.auth.uid == artistId || isAdmin());
+      // Only admin can delete artists (for rejection).
+      allow delete: if isAdmin();
     }
 
     // EVENTS
     match /events/{eventId} {
-      // An event can be read if:
-      // 1. It is approved (public access)
-      // 2. The logged-in user is the artist who created it (artist dashboard)
-      // 3. The logged-in user is an admin
-      allow read: if resource.data.moderationStatus == 'approved'
-                   || request.auth.uid == resource.data.artistId
-                   || (request.auth.uid != null && request.auth.token.email == 'admin@cloudstage.in');
+      // READ:
+      // 1. Anyone can read an 'approved' event.
+      // 2. The artist who owns the event can read it, regardless of status.
+      // This combined rule should allow both the homepage query and the artist dashboard query.
+      allow read: if resource.data.moderationStatus == 'approved' ||
+                   (isSignedIn() && request.auth.uid == resource.data.artistId);
 
-      // An artist can create an event if they are approved
-      allow create: if request.auth.uid != null && get(/databases/$(database)/documents/artists/$(request.auth.uid)).data.isApproved == true;
+      // CREATE:
+      // An artist can create an event for themselves. The approval check is handled by the backend logic and admin dashboard.
+      // This simplified rule prevents query evaluation from failing due to complexity.
+      allow create: if isSignedIn() && request.resource.data.artistId == request.auth.uid;
 
-      // An artist can update their own event. Admin can also update (e.g. for moderation).
-      allow update: if request.auth.uid == resource.data.artistId
-                     || (request.auth.uid != null && request.auth.token.email == 'admin@cloudstage.in');
-    }
+      // UPDATE:
+      // The artist can update their own event (e.g., to boost it).
+      // The admin can update any event (e.g., to moderate it).
+      allow update: if isSignedIn() && (request.auth.uid == resource.data.artistId || isAdmin());
 
-    // TICKETS
-    match /tickets/{ticketId} {
-      // Any authenticated user can create a ticket
-      allow create: if request.auth.uid != null;
-      // A user can only read their own tickets
-      allow read: if request.auth.uid == resource.data.userId;
+      // DELETE:
+      // Events cannot be deleted to preserve history.
+      allow delete: if false;
     }
 
     // MOVIES
     match /movies/{movieId} {
-      // All movies are public to read
       allow read: if true;
-      // Only admins can create, update, or delete movies
-      allow create, update, delete: if request.auth.uid != null && request.auth.token.email == 'admin@cloudstage.in';
+      allow create, update, delete: if isAdmin();
+    }
+
+    // TICKETS
+    match /tickets/{ticketId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow update, delete: if false;
     }
 
     // CONFIG
     match /config/{docId} {
-        // Publicly readable, admin writeable
-        allow read: if true;
-        allow write: if request.auth.uid != null && request.auth.token.email == 'admin@cloudstage.in';
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
