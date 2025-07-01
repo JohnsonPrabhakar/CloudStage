@@ -1,38 +1,37 @@
-{
-  "rules": {
-    "artists": {
-      ".read": true,
-      "{artistId}": {
-        // Allow artists to update their own profile
-        ".write": "request.auth != null && request.auth.uid == artistId"
-      }
-    },
-    "events": {
-       // Allow anyone to read an event if it's approved
-       ".read": "resource.data.moderationStatus == 'approved'",
-      "{eventId}": {
-        // Additionally, allow a logged-in user to read an event if they are the artist
-        ".read": "resource.data.moderationStatus == 'approved' || (request.auth != null && request.auth.uid == resource.data.artistId)",
-        // Allow an artist to create or update their own events
-        ".write": "request.auth != null && (request.resource.data.artistId == request.auth.uid || resource.data.artistId == request.auth.uid)"
-      }
-    },
-    "tickets": {
-      // Allow logged-in users to read and write to their own tickets
-      ".read": "request.auth != null && query.get('userId') == request.auth.uid",
-      ".write": "request.auth != null && request.resource.data.userId == request.auth.uid"
-    },
-    "movies": {
-      // Allow public read for movies
-      ".read": true,
-      // Only allow admin to write movies
-      ".write": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in'"
-    },
-    "config": {
-       // Allow public read for site status
-      ".read": true,
-      // Only allow admin to write config
-      ".write": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in'"
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Artists can only manage their own profile.
+    match /artists/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Events can be read by anyone if approved.
+    // An artist can read their own events regardless of status.
+    // An artist can only create/update their own events.
+    match /events/{eventId} {
+      allow read: if resource.data.moderationStatus == 'approved' || (request.auth != null && request.auth.uid == resource.data.artistId);
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.artistId;
+    }
+
+    // Users can only manage their own tickets.
+    match /tickets/{ticketId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+    // Movies can be read by anyone.
+    // Only the admin can create, update, or delete movies.
+    match /movies/{movieId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    }
+
+    // Site configuration can be read by anyone, but only written by admin.
+    match /config/siteStatus {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
   }
 }
