@@ -44,7 +44,10 @@ export default function MovieWatchPage() {
   }
 
   useEffect(() => {
-    fetchMovie();
+    if (params.id) {
+      fetchMovie();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   useEffect(() => {

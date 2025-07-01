@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addMovie, updateMovie } from "@/lib/firebase-service";
 import { ChevronLeft, Film, Loader2 } from "lucide-react";
 import { type Movie } from "@/lib/types";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 const movieGenres = ['Action', 'Romance', 'Comedy', 'Thriller', 'Drama', 'Sci-Fi', 'Horror'];
 const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
@@ -38,10 +39,22 @@ const movieLanguages = ['English', 'Hindi', 'Tamil', 'Telugu'];
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  youtubeUrl: z.string().url("A valid YouTube URL is required."),
   genre: z.string().min(1, "Genre is required"),
   language: z.string().min(1, "Language is required"),
+  uploadType: z.enum(['youtube', 'local']),
+  youtubeUrl: z.string().optional(),
+  movieFile: z.any().optional(),
+  posterFile: z.any().optional(),
+}).superRefine((data, ctx) => {
+    if (data.uploadType === 'youtube' && (!data.youtubeUrl || !data.youtubeUrl.includes('youtube.com'))) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "A valid YouTube URL is required.",
+            path: ['youtubeUrl'],
+        })
+    }
 });
+
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -55,29 +68,40 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   const router = useRouter();
   
   const [youtubeThumbnailPreview, setYoutubeThumbnailPreview] = useState<string | null>(null);
+  const [posterPreview, setPosterPreview] = useState<string | null>(null);
+  const [uploadType, setUploadType] = useState<'youtube' | 'local'>('youtube');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
-      youtubeUrl: "",
       genre: "Action",
       language: "English",
+      uploadType: 'youtube',
+      youtubeUrl: "",
     },
   });
 
   useEffect(() => {
     if (mode === 'edit' && initialData) {
+      const isYoutube = initialData.videoUrl.includes('youtube.com');
+      const currentUploadType = isYoutube ? 'youtube' : 'local';
+      setUploadType(currentUploadType);
+      
       form.reset({
         title: initialData.title,
         description: initialData.description,
         genre: initialData.genre.charAt(0).toUpperCase() + initialData.genre.slice(1),
         language: initialData.language.charAt(0).toUpperCase() + initialData.language.slice(1),
-        youtubeUrl: initialData.videoUrl.includes('youtube.com') ? initialData.videoUrl : '',
+        uploadType: currentUploadType,
+        youtubeUrl: isYoutube ? initialData.videoUrl : '',
       });
-      if(initialData.posterUrl.includes('img.youtube.com')) {
+      
+      if(isYoutube) {
           setYoutubeThumbnailPreview(initialData.posterUrl);
+      } else {
+          setPosterPreview(initialData.posterUrl);
       }
     }
   }, [mode, initialData, form]);
@@ -117,6 +141,25 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   };
 
   async function onSubmit(values: FormValues) {
+    let uploadDetails: any;
+
+    if (values.uploadType === 'youtube') {
+        uploadDetails = { youtubeUrl: values.youtubeUrl };
+    } else {
+        const movieFile = values.movieFile?.[0];
+        const posterFile = values.posterFile?.[0];
+
+        if (mode === 'create' && (!movieFile || !posterFile)) {
+            toast({
+                variant: 'destructive',
+                title: 'Missing Files',
+                description: 'For local uploads, both a movie file and a poster image are required.'
+            });
+            return;
+        }
+        uploadDetails = { movieFile, posterFile };
+    }
+
     const action = mode === 'create' ? addMovie : (data: any, uploads: any) => updateMovie(initialData!.id, data, uploads);
     const successTitle = mode === 'create' ? "Movie Added!" : "Movie Updated!";
     const successDescription = `${values.title} has been successfully ${mode === 'create' ? 'added' : 'updated'}.`;
@@ -129,9 +172,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
           genre: values.genre,
           language: values.language,
         },
-        { // uploadDetails
-          youtubeUrl: values.youtubeUrl,
-        }
+        uploadDetails
       );
       toast({
         title: successTitle,
@@ -141,11 +182,11 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
       router.push("/admin/dashboard");
       router.refresh(); // Refresh to ensure the admin list is updated.
 
-    } catch(error) {
+    } catch(error: any) {
       console.error(error);
       toast({
         title: "Action Failed",
-        description: "There was an error saving the movie. Please try again.",
+        description: error.message || "There was an error saving the movie. Please try again.",
         variant: "destructive"
       });
     }
@@ -258,34 +299,117 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                 />
               </div>
                
-               <FormField
-                  control={form.control}
-                  name="youtubeUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>YouTube URL</FormLabel>
-                      <FormControl>
-                        <Input 
-                            placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
-                            {...field}
-                            onChange={handleYoutubeUrlChange}
-                            disabled={isSubmitting}
-                        />
-                      </FormControl>
-                       <FormDescription>
-                        A valid YouTube URL is required. The video poster will be generated from this.
-                      </FormDescription>
-                      <FormMessage />
+              <FormField
+                control={form.control}
+                name="uploadType"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                        <FormLabel>Upload Source</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                                onValueChange={(value: 'youtube' | 'local') => {
+                                    field.onChange(value);
+                                    setUploadType(value);
+                                }}
+                                value={field.value}
+                                className="flex gap-8"
+                            >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <RadioGroupItem value="youtube" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">From YouTube URL</FormLabel>
+                                </FormItem>
+                                 <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                        <RadioGroupItem value="local" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">From Local File</FormLabel>
+                                </FormItem>
+                            </RadioGroup>
+                        </FormControl>
                     </FormItem>
-                  )}
-                />
-
-                {youtubeThumbnailPreview && (
-                    <div>
-                        <p className="text-sm text-muted-foreground mb-2">Poster Preview (auto-generated):</p>
-                        <Image src={youtubeThumbnailPreview} alt="YouTube thumbnail preview" width={150} height={90} className="rounded-md border object-cover" data-ai-hint="movie thumbnail"/>
-                    </div>
                 )}
+               />
+               
+               {uploadType === 'youtube' ? (
+                <div>
+                  <FormField
+                    control={form.control}
+                    name="youtubeUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>YouTube URL</FormLabel>
+                        <FormControl>
+                          <Input 
+                              placeholder="Paste any YouTube URL (e.g., watch?v=...)" 
+                              {...field}
+                              onChange={handleYoutubeUrlChange}
+                              disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          The movie poster will be automatically generated from this link.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {youtubeThumbnailPreview && (
+                      <div className="mt-4">
+                          <p className="text-sm text-muted-foreground mb-2">Poster Preview:</p>
+                          <Image src={youtubeThumbnailPreview} alt="YouTube thumbnail preview" width={150} height={90} className="rounded-md border object-cover" data-ai-hint="movie thumbnail"/>
+                      </div>
+                  )}
+                </div>
+               ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <FormField
+                      control={form.control}
+                      name="movieFile"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Movie File</FormLabel>
+                          <FormControl>
+                             <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormDescription>Upload the video file (MP4 format).</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="posterFile"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Poster Image</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="file" 
+                              accept="image/jpeg, image/png"
+                              onChange={(e) => {
+                                field.onChange(e.target.files);
+                                if (e.target.files && e.target.files[0]) {
+                                  setPosterPreview(URL.createObjectURL(e.target.files[0]));
+                                }
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </FormControl>
+                           <FormDescription>Upload a poster image (JPG, PNG).</FormDescription>
+                           {posterPreview && (
+                              <div className="mt-4">
+                                  <Image src={posterPreview} alt="Poster preview" width={150} height={225} className="rounded-md border object-cover" data-ai-hint="movie poster"/>
+                              </div>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
+               )}
                 
                 <div className="flex flex-col gap-4">
                     <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>

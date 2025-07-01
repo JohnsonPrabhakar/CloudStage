@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -237,25 +238,57 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
   return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
 };
 
-// MOVIE-RELATED FUNCTIONS
+// --- STORAGE HELPER FUNCTIONS ---
+const uploadFile = async (file: File, path: string): Promise<string> => {
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  return await getDownloadURL(storageRef);
+}
+
+const deleteFileByUrl = async (url: string) => {
+  try {
+    const fileRef = ref(storage, url);
+    await deleteObject(fileRef);
+  } catch (error: any) {
+    if (error.code === 'storage/object-not-found') {
+      console.warn("Tried to delete a file that doesn't exist:", url);
+    } else {
+      console.error("Error deleting file from storage:", error);
+    }
+  }
+}
+
+// --- MOVIE-RELATED FUNCTIONS ---
+
+type MovieUploadDetails = 
+  | { youtubeUrl: string; movieFile?: never; posterFile?: never }
+  | { youtubeUrl?: never; movieFile: File; posterFile: File };
+
 export const addMovie = async (
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>, 
-  uploadDetails: { youtubeUrl: string; }
+  uploadDetails: MovieUploadDetails
 ): Promise<void> => {
-  const { youtubeUrl } = uploadDetails;
+  let videoUrl: string;
+  let posterUrl: string;
 
-  if (!youtubeUrl) {
-    throw new Error("A YouTube URL is required.");
-  }
-  
-  const videoUrl = youtubeUrl;
-  const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
+  if (uploadDetails.youtubeUrl) {
+    const { youtubeUrl } = uploadDetails;
+    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
 
-  if (!videoId) {
-    throw new Error("Could not extract Video ID from the YouTube URL. Please use a standard YouTube video or live stream URL.");
+    if (!videoId) {
+      throw new Error("Could not extract Video ID from the YouTube URL. Please use a valid embed or live URL.");
+    }
+    
+    videoUrl = youtubeUrl;
+    posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  } else if (uploadDetails.movieFile && uploadDetails.posterFile) {
+    const { movieFile, posterFile } = uploadDetails;
+    const timestamp = Date.now();
+    videoUrl = await uploadFile(movieFile, `movies/${timestamp}-${movieFile.name}`);
+    posterUrl = await uploadFile(posterFile, `posters/${timestamp}-${posterFile.name}`);
+  } else {
+    throw new Error("Invalid upload details provided.");
   }
-  
-  const posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
   await addDoc(moviesCollection, {
     ...movieData,
@@ -267,12 +300,14 @@ export const addMovie = async (
   });
 };
 
+type MovieUpdateUploadDetails = 
+  | { youtubeUrl: string; movieFile?: never; posterFile?: never }
+  | { youtubeUrl?: never; movieFile?: File; posterFile?: File };
+
 export const updateMovie = async (
     movieId: string,
     movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>,
-    uploadDetails: {
-        youtubeUrl: string;
-    }
+    uploadDetails: MovieUpdateUploadDetails
 ): Promise<void> => {
     const movieRef = doc(db, "movies", movieId);
     const movieSnap = await getDoc(movieRef);
@@ -280,32 +315,52 @@ export const updateMovie = async (
     if (!movieSnap.exists()) {
         throw new Error("Movie to update not found");
     }
-    
-    const { youtubeUrl } = uploadDetails;
 
-    if (!youtubeUrl) {
-      throw new Error("A YouTube URL is required.");
-    }
+    const oldData = movieSnap.data() as Movie;
+    let newVideoUrl = oldData.videoUrl;
+    let newPosterUrl = oldData.posterUrl;
 
-    const videoUrl = youtubeUrl;
-    const videoId = youtubeUrl.split('embed/')[1]?.split('?')[0] || youtubeUrl.split('live/')[1]?.split('?')[0];
-    
-    if (!videoId) {
-        throw new Error("Could not extract Video ID from the YouTube URL. Please use a standard YouTube video or live stream URL.");
+    if (uploadDetails.youtubeUrl) {
+        // If old files existed, delete them
+        if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
+        if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
+        
+        const videoId = uploadDetails.youtubeUrl.split('embed/')[1]?.split('?')[0] || uploadDetails.youtubeUrl.split('live/')[1]?.split('?')[0];
+        if (!videoId) throw new Error("Could not extract Video ID from the YouTube URL.");
+        
+        newVideoUrl = uploadDetails.youtubeUrl;
+        newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+    } else {
+        if (uploadDetails.movieFile) {
+            if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
+            const timestamp = Date.now();
+            newVideoUrl = await uploadFile(uploadDetails.movieFile, `movies/${timestamp}-${uploadDetails.movieFile.name}`);
+        }
+        if (uploadDetails.posterFile) {
+            if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
+             const timestamp = Date.now();
+            newPosterUrl = await uploadFile(uploadDetails.posterFile, `posters/${timestamp}-${uploadDetails.posterFile.name}`);
+        }
     }
-    
-    const posterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     
     await updateDoc(movieRef, {
         ...movieData,
         genre: movieData.genre.toLowerCase(),
         language: movieData.language.toLowerCase(),
-        videoUrl,
-        posterUrl,
+        videoUrl: newVideoUrl,
+        posterUrl: newPosterUrl,
     });
 };
 
 export const deleteMovie = async (movie: Movie): Promise<void> => {
+    // Delete files from storage if they are not youtube links
+    if(movie.posterUrl && !movie.posterUrl.includes('youtube.com')) {
+      await deleteFileByUrl(movie.posterUrl);
+    }
+    if(movie.videoUrl && !movie.videoUrl.includes('youtube.com')) {
+      await deleteFileByUrl(movie.videoUrl);
+    }
     // Then delete the document from Firestore
     await deleteDoc(doc(db, 'movies', movie.id));
 }
