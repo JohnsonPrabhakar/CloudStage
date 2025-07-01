@@ -50,10 +50,6 @@ export default function ArtistLogin() {
 
       const artistProfile = await getArtistProfile(user.uid);
 
-      // Explicitly check for all three possible states:
-      // 1. Profile exists and is approved.
-      // 2. Profile exists and is pending.
-      // 3. Profile does not exist (null).
       if (artistProfile) {
         if (artistProfile.isApproved) {
           toast({
@@ -62,7 +58,7 @@ export default function ArtistLogin() {
           });
           router.push("/artist/dashboard");
         } else {
-          // Case 2: Profile exists but is not approved.
+          // Case: Profile exists but is not approved. Send to pending page.
           toast({
             variant: "default",
             title: "Account Pending",
@@ -71,8 +67,9 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // Case 3: Auth user exists, but Firestore profile is missing.
-        // This is the "limbo" state we need to handle gracefully.
+        // Case: Auth user exists, but Firestore profile is missing (the "limbo" state).
+        // This is treated as a failed login because the user is not a complete artist.
+        // We sign them out and instruct them to register properly.
         toast({
           variant: "destructive",
           title: "Login Failed",
