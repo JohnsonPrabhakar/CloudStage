@@ -84,11 +84,19 @@ const deleteFileByUrl = async (url: string) => {
 const getYouTubeVideoId = (url: string): string | null => {
   if (!url) return null;
   let videoId = null;
-  const urlObj = new URL(url);
-  if (urlObj.hostname === 'youtu.be') {
-    videoId = urlObj.pathname.slice(1);
-  } else if (urlObj.hostname.includes('youtube.com')) {
-    videoId = urlObj.searchParams.get('v');
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'youtu.be') {
+        videoId = urlObj.pathname.slice(1);
+    } else if (urlObj.hostname.includes('youtube.com')) {
+        videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+    }
+    if(videoId && (videoId === "embed" || videoId === "live")) {
+        videoId = urlObj.pathname.split('/').pop()
+    }
+  } catch (e) {
+    // Fallback for invalid URLs
+    return null;
   }
   return videoId;
 };
@@ -97,24 +105,36 @@ const getYouTubeVideoId = (url: string): string | null => {
 // EVENT-RELATED FUNCTIONS
 
 export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'>, bannerFile?: File) => {
-  try {
-    // Create the document first to get an ID
-    const eventRef = doc(collection(db, 'events'));
-    const eventId = eventRef.id;
-    
-    let bannerUrl = "https://placehold.co/1280x720.png";
-    if (bannerFile) {
-        bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
-    }
+  const eventRef = doc(collection(db, 'events'));
 
+  try {
+    let bannerUrl = "https://placehold.co/1280x720.png";
+
+    // First, create the document with all data except the final bannerUrl.
+    // This makes the artistId available for the security rule check.
     await setDoc(eventRef, {
       ...eventData,
-      bannerUrl,
+      bannerUrl, // Use placeholder for now
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
     });
+
+    // If a banner file was provided, upload it and update the document.
+    if (bannerFile) {
+      const eventId = eventRef.id;
+      // The uploadFile function itself is fine. The issue is WHEN it's called.
+      const finalBannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
+      await updateDoc(eventRef, { bannerUrl: finalBannerUrl });
+    }
   } catch (error) {
     console.error("Error adding event to Firestore: ", error);
+    // If the process failed, attempt to delete the partially created document.
+    await deleteDoc(eventRef).catch(delErr => console.error("Failed to cleanup event doc after error:", delErr));
+    
+    // Provide a more specific error message to the user.
+    if (error instanceof Error && (error.message.includes('storage') || error.message.includes('permission'))) {
+        throw new Error("Failed to upload banner. Please check file format and permissions.");
+    }
     throw new Error("Could not create event.");
   }
 };
@@ -405,7 +425,8 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 
 // --- DASHBOARD COUNT FUNCTIONS ---
 export const getArtistsCount = async (): Promise<number> => {
-  const snapshot = await getCountFromServer(artistsCollection);
+  const q = query(artistsCollection, where('isApproved', '==', true));
+  const snapshot = await getCountFromServer(q);
   return snapshot.data().count;
 }
 export const getEventsCount = async (): Promise<number> => {
