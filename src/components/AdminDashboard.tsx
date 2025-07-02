@@ -202,6 +202,7 @@ export default function AdminDashboard() {
     }
     if (pendingArtists.length > 0) {
         return (
+           <div className="w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -243,6 +244,7 @@ export default function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
+           </div>
         )
     }
     return <p className="text-muted-foreground text-center py-4">No pending artist registrations.</p>
@@ -346,6 +348,7 @@ export default function AdminDashboard() {
             <CardHeader><CardTitle>Pending Event Approvals</CardTitle></CardHeader>
             <CardContent>
               {loading ? <p>Loading events...</p> : pendingEvents.length > 0 ? (
+                <div className="w-full overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -379,6 +382,7 @@ export default function AdminDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <p className="text-muted-foreground text-center py-4">No pending events.</p>
               )}

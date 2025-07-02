@@ -180,8 +180,8 @@ export default function ArtistDashboard() {
       {!artist.isPremium && (
         <Card className="bg-primary/10 border-primary/50">
           <CardHeader>
-            <div className="flex items-center gap-4">
-              <Crown className="h-8 w-8 text-primary" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Crown className="h-8 w-8 text-primary shrink-0" />
               <div>
                 <CardTitle>Become a Premium Artist!</CardTitle>
                 <CardDescription>
@@ -205,7 +205,7 @@ export default function ArtistDashboard() {
             Manage your events and grow your audience.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" /> Logout</Button>
           <Button asChild variant="outline">
             <Link href="/artist/history"><History className="mr-2 h-4 w-4" /> View History</Link>

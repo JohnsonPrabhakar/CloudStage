@@ -52,14 +52,11 @@ export function HomePageClient() {
       // Start with the status from the database as the source of truth
       let finalStatus = event.status;
 
-      // Re-evaluate status for upcoming events that have now started
-      if (finalStatus === 'upcoming' && eventDate <= now) {
-        finalStatus = eventDate >= liveThreshold ? 'live' : 'past';
-      }
-      
-      // Re-evaluate status for live events that are now over
-      if (finalStatus === 'live' && eventDate < liveThreshold) {
-        finalStatus = 'past';
+      // Re-evaluate status only if it's not already 'past'
+      if (finalStatus !== 'past') {
+          if (eventDate <= now) {
+              finalStatus = eventDate >= liveThreshold ? 'live' : 'past';
+          }
       }
       
       const updatedEvent = { ...event, status: finalStatus };
@@ -82,8 +79,8 @@ export function HomePageClient() {
                     <div key={i} className="flex flex-col space-y-3">
                         <Skeleton className="h-[200px] w-full rounded-xl" />
                         <div className="space-y-2">
-                            <Skeleton className="h-4 w-[250px]" />
-                            <Skeleton className="h-4 w-[200px]" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-5/6" />
                         </div>
                     </div>
                 ))}
@@ -92,7 +89,7 @@ export function HomePageClient() {
     }
     if (events.length === 0) {
       return (
-        <div className="text-center py-16 text-muted-foreground">
+        <div className="text-center py-16 text-muted-foreground bg-slate-100 rounded-lg">
           {emptyMessage}
         </div>
       );
@@ -131,9 +128,9 @@ export function HomePageClient() {
       {viewMode === 'list' ? (
         <Tabs defaultValue="upcoming" className="w-full">
             <TabsList className="grid w-full grid-cols-3 md:w-auto md:mx-auto">
-                <TabsTrigger value="live">Live Now ({!loading && liveEvents.length})</TabsTrigger>
-                <TabsTrigger value="upcoming">Upcoming ({!loading && upcomingEvents.length})</TabsTrigger>
-                <TabsTrigger value="past">Past Events ({!loading && pastEvents.length})</TabsTrigger>
+                <TabsTrigger value="live">Live Now ({!loading ? liveEvents.length : '...'})</TabsTrigger>
+                <TabsTrigger value="upcoming">Upcoming ({!loading ? upcomingEvents.length : '...'})</TabsTrigger>
+                <TabsTrigger value="past">Past Events ({!loading ? pastEvents.length : '...'})</TabsTrigger>
             </TabsList>
             <TabsContent value="live" className="mt-8">
                 {renderEventGrid(liveEvents, "No events are live right now. Check back soon!")}

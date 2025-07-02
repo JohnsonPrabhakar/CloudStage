@@ -55,8 +55,8 @@ export function MoviesClient() {
                     <div key={i} className="flex flex-col space-y-3">
                         <Skeleton className="h-[250px] w-full rounded-xl" />
                         <div className="space-y-2">
-                            <Skeleton className="h-6 w-[200px]" />
-                            <Skeleton className="h-4 w-[150px]" />
+                            <Skeleton className="h-6 w-full" />
+                            <Skeleton className="h-4 w-2/3" />
                         </div>
                     </div>
                 ))}
@@ -66,7 +66,7 @@ export function MoviesClient() {
 
     if (error) {
        return (
-        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg">
+        <div className="text-center py-24 text-muted-foreground bg-slate-100 rounded-lg">
           <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
           <p className="text-xl font-semibold text-foreground">Connection Error</p>
           <p className="mb-4">{error}</p>
@@ -86,7 +86,7 @@ export function MoviesClient() {
     }
 
     return (
-        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg">
+        <div className="text-center py-24 text-muted-foreground bg-slate-100 rounded-lg">
           <p className="text-xl">No movies found.</p>
           <p>Try adjusting your search or filter criteria.</p>
         </div>

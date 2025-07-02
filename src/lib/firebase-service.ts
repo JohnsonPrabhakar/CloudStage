@@ -109,28 +109,34 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
   const eventId = eventRef.id;
 
   try {
-    let bannerUrl = "https://placehold.co/1280x720.png";
-
-    if (bannerFile) {
-      // The new, secure path includes the artist's ID, which can be checked by security rules.
-      bannerUrl = await uploadFile(
-        bannerFile,
-        `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
-      );
-    }
-
-    // Now create the document with the final, correct bannerUrl.
+    // Create the document first with a placeholder URL.
+    // This makes the document available for security rule checks.
     await setDoc(eventRef, {
       ...eventData,
-      bannerUrl: bannerUrl,
+      bannerUrl: "https://placehold.co/1280x720.png",
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
     });
 
+    // If a banner file exists, upload it and update the document.
+    if (bannerFile) {
+      const bannerUrl = await uploadFile(
+        bannerFile,
+        `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
+      );
+      
+      // Update the doc with the real banner URL
+      await updateDoc(eventRef, { bannerUrl: bannerUrl });
+    }
+
   } catch (error) {
     console.error("Error adding event to Firestore: ", error);
+    // If something goes wrong after doc creation but during upload, delete the placeholder doc.
+    if(doc(db, 'events', eventId)) {
+      await deleteDoc(doc(db, 'events', eventId));
+    }
     if (error instanceof Error && (error.message.includes('storage') || error.message.includes('permission'))) {
-        throw new Error("Failed to upload banner. Please check file format and permissions.");
+        throw new Error("Failed to upload event poster. Please check file format and permissions.");
     }
     throw new Error("Could not create event.");
   }

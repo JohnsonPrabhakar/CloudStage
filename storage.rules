@@ -1,28 +1,23 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read access to all files for viewing content
+  
+    // Allow public read access to all files
     match /{allPaths=**} {
       allow read;
     }
 
-    // Artists can only write to their own profile picture path.
-    match /artists/{userId}/profile.jpg {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Secure artist-specific paths
+    match /artists/{artistId}/{allPaths=**} {
+      // Allow write only if the user is authenticated and their UID matches the artistId in the path
+      allow write: if request.auth != null && request.auth.uid == artistId;
     }
-
-    // Event banners can be written by any authenticated user.
-    // The logic in the secure backend function determines if the user is a valid artist.
-    match /events/{eventId}/{fileName} {
-        allow write: if request.auth != null;
-    }
-
-    // Movies and posters can be written by any authenticated user.
-    // The UI and Firestore rules block non-admins from accessing the upload form.
-    match /movies/{movieId}/{fileName} {
-        allow write: if request.auth != null;
+    
+    // Secure movie paths for admin uploads
+    match /movies/{movieId}/{allPaths=**} {
+        // Allow write only if the user is an authenticated admin
+        allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
   }
 }

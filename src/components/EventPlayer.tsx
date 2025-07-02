@@ -179,7 +179,7 @@ export default function EventPlayer({ event }: { event: Event }) {
 
       <div className="flex flex-col lg:flex-row h-[calc(100vh-65px)] bg-background">
         <div className="flex-grow lg:w-3/4 flex flex-col p-4">
-          <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-2xl relative">
+          <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg relative">
              {reactions.map(r => (
                 <div key={r.id} className="reaction-animation" style={{ left: r.left }}>{r.icon}</div>
              ))}
@@ -193,16 +193,16 @@ export default function EventPlayer({ event }: { event: Event }) {
                 allowFullScreen
               ></iframe>
           </div>
-          <div className="py-4 flex justify-between items-start">
+          <div className="py-4 flex flex-col sm:flex-row justify-between sm:items-start gap-4">
             <div>
               <h1 className="text-3xl font-bold">{event.title}</h1>
               <p className="text-lg text-muted-foreground">by {event.artist}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <Badge variant="secondary">
                   <Clapperboard className="mr-1 h-3 w-3" />
                   {event.category}
                 </Badge>
-                <Badge variant="outline">
+                <Badge variant="secondary">
                   <Globe className="mr-1 h-3 w-3" />
                   {event.language}
                 </Badge>
@@ -250,12 +250,14 @@ export default function EventPlayer({ event }: { event: Event }) {
                     placeholder="Your name" 
                     value={chatName}
                     onChange={(e) => setChatName(e.target.value)}
+                    className="bg-background"
                 />
                 <div className="flex gap-2">
                     <Input 
                         placeholder="Say something..." 
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
+                        className="bg-background"
                     />
                     <Button type="submit">
                         <Send className="h-5 w-5" />
