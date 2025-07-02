@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -34,42 +35,39 @@ export function HomePageClient() {
   }, []);
 
   useEffect(() => {
-    // This logic is now in useEffect to prevent hydration mismatches.
-    // It runs only on the client-side after the component has mounted.
     if (allEvents.length === 0 && !loading) return;
 
     const now = new Date();
-    const categorized = allEvents.reduce(
-      (acc, event) => {
-        const eventDate = new Date(event.date);
-        let status: Event['status'] = 'past';
+    // Use a 2-hour window to determine if an event is "live"
+    const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-        // A simple check to simulate a live event (e.g., started in the last hour)
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        if (eventDate > oneHourAgo && eventDate <= now) {
-            status = 'live';
-        } else if (eventDate > now) {
-            status = 'upcoming';
-        }
-        
-        const updatedEvent = { ...event, status };
+    const categorized = {
+      live: [] as Event[],
+      upcoming: [] as Event[],
+      past: [] as Event[],
+    };
 
-        if (status === "live") {
-          acc.live.push(updatedEvent);
-        } else if (status === "upcoming") {
-          acc.upcoming.push(updatedEvent);
-        } else {
-          acc.past.push(updatedEvent);
-        }
-        return acc;
-      },
-      { live: [], upcoming: [], past: [] } as {
-        live: Event[];
-        upcoming: Event[];
-        past: Event[];
+    for (const event of allEvents) {
+      const eventDate = new Date(event.date);
+      // Start with the status from the database as the source of truth
+      let finalStatus = event.status;
+
+      // Re-evaluate status for upcoming events that have now started
+      if (finalStatus === 'upcoming' && eventDate <= now) {
+        finalStatus = eventDate >= liveThreshold ? 'live' : 'past';
       }
-    );
-
+      
+      // Re-evaluate status for live events that are now over
+      if (finalStatus === 'live' && eventDate < liveThreshold) {
+        finalStatus = 'past';
+      }
+      
+      const updatedEvent = { ...event, status: finalStatus };
+      
+      // Add to the correct category based on its final, calculated status
+      categorized[finalStatus].push(updatedEvent);
+    }
+    
     setLiveEvents(categorized.live);
     setUpcomingEvents(categorized.upcoming);
     setPastEvents(categorized.past);
