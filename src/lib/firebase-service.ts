@@ -106,32 +106,29 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'>, bannerFile?: File) => {
   const eventRef = doc(collection(db, 'events'));
+  const eventId = eventRef.id;
 
   try {
     let bannerUrl = "https://placehold.co/1280x720.png";
 
-    // First, create the document with all data except the final bannerUrl.
-    // This makes the artistId available for the security rule check.
+    if (bannerFile) {
+      // The new, secure path includes the artist's ID, which can be checked by security rules.
+      bannerUrl = await uploadFile(
+        bannerFile,
+        `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
+      );
+    }
+
+    // Now create the document with the final, correct bannerUrl.
     await setDoc(eventRef, {
       ...eventData,
-      bannerUrl, // Use placeholder for now
+      bannerUrl: bannerUrl,
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
     });
 
-    // If a banner file was provided, upload it and update the document.
-    if (bannerFile) {
-      const eventId = eventRef.id;
-      // The uploadFile function itself is fine. The issue is WHEN it's called.
-      const finalBannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
-      await updateDoc(eventRef, { bannerUrl: finalBannerUrl });
-    }
   } catch (error) {
     console.error("Error adding event to Firestore: ", error);
-    // If the process failed, attempt to delete the partially created document.
-    await deleteDoc(eventRef).catch(delErr => console.error("Failed to cleanup event doc after error:", delErr));
-    
-    // Provide a more specific error message to the user.
     if (error instanceof Error && (error.message.includes('storage') || error.message.includes('permission'))) {
         throw new Error("Failed to upload banner. Please check file format and permissions.");
     }

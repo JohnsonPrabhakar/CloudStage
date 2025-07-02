@@ -1,27 +1,32 @@
 
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read access to all files, which is necessary for anyone
-    // to see posters and profile pictures.
+    
+    // --- Public Read Access ---
+    // All files are publicly readable so they can be displayed in the app.
     match /{allPaths=**} {
       allow read;
     }
 
-    // Allow authenticated artists to upload their own profile picture.
-    // The filename must match their user ID.
-    match /artist-profiles/{userId}_{fileName} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // --- Artist Profile Pictures ---
+    // An artist can only upload/update their own profile picture.
+    match /artists/{artistId}/profile.jpg {
+      allow write: if request.auth != null && request.auth.uid == artistId;
     }
-    
-    // Allow admins to upload movies and posters. This requires the admin
-    // to be authenticated and have a corresponding document in the 'admins' 
-    // collection in Firestore.
-    match /movies/{fileName} {
-      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+
+    // --- Event Banners ---
+    // An artist can only create/update banners for events under their own ID.
+    // This rule avoids reading from Firestore, preventing the hanging issue.
+    match /artists/{artistId}/events/{eventId}/banner.jpg {
+      allow write: if request.auth != null && request.auth.uid == artistId;
     }
-    match /movie-posters/{fileName} {
-      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+
+    // --- Movies ---
+    // Only the authenticated admin user can upload movie files and posters.
+    match /movies/{movieId}/{fileName} {
+      allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
   }
 }
