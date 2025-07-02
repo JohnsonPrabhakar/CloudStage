@@ -360,38 +360,43 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
         throw new Error("Movie to update not found");
     }
 
-    const oldData = movieSnap.data() as Movie;
-    let newVideoUrl = oldData.videoUrl;
-    let newPosterUrl = oldData.posterUrl;
+    const oldData = fromFirestore<Movie>(movieSnap);
+    let finalVideoUrl = oldData.videoUrl;
+    let finalPosterUrl = oldData.posterUrl;
 
+    // Determine the new URLs first, without deleting anything
     if (youtubeUrl) {
-      const videoId = getYouTubeVideoId(youtubeUrl);
-      if (!videoId) {
-        throw new Error("Invalid YouTube URL provided.");
-      }
-      newVideoUrl = `https://www.youtube.com/embed/${videoId}`;
-      newPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-      // If old data was not from youtube, delete old files
-      if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
-      if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
+        const videoId = getYouTubeVideoId(youtubeUrl);
+        if (!videoId) {
+            throw new Error("Invalid YouTube URL provided. Please use a valid YouTube watch or share link.");
+        }
+        finalVideoUrl = `https://www.youtube.com/embed/${videoId}`;
+        finalPosterUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     } else {
-      if (files.movieFile) {
-          if (!oldData.videoUrl.includes('youtube.com')) await deleteFileByUrl(oldData.videoUrl);
-          newVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
-      }
-      if (files.posterFile) {
-          if (!oldData.posterUrl.includes('youtube.com')) await deleteFileByUrl(oldData.posterUrl);
-          newPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
-      }
+        if (files.movieFile) {
+            finalVideoUrl = await uploadFile(files.movieFile, `movies/${movieId}/movie.mp4`);
+        }
+        if (files.posterFile) {
+            finalPosterUrl = await uploadFile(files.posterFile, `movies/${movieId}/poster.jpg`);
+        }
     }
     
+    // Update the document in Firestore with the new data
     await updateDoc(movieRef, {
         ...movieData,
         genre: movieData.genre.toLowerCase(),
         language: movieData.language.toLowerCase(),
-        videoUrl: newVideoUrl,
-        posterUrl: newPosterUrl,
+        videoUrl: finalVideoUrl,
+        posterUrl: finalPosterUrl,
     });
+
+    // After the database is successfully updated, clean up the old storage files if they changed
+    if (oldData.videoUrl !== finalVideoUrl && oldData.videoUrl && !oldData.videoUrl.includes('youtube.com')) {
+        await deleteFileByUrl(oldData.videoUrl);
+    }
+    if (oldData.posterUrl !== finalPosterUrl && oldData.posterUrl && !oldData.posterUrl.includes('youtube.com')) {
+        await deleteFileByUrl(oldData.posterUrl);
+    }
 };
 
 
@@ -460,3 +465,4 @@ export const updateSiteStatus = async (status: 'online' | 'offline') => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   await setDoc(statusDoc, { status }, { merge: true });
 };
+
