@@ -60,6 +60,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   
+  const [isProcessing, setIsProcessing] = useState(false);
   const [uploadSource, setUploadSource] = useState<'local' | 'youtube'>('local');
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
 
@@ -96,24 +97,22 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   }
   
   async function onSubmit(values: FormValues) {
-    if (form.formState.isSubmitting) return;
+    if (isProcessing) return;
 
-    // Manual Validation based on uploadSource
-    if (uploadSource === 'youtube') {
-      if (!values.youtubeUrl || !isValidYoutubeUrl(values.youtubeUrl)) {
-        toast({ variant: 'destructive', title: 'Invalid URL', description: 'Please provide a valid YouTube watch or share URL.' });
-        return;
-      }
-    } else { // 'local'
-      if (mode === 'create' && (!values.movieFile?.[0] || !values.posterFile?.[0])) {
-        toast({ variant: 'destructive', title: 'Missing Files', description: 'For local uploads, both a movie file and a poster image are required.' });
-        return;
-      }
-    }
-    
-    form.clearErrors();
-
+    setIsProcessing(true);
     try {
+      // Manual Validation based on uploadSource
+      if (uploadSource === 'youtube') {
+        if (!values.youtubeUrl || !isValidYoutubeUrl(values.youtubeUrl)) {
+          throw new Error('Please provide a valid YouTube watch or share URL.');
+        }
+      } else { // 'local'
+        if (mode === 'create' && (!values.movieFile?.[0] || !values.posterFile?.[0])) {
+          throw new Error('For local uploads, both a movie file and a poster image are required.');
+        }
+      }
+      form.clearErrors();
+
       const movieFile = values.movieFile?.[0];
       const posterFile = values.posterFile?.[0];
 
@@ -149,10 +148,11 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
             description: error.message || "There was an error saving the movie. Please try again.",
             variant: "destructive"
         });
+    } finally {
+        setIsProcessing(false);
     }
   }
 
-  const isSubmitting = form.formState.isSubmitting;
   const pageTitle = mode === 'create' ? "Upload a New Movie" : "Edit Movie";
   const pageDescription = mode === 'create' ? "Fill out the details below to add a movie to the platform." : `Editing details for "${initialData?.title}".`;
   const buttonText = mode === 'create' ? "Add Movie" : "Save Changes";
@@ -164,7 +164,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
         variant="ghost"
         onClick={() => router.back()}
         className="mb-4"
-        disabled={isSubmitting}
+        disabled={isProcessing}
       >
         <ChevronLeft className="mr-2 h-4 w-4" />
         Back to Dashboard
@@ -186,7 +186,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                     <FormItem>
                       <FormLabel>Movie Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter the movie title" {...field} disabled={isSubmitting} />
+                        <Input placeholder="Enter the movie title" {...field} disabled={isProcessing} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -204,7 +204,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                           placeholder="A brief summary of the movie..."
                           className="resize-y min-h-[100px]"
                           {...field}
-                          disabled={isSubmitting}
+                          disabled={isProcessing}
                         />
                       </FormControl>
                       <FormMessage />
@@ -219,7 +219,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Genre</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isProcessing}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a genre" />
@@ -241,7 +241,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Language</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isProcessing}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a language" />
@@ -265,7 +265,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                     value={uploadSource}
                     onValueChange={(value) => setUploadSource(value as 'local' | 'youtube')}
                     className="flex gap-4"
-                    disabled={isSubmitting}
+                    disabled={isProcessing}
                 >
                     <FormItem className="flex items-center space-x-2">
                         <FormControl>
@@ -294,7 +294,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                           placeholder="https://www.youtube.com/watch?v=..." 
                           {...field} 
                           value={field.value ?? ''}
-                          disabled={isSubmitting} 
+                          disabled={isProcessing} 
                         />
                       </FormControl>
                       <FormDescription>The movie poster will be generated automatically from the thumbnail.</FormDescription>
@@ -311,7 +311,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                         <FormItem>
                           <FormLabel>Movie File</FormLabel>
                           <FormControl>
-                            <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isSubmitting} />
+                            <Input type="file" accept="video/mp4" onChange={(e) => field.onChange(e.target.files)} disabled={isProcessing} />
                           </FormControl>
                           <FormDescription>{mode === 'edit' ? "Upload new file to replace existing one." : "Upload the video file (MP4 format)."}</FormDescription>
                           <FormMessage />
@@ -334,7 +334,7 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
                                   setPosterPreview(URL.createObjectURL(e.target.files[0]));
                                 }
                               }}
-                              disabled={isSubmitting}
+                              disabled={isProcessing}
                             />
                           </FormControl>
                           <FormDescription>{mode === 'edit' ? "Upload new image to replace existing one." : "Upload a poster image (JPG, PNG)."}</FormDescription>
@@ -351,8 +351,8 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
               )}
                 
                 <div className="flex flex-col gap-4 pt-4">
-                    <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
-                        {isSubmitting ? (
+                    <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isProcessing}>
+                        {isProcessing ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 Processing...
