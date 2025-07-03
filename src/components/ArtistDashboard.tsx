@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -51,35 +51,36 @@ export default function ArtistDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchArtistData = useCallback(async (user: User) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const profile = await getArtistProfile(user.uid);
-      if (profile) {
-        if (profile.isApproved) {
-          setArtist(profile);
-          const events = await getArtistEvents(user.uid);
-          setMyEvents(events);
-        } else {
-          router.push('/artist/pending');
-        }
-      } else {
-        toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
-        router.push('/artist/register');
-      }
-    } catch (err) {
-      if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
-        setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
-      } else {
-        setError("Could not load your dashboard. Please check your internet connection and try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [router, toast]);
-
   useEffect(() => {
+    const fetchArtistData = async (user: User) => {
+        setLoading(true);
+        setError(null);
+        try {
+          const profile = await getArtistProfile(user.uid);
+          if (profile) {
+            if (profile.isApproved) {
+              setArtist(profile);
+              const events = await getArtistEvents(user.uid);
+              setMyEvents(events);
+            } else {
+              router.push('/artist/pending');
+            }
+          } else {
+            toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
+            router.push('/artist/register');
+          }
+        } catch (err) {
+          console.error("Dashboard loading error:", err);
+          if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
+            setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
+          } else {
+            setError("Could not load your dashboard. Please check your internet connection and try again.");
+          }
+        } finally {
+          setLoading(false);
+        }
+    };
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchArtistData(user);
@@ -90,7 +91,8 @@ export default function ArtistDashboard() {
     });
 
     return () => unsubscribe();
-  }, [fetchArtistData, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
@@ -285,3 +287,5 @@ export default function ArtistDashboard() {
     </div>
   );
 }
+
+    

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -77,7 +77,49 @@ export default function AdminDashboard() {
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
   const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
 
-  const refreshData = useCallback(async () => {
+  useEffect(() => {
+    const refreshData = async () => {
+     setLoading(true);
+     setError(null);
+     try {
+       const [events, artists, status, artistsCount, eventsCount, ticketsCount] = await Promise.all([
+          getPendingEvents(),
+          getPendingArtistsFromDb(),
+          getSiteStatus(),
+          getArtistsCount(),
+          getEventsCount(),
+          getTicketsCount()
+       ]);
+       
+       setPendingEvents(events);
+       setPendingArtists(artists);
+       setSiteStatus(status);
+       setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
+       
+       if(artists.length > 0) {
+          setHasPendingArtistNotification(true);
+       }
+     } catch (err) {
+        console.error("Admin dashboard loading error:", err);
+        setError("Could not load dashboard data. Please check your internet connection and try again.");
+     } finally {
+        setLoading(false);
+     }
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && user.email === 'admin@cloudstage.in') {
+        setIsAuthenticated(true);
+        refreshData();
+      } else {
+        router.push("/admin");
+      }
+    });
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  const refreshData = async () => {
      setLoading(true);
      setError(null);
      try {
@@ -103,20 +145,8 @@ export default function AdminDashboard() {
      } finally {
         setLoading(false);
      }
-  }, []);
+  };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.email === 'admin@cloudstage.in') {
-        setIsAuthenticated(true);
-        refreshData();
-      } else {
-        router.push("/admin");
-      }
-    });
-    return () => unsubscribe();
-  }, [router, refreshData]);
-  
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {
       await updateEventStatus(eventId, newStatus);
@@ -469,3 +499,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    

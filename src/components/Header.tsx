@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -11,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film, ArrowRight } from "lucide-react";
+import { Menu, Ticket, Film } from "lucide-react";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -32,7 +33,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/60 backdrop-blur-xl">
       <div className="container flex h-16 items-center">
         {/* Desktop Navigation */}
-        <div className="mr-4 hidden md:flex">
+        <div className="mr-4 hidden md:flex flex-1">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
             <span className="text-xl font-bold">CloudStage</span>
@@ -97,17 +98,11 @@ export function Header() {
                   <span className="text-xl font-bold">CloudStage</span>
             </Link>
           </div>
-          
-          <div className="hidden md:flex">
-            <nav className="flex items-center">
-                <Button asChild>
-                    <Link href="/artist/register">Get Started <ArrowRight className="ml-2 h-4 w-4"/> </Link>
-                </Button>
-            </nav>
-          </div>
 
         </div>
       </div>
     </header>
   );
 }
+
+    
