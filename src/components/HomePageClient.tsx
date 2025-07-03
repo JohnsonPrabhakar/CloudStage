@@ -10,8 +10,13 @@ import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar } from "lucide-react";
-import { EventCalendarView } from "./EventCalendarView";
 import { Card, CardContent } from "./ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const getEventHint = (category: Event['category']): string => {
     switch (category) {
@@ -236,16 +241,24 @@ export function HomePageClient() {
 
             <section id="upcoming-events" className="scroll-mt-20 space-y-8">
               <h2 className="text-3xl font-bold tracking-tight text-center">Coming Soon ✨</h2>
-               <EventCalendarView events={upcomingEvents} />
               {upcomingEvents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                  <AccordionItem value="item-1" className="border-none">
+                    <AccordionTrigger className="text-xl font-semibold hover:no-underline justify-center bg-muted/50 rounded-md px-4 py-3">
+                       <span>View All Upcoming Events ({upcomingEvents.length})</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {upcomingEvents.map((event) => <EventCard key={event.id} event={event} />)}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                        <p>You're early! Check back soon for new performances.</p>
-                    </div>
-                )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : (
+                <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+                  <p>You're early! Check back soon for new performances.</p>
+                </div>
+              )}
             </section>
 
             <section id="past-events" className="scroll-mt-20">
