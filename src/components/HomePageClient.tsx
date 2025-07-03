@@ -117,7 +117,7 @@ export function HomePageClient() {
         { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://images.unsplash.com/photo-1611956425642-d5a8169abd63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxTdGFuZCUyMHVwJTIwY29tZWR5fGVufDB8fHx8MTc1MTUxMDEyOXww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation", imageUrl: "https://images.unsplash.com/photo-1588286840104-8957b019727f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx5b2dhfGVufDB8fHx8MTc1MTQ2NTI5OHww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage", imageUrl: "https://images.unsplash.com/photo-1556195332-95503f664ced?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxNYWdpYyUyMFNob3d8ZW58MHx8fHwxNzUxNTEwNzgwfDA&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://images.unsplash.com/photo-1447619297994-b829cc1ab44a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxQcmF5ZXJ8ZW58MHx8fHwxNzUxNTEwOTI5fDA&ixlib=rb-4.1.0&q=80&w=1080" },
+        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://images.unsplash.com/photo-1542042179-03efeb269b35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxNHx8cHJheWVyfGVufDB8fHx8MTc1MTUxMTA2MHww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion", imageUrl: "https://images.unsplash.com/photo-1747476263861-c9eec8f97ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMXx8VGFsayUyMHNob3dzJTIwYW5kJTIwZGViYXRlfGVufDB8fHx8MTc1MTUwOTc0NXww&ixlib=rb-4.1.0&q=80&w=1080" },
     ];
     return (
@@ -265,3 +265,5 @@ export function HomePageClient() {
     </div>
   );
 }
+
+    
