@@ -49,10 +49,10 @@ export default function ArtistLogin() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Step 2: Fetch artist profile from Firestore
+      // Step 2: Fetch artist profile from Firestore to determine routing
       const artistProfile = await getArtistProfile(user.uid);
 
-      // Step 3: Conditional routing based on profile
+      // Step 3: Conditional routing based on profile status
       if (artistProfile) {
         if (artistProfile.isApproved) {
           toast({
@@ -69,7 +69,7 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // Profile does not exist, route to registration
+        // If no profile exists, this user needs to register as an artist.
         toast({
             title: "Profile Not Found",
             description: "We couldn't find an artist profile for this account. Please complete your registration.",
