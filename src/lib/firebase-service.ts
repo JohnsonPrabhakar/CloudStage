@@ -82,16 +82,16 @@ const deleteFileByUrl = async (url: string) => {
 // --- YOUTUBE HELPER ---
 const getYouTubeVideoId = (url: string): string | null => {
   if (!url) return null;
-  let videoId = null;
+  let videoId: string | null = null;
   try {
     const urlObj = new URL(url);
     if (urlObj.hostname === 'youtu.be') {
         videoId = urlObj.pathname.slice(1);
     } else if (urlObj.hostname.includes('youtube.com')) {
-        videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+        videoId = urlObj.searchParams.get('v') || (urlObj.pathname.split('/').pop() ?? null);
     }
     if(videoId && (videoId === "embed" || videoId === "live")) {
-        videoId = urlObj.pathname.split('/').pop()
+        videoId = urlObj.pathname.split('/').pop() ?? null;
     }
   } catch (e) {
     // Fallback for invalid URLs
