@@ -47,7 +47,6 @@ export function Header() {
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
-               item.href.startsWith('/#') || ["/artist/dashboard", "/admin"].includes(item.href) ? null :
               <Link
                 key={item.href}
                 href={item.href}
