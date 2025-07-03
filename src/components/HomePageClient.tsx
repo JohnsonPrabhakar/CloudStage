@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -174,29 +173,20 @@ export function HomePageClient() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-16">
-        <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl overflow-hidden flex items-center justify-center p-4 md:p-8 text-white text-center glowing-border">
-            <Image 
-                src={heroEvent?.bannerUrl || "https://placehold.co/1600x600.png"} 
-                alt={heroEvent?.title || "Live entertainment stage"} 
-                fill 
-                className="object-cover z-0 brightness-50" 
-                data-ai-hint={heroEvent ? getEventHint(heroEvent.category) : 'concert crowd'}
-                priority
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
+        <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
             <div className="relative z-20 max-w-4xl mx-auto">
                 <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
-                <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto">
+                <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto text-muted-foreground">
                     Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
-                  <Button asChild size="lg" variant="outline" className="border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20">
+                  <Button asChild size="lg">
                       <Link href="#live-events">
-                          <Radio className="mr-2 h-5 w-5 text-red-500 animate-pulse"/>
+                          <Radio className="mr-2 h-5 w-5 animate-pulse"/>
                           Live Events
                       </Link>
                   </Button>
-                  <Button asChild size="lg" variant="outline" className="border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20">
+                  <Button asChild size="lg" variant="secondary">
                       <Link href="#upcoming-events">
                           <Calendar className="mr-2 h-5 w-5"/>
                           Upcoming
