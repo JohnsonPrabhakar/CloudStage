@@ -9,7 +9,7 @@ import { EventCard } from "@/components/EventCard";
 import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { ArrowRight, PartyPopper, Music, Mic, Sprout, WandSparkles, Clapperboard } from "lucide-react";
+import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { EventCalendarView } from "./EventCalendarView";
 import { Card, CardContent } from "./ui/card";
@@ -34,11 +34,12 @@ export function HomePageClient() {
   }, []);
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
+    const now = new Date();
+    const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+
     if (allEvents.length === 0) {
       return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
     }
-    const now = new Date();
-    const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
     const categorized: {
       live: Event[];
@@ -49,19 +50,20 @@ export function HomePageClient() {
       upcoming: [],
       past: [],
     };
-
+    
     const sortedEvents = [...allEvents].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     for (const event of sortedEvents) {
       let finalStatus: Event["status"] = event.status;
+      const eventDate = new Date(event.date);
 
-      // Only re-evaluate status if it's not already 'past'.
-      // This respects the status set by other processes.
       if (finalStatus !== 'past') {
-          const eventDate = new Date(event.date);
-          if (eventDate <= now) {
-              // If the event start time is in the past
-              finalStatus = eventDate >= liveThreshold ? 'live' : 'past';
+          if (eventDate <= now && eventDate >= liveThreshold) {
+              finalStatus = 'live';
+          } else if (eventDate < liveThreshold) {
+              finalStatus = 'past';
+          } else {
+              finalStatus = 'upcoming';
           }
       }
       
@@ -77,6 +79,7 @@ export function HomePageClient() {
     }
     
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    categorized.live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
         liveEvents: categorized.live,
@@ -87,23 +90,6 @@ export function HomePageClient() {
   
   const heroEvent = liveEvents[0] || upcomingEvents[0] || pastEvents[0] || null;
 
-  const renderEventGrid = (events: Event[], emptyMessage: string) => {
-    if (events.length > 0) {
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      );
-    }
-    return (
-      <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-        <p>{emptyMessage}</p>
-      </div>
-    );
-  };
-  
   const renderMockCategories = () => {
     const categories = [
         { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage" },
@@ -114,6 +100,11 @@ export function HomePageClient() {
     ]
     return (
         <div className="space-y-8">
+            <div className="text-center pt-8">
+                <Button asChild size="lg">
+                    <Link href="/artist/register">Become an Artist <ArrowRight className="ml-2 h-5 w-5"/></Link>
+                </Button>
+            </div>
             <h2 className="text-3xl font-bold tracking-tight text-center">Discover Events Across All Categories</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map(cat => (
@@ -136,11 +127,6 @@ export function HomePageClient() {
                         </CardContent>
                     </Card>
                 ))}
-            </div>
-             <div className="text-center pt-8">
-                <Button asChild size="lg">
-                    <Link href="/artist/register">Become an Artist <ArrowRight className="ml-2 h-5 w-5"/></Link>
-                </Button>
             </div>
         </div>
     )
@@ -178,19 +164,14 @@ export function HomePageClient() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
             <div className="relative z-20 max-w-4xl mx-auto">
-                {heroEvent && (
-                    <Badge variant="destructive" className="mb-4 text-base md:text-lg shadow-lg animate-pulse">
-                        {heroEvent.status === 'live' ? 'Live Now!' : 'Featured'}
-                    </Badge>
-                )}
-                <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">{heroEvent?.title || "The Stage is Yours"}</h1>
+                <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
                 <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto">
-                    {heroEvent?.artist ? `by ${heroEvent.artist}` : "Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage."}
+                    Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
                 {heroEvent && (
                     <Button asChild size="lg" className="mt-8">
                         <Link href={`/events/${heroEvent.id}`}>
-                            {heroEvent.status === 'live' ? 'Watch Now' : 'Get Tickets'}
+                            {heroEvent.status === 'live' ? 'Watch Now' : 'View Details'}
                             <ArrowRight className="ml-2 h-5 w-5"/>
                         </Link>
                     </Button>
@@ -202,20 +183,44 @@ export function HomePageClient() {
           renderMockCategories()
       ) : (
           <div className="space-y-16">
-            <section>
+            <section id="live-events" className="scroll-mt-20">
               <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Happening Now 🔴</h2>
-              {renderEventGrid(liveEvents, "No events are live right now. Check out what's coming soon!")}
+                {liveEvents.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {liveEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+                        <p>No events are live right now. Check out what's coming soon!</p>
+                    </div>
+                )}
             </section>
 
-            <section className="space-y-8">
+            <section id="upcoming-events" className="scroll-mt-20 space-y-8">
               <h2 className="text-3xl font-bold tracking-tight text-center">Coming Soon ✨</h2>
                <EventCalendarView events={upcomingEvents} />
-              {renderEventGrid(upcomingEvents, "You're early! Check back soon for new performances.")}
+              {upcomingEvents.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {upcomingEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+                        <p>You're early! Check back soon for new performances.</p>
+                    </div>
+                )}
             </section>
 
-            <section>
+            <section id="past-events" className="scroll-mt-20">
               <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Catch Up On Past Shows 🎬</h2>
-              {renderEventGrid(pastEvents, "Once events are over, their recordings will appear here.")}
+              {pastEvents.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {pastEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+                        <p>Once events are over, their recordings will appear here.</p>
+                    </div>
+                )}
             </section>
           </div>
       )}

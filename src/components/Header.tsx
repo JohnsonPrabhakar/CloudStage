@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -10,15 +11,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film, ArrowRight } from "lucide-react";
+import { Menu, Ticket, Film, ArrowRight, Radio, Calendar } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const navItems = [
     { label: "Home", href: "/" },
+    { label: "Live Events", href: "/#live-events", icon: <Radio className="h-4 w-4 text-primary animate-pulse" /> },
+    { label: "Upcoming Events", href: "/#upcoming-events", icon: <Calendar className="h-4 w-4" /> },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
     {
       label: "My Tickets",
@@ -45,6 +47,7 @@ export function Header() {
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
+               item.href.startsWith('/#') || ["/artist/dashboard", "/admin"].includes(item.href) ? null :
               <Link
                 key={item.href}
                 href={item.href}
@@ -117,7 +120,7 @@ export function Header() {
           <div className="hidden md:flex">
             <nav className="flex items-center">
                 <Button asChild>
-                    <Link href="/artist/register">Get Started <ArrowRight className="ml-2"/> </Link>
+                    <Link href="/artist/register">Get Started <ArrowRight className="ml-2 h-4 w-4"/> </Link>
                 </Button>
             </nav>
           </div>
