@@ -16,7 +16,7 @@ import { Card, CardContent } from "./ui/card";
 const getEventHint = (category: Event['category']): string => {
     switch (category) {
         case 'Music':
-            return 'concert crowd';
+            return 'concert stage';
         case 'Stand-up Comedy':
             return 'comedy club';
         case 'Meditation / Yoga':
