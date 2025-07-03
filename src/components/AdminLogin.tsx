@@ -44,28 +44,27 @@ export default function AdminLogin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const adminDocRef = doc(db, 'admins', userCredential.user.uid);
-      const adminDoc = await getDoc(adminDocRef);
-
-      // This check securely verifies the admin role.
-      // The `admins` collection should be protected by security rules so only other admins can write to it.
-      if (!adminDoc.exists()) {
-        // As a special case for the first admin, create their role document.
-        // In a real-world scenario, this would be done via a secure backend script.
-        if (userCredential.user.email === "admin@cloudstage.in") {
-          await setDoc(adminDocRef, { role: "admin" });
-        } else {
-          await signOut(auth);
-          toast({
+    // The security rules use the admin email, so we must check it on the client
+    // before attempting any Firestore operations that require admin privileges.
+    if (values.email !== "admin@cloudstage.in") {
+        toast({
             variant: "destructive",
             title: "Access Denied",
             description: "You do not have admin privileges.",
-          });
-          setLoading(false);
-          return;
-        }
+        });
+        setLoading(false);
+        return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const adminDocRef = doc(db, 'admins', userCredential.user.uid);
+      
+      // As a fallback, create the admin document if it doesn't exist.
+      // This is allowed by the security rule: `allow create: if isAdmin();`
+      const adminDoc = await getDoc(adminDocRef);
+      if (!adminDoc.exists()) {
+        await setDoc(adminDocRef, { role: "admin", createdAt: new Date() });
       }
       
       toast({
@@ -96,7 +95,8 @@ export default function AdminLogin() {
         title,
         description,
       });
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   }
 
@@ -146,3 +146,5 @@ export default function AdminLogin() {
     </div>
   );
 }
+
+    

@@ -56,11 +56,15 @@ export default function ArtistDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const profile = await getArtistProfile(user.uid);
+      // Fetch profile and events in parallel for faster loading
+      const [profile, events] = await Promise.all([
+        getArtistProfile(user.uid),
+        getArtistEvents(user.uid)
+      ]);
+
       if (profile) {
         if (profile.isApproved) {
           setArtist(profile);
-          const events = await getArtistEvents(user.uid);
           setMyEvents(events);
         } else {
           router.push('/artist/pending');
@@ -83,10 +87,12 @@ export default function ArtistDashboard() {
     
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
       if (user) {
+        setCurrentUser(user);
         fetchArtistData(user);
       } else {
+        setCurrentUser(null);
+        setArtist(null);
         setLoading(false);
         router.push('/artist/login');
       }
@@ -288,3 +294,5 @@ export default function ArtistDashboard() {
     </div>
   );
 }
+
+    

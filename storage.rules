@@ -4,25 +4,41 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
     }
 
-    // Allow public read for all files. This is needed for images and videos to be displayed in the app.
+    function isAdmin() {
+      // The single source of truth for admin role is the email address in the auth token.
+      return isAuth() && request.auth.token.email == 'admin@cloudstage.in';
+    }
+
+    // --- File Access Rules ---
+
+    // By default, allow public read access on all files. This is necessary for
+    // users to see images and watch videos. Write access is restricted below.
     match /{allPaths=**} {
       allow get: if true;
     }
+
+    // --- Secure Write Rules ---
     
-    // Artist-specific files (profile picture, event banners)
-    match /artists/{artistId}/{path=**} {
-      // Only the artist themselves can write to their own folder.
-      allow write: if request.auth != null && request.auth.uid == artistId;
+    // Artists can only write a profile picture to their own designated folder.
+    match /artists/{artistId}/profile.jpg {
+      allow write: if isAuth() && request.auth.uid == artistId;
+    }
+    
+    // Artists can only write banners to events associated with their own artistId.
+    match /artists/{artistId}/events/{eventId}/banner.jpg {
+       allow write: if isAuth() && request.auth.uid == artistId;
     }
 
-    // Movie files (videos, posters)
-    match /movies/{movieId}/{path=**} {
-      // Only admins can write movie files.
-      allow write: if isAdmin();
+    // Only admins can upload movie files and posters to the movies folder.
+    match /movies/{movieId}/{allPaths=**} {
+        allow write: if isAdmin();
     }
   }
 }
+
+    
