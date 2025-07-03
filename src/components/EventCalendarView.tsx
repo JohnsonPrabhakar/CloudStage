@@ -38,6 +38,10 @@ export function EventCalendarView({ events }: EventCalendarViewProps) {
     return acc;
   }, {} as Record<string, Event[]>);
 
+  if (events.length === 0) {
+    return null; // Don't render the calendar if there are no upcoming events
+  }
+
   return (
     <Card>
       <CardContent className="p-4">
@@ -51,13 +55,13 @@ export function EventCalendarView({ events }: EventCalendarViewProps) {
           </Button>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-center font-semibold text-muted-foreground">
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground md:gap-2">
           {dayNames.map(day => <div key={day}>{day}</div>)}
         </div>
 
-        <div className="grid grid-cols-7 gap-2 mt-2">
+        <div className="grid grid-cols-7 gap-1 mt-2 md:gap-2">
           {Array.from({ length: startingDayIndex }).map((_, index) => (
-            <div key={`empty-${index}`} className="border rounded-md bg-muted/20 min-h-[120px]"></div>
+            <div key={`empty-${index}`} className="rounded-md bg-muted/20 min-h-[80px] md:min-h-[120px]"></div>
           ))}
 
           {daysInMonth.map((day) => {
@@ -67,21 +71,26 @@ export function EventCalendarView({ events }: EventCalendarViewProps) {
             return (
               <div
                 key={day.toString()}
-                className={`border rounded-md p-2 min-h-[120px] flex flex-col ${
-                  isToday(day) ? "bg-primary/20 border-primary" : ""
+                className={`border rounded-md p-1 min-h-[80px] flex flex-col transition-colors duration-300 md:p-2 md:min-h-[120px] ${
+                  isToday(day) ? "bg-primary/20 border-primary" : "border-border/50"
                 } ${!isSameMonth(day, currentDate) ? "bg-muted/30" : "bg-card"}`}
               >
-                <time dateTime={format(day, "yyyy-MM-dd")} className={`font-bold ${isToday(day) ? 'text-primary' : ''}`}>
+                <time dateTime={format(day, "yyyy-MM-dd")} className={`text-xs font-bold md:text-sm ${isToday(day) ? 'text-primary' : ''}`}>
                   {format(day, "d")}
                 </time>
                 <div className="flex-grow space-y-1 mt-1 overflow-y-auto">
-                    {dayEvents.map(event => (
-                        <Link key={event.id} href={`/events/${event.id}`}>
-                           <Badge variant="secondary" className="w-full text-left truncate block hover:bg-primary/80 transition-colors">
+                    {dayEvents.slice(0, 2).map(event => (
+                        <Link key={event.id} href={`/events/${event.id}`} title={event.title}>
+                           <Badge variant="secondary" className="w-full text-left truncate block hover:bg-primary/80 transition-colors text-[10px] md:text-xs">
                                {event.title}
                            </Badge>
                         </Link>
                     ))}
+                    {dayEvents.length > 2 && (
+                        <p className="text-center text-muted-foreground text-[10px] md:text-xs">
+                           + {dayEvents.length - 2} more
+                        </p>
+                    )}
                 </div>
               </div>
             );
