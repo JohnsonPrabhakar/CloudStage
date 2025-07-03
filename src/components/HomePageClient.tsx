@@ -163,15 +163,15 @@ export function HomePageClient() {
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg">
-                      <Link href="#live-events">
-                          <Radio className="mr-2 h-5 w-5 animate-pulse"/>
-                          Live Events
+                      <Link href="#upcoming-events">
+                          <Calendar className="mr-2 h-5 w-5"/>
+                          Explore Events
                       </Link>
                   </Button>
                   <Button asChild size="lg" variant="secondary">
-                      <Link href="#upcoming-events">
-                          <Calendar className="mr-2 h-5 w-5"/>
-                          Upcoming
+                      <Link href="/artist/register">
+                          <ArrowRight className="mr-2 h-5 w-5"/>
+                          For Artists
                       </Link>
                   </Button>
                 </div>
@@ -202,15 +202,15 @@ export function HomePageClient() {
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg">
-                      <Link href="#live-events">
-                          <Radio className="mr-2 h-5 w-5 animate-pulse"/>
-                          Live Events
+                      <Link href="#upcoming-events">
+                          <Calendar className="mr-2 h-5 w-5"/>
+                          Explore Events
                       </Link>
                   </Button>
                   <Button asChild size="lg" variant="secondary">
-                      <Link href="#upcoming-events">
-                          <Calendar className="mr-2 h-5 w-5"/>
-                          Upcoming
+                      <Link href="/artist/register">
+                          <ArrowRight className="mr-2 h-5 w-5"/>
+                          For Artists
                       </Link>
                   </Button>
                 </div>
