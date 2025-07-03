@@ -50,6 +50,7 @@ export default function ArtistDashboard() {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const fetchArtistData = useCallback(async (user: User) => {
     setLoading(true);
@@ -70,8 +71,8 @@ export default function ArtistDashboard() {
       }
     } catch (err) {
       console.error("Dashboard loading error:", err);
-      if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
-        setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
+      if (err instanceof FirebaseError) {
+        setError(`Error: ${err.message}. Please check your connection and security rules.`);
       } else {
         setError("Could not load your dashboard. Please check your internet connection and try again.");
       }
@@ -82,6 +83,7 @@ export default function ArtistDashboard() {
     
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
       if (user) {
         fetchArtistData(user);
       } else {
@@ -150,7 +152,7 @@ export default function ArtistDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={() => auth.currentUser && fetchArtistData(auth.currentUser)}>
+        <Button onClick={() => currentUser && fetchArtistData(currentUser)}>
           Try Again
         </Button>
       </div>
@@ -286,5 +288,3 @@ export default function ArtistDashboard() {
     </div>
   );
 }
-
-    

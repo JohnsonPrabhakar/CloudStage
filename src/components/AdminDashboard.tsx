@@ -108,7 +108,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.email === 'admin@cloudstage.in') {
+      if (user) {
+        // We will rely on the AdminLogin component to establish the 'admins' doc
+        // and security rules to protect this page.
         setCurrentUser(user);
         refreshData();
       } else {
@@ -470,5 +472,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    

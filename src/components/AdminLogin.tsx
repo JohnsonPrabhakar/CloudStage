@@ -49,19 +49,23 @@ export default function AdminLogin() {
       const adminDocRef = doc(db, 'admins', userCredential.user.uid);
       const adminDoc = await getDoc(adminDocRef);
 
-      // A simple way to seed the first admin.
-      // In a real app, this would be done via a backend script.
-      if (userCredential.user.email === "admin@cloudstage.in" && !adminDoc.exists()) {
-        await setDoc(adminDocRef, { isAdmin: true });
-      } else if (!adminDoc.exists() || !adminDoc.data()?.isAdmin) {
-         await signOut(auth);
-         toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "You do not have admin privileges.",
-        });
-        setLoading(false);
-        return;
+      // This check securely verifies the admin role.
+      // The `admins` collection should be protected by security rules so only other admins can write to it.
+      if (!adminDoc.exists()) {
+        // As a special case for the first admin, create their role document.
+        // In a real-world scenario, this would be done via a secure backend script.
+        if (userCredential.user.email === "admin@cloudstage.in") {
+          await setDoc(adminDocRef, { role: "admin" });
+        } else {
+          await signOut(auth);
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "You do not have admin privileges.",
+          });
+          setLoading(false);
+          return;
+        }
       }
       
       toast({
