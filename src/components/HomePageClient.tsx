@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -114,7 +115,7 @@ export function HomePageClient() {
   const renderMockCategories = () => {
     const categories = [
         { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage", imageUrl: "https://placehold.co/600x400.png" },
-        { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://images.unsplash.com/photo-1611956425642-d5a8169abd63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxTdGFuZCUyMHVwJTIwY29tZWR5fGVufDB8fHx8MTc1MTUxMDEyOXww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation", imageUrl: "https://placehold.co/600x400.png" },
         { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage", imageUrl: "https://placehold.co/600x400.png" },
         { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://placehold.co/600x400.png" },
