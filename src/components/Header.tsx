@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -11,7 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film, ArrowRight, Radio, Calendar } from "lucide-react";
+import { Menu, Ticket, Film, ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 export function Header() {
@@ -19,8 +18,6 @@ export function Header() {
 
   const navItems = [
     { label: "Home", href: "/" },
-    { label: "Live Events", href: "/#live-events", icon: <Radio className="h-4 w-4 text-primary animate-pulse" /> },
-    { label: "Upcoming Events", href: "/#upcoming-events", icon: <Calendar className="h-4 w-4" /> },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
     {
       label: "My Tickets",

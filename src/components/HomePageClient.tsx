@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -33,12 +32,15 @@ export function HomePageClient() {
     fetchEvents();
   }, []);
 
-  const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
+  const { liveEvents, upcomingEvents, pastEvents, heroEvent } = useMemo(() => {
+    if (loading) {
+      return { liveEvents: [], upcomingEvents: [], pastEvents: [], heroEvent: null };
+    }
     const now = new Date();
     const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
 
     if (allEvents.length === 0) {
-      return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
+      return { liveEvents: [], upcomingEvents: [], pastEvents: [], heroEvent: null };
     }
 
     const categorized: {
@@ -51,19 +53,17 @@ export function HomePageClient() {
       past: [],
     };
     
-    const sortedEvents = [...allEvents].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sortedEvents = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const event of sortedEvents) {
       let finalStatus: Event["status"] = event.status;
       const eventDate = new Date(event.date);
 
-      if (finalStatus !== 'past') {
+      if (event.status !== 'past') {
           if (eventDate <= now && eventDate >= liveThreshold) {
               finalStatus = 'live';
           } else if (eventDate < liveThreshold) {
               finalStatus = 'past';
-          } else {
-              finalStatus = 'upcoming';
           }
       }
       
@@ -78,18 +78,19 @@ export function HomePageClient() {
       }
     }
     
+    // Sort upcoming ascending, past/live descending
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    categorized.live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    categorized.live.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return {
         liveEvents: categorized.live,
         upcomingEvents: categorized.upcoming,
         pastEvents: categorized.past,
+        heroEvent: categorized.live[0] || categorized.upcoming[0] || categorized.past[0] || null
     };
-  }, [allEvents]);
+  }, [allEvents, loading]);
   
-  const heroEvent = liveEvents[0] || upcomingEvents[0] || pastEvents[0] || null;
-
   const renderMockCategories = () => {
     const categories = [
         { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage" },
@@ -168,14 +169,20 @@ export function HomePageClient() {
                 <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto">
                     Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
-                {heroEvent && (
-                    <Button asChild size="lg" className="mt-8">
-                        <Link href={`/events/${heroEvent.id}`}>
-                            {heroEvent.status === 'live' ? 'Watch Now' : 'View Details'}
-                            <ArrowRight className="ml-2 h-5 w-5"/>
-                        </Link>
-                    </Button>
-                )}
+                <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <Button asChild size="lg" variant="outline" className="border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20">
+                      <Link href="#live-events">
+                          <Radio className="mr-2 h-5 w-5 text-red-500 animate-pulse"/>
+                          Live Events
+                      </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="border-white/50 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20">
+                      <Link href="#upcoming-events">
+                          <Calendar className="mr-2 h-5 w-5"/>
+                          Upcoming
+                      </Link>
+                  </Button>
+                </div>
             </div>
         </div>
 
