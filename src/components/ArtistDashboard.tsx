@@ -49,80 +49,45 @@ export default function ArtistDashboard() {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
-  const refetchData = useCallback(async () => {
-    const user = auth.currentUser;
-    if (user) {
-      setLoading(true);
-      setError(null);
-      try {
-        const profile = await getArtistProfile(user.uid);
-        if (profile && profile.isApproved) {
-            const events = await getArtistEvents(user.uid);
-            setArtist(profile);
-            setMyEvents(events);
+  const fetchDataForUser = useCallback(async (user: User) => {
+    setError(null);
+    try {
+      const profile = await getArtistProfile(user.uid);
+      if (profile) {
+        if (profile.isApproved) {
+          const events = await getArtistEvents(user.uid);
+          setArtist(profile);
+          setMyEvents(events);
         } else {
-            // If profile is gone or un-approved somehow, re-route.
-            router.push('/artist/login');
+          router.push('/artist/pending');
         }
-      } catch (err) {
-        console.error("Dashboard refresh error:", err);
-        setError("Could not refresh your dashboard. Please check your internet connection and try again.");
-      } finally {
-        setLoading(false);
+      } else {
+        router.push('/artist/register');
       }
+    } catch (err) {
+      console.error("Dashboard data fetch error:", err);
+      setError("Could not load your dashboard. Please check your internet connection and try again.");
+    } finally {
+      setLoading(false);
     }
   }, [router]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        // If no user is logged in, they must go to the login page.
-        router.push('/artist/login');
-        return;
-      }
-
-      // If a user is logged in, we must verify their artist profile.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setLoading(true);
-      setError(null);
-
-      try {
-        const profile = await getArtistProfile(user.uid);
-
-        if (!profile) {
-          // A user is authenticated but has no artist profile document.
-          toast({
-            title: "Artist Profile Not Found",
-            description: "Please complete your artist registration to access the dashboard.",
-            variant: "destructive"
-          });
-          router.push('/artist/register');
-          return;
-        }
-
-        if (!profile.isApproved) {
-          // The artist profile exists but has not been approved by an admin yet.
-          router.push('/artist/pending');
-          return;
-        }
-
-        // If we reach here, the user is a valid, approved artist.
-        // We can now safely fetch their dashboard data.
-        const events = await getArtistEvents(user.uid);
-        setArtist(profile);
-        setMyEvents(events);
-
-      } catch (err) {
-        console.error("Dashboard verification error:", err);
-        setError("Could not load your dashboard. Please check your internet connection and try again.");
-      } finally {
-        setLoading(false);
+      if (user) {
+        setCurrentUser(user);
+        fetchDataForUser(user);
+      } else {
+        // No user is signed in, redirect to login.
+        router.push('/artist/login');
       }
     });
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, toast]);
+  }, [router, fetchDataForUser]);
 
 
   const handleBoost = async (eventId: string, amount: number) => {
@@ -170,8 +135,8 @@ export default function ArtistDashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <h2 className="text-2xl font-semibold">Verifying Your Access</h2>
-        <p className="text-muted-foreground">Please wait while we check your artist profile...</p>
+        <h2 className="text-2xl font-semibold">Verifying your access...</h2>
+        <p className="text-muted-foreground">Please wait while we check your artist profile.</p>
       </div>
     );
   }
@@ -182,7 +147,7 @@ export default function ArtistDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={refetchData}>
+        <Button onClick={() => currentUser && fetchDataForUser(currentUser)}>
           Try Again
         </Button>
       </div>
@@ -190,12 +155,12 @@ export default function ArtistDashboard() {
   }
 
   if (!artist) {
-    // This state should ideally not be reached due to the redirects in useEffect,
-    // but it serves as a safe fallback.
+    // This state indicates a redirect is in progress or has failed.
+    // The loading spinner will show until the redirect completes.
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         <h2 className="text-2xl font-semibold">Redirecting...</h2>
-        <p className="text-muted-foreground">An error occurred, redirecting to login.</p>
       </div>
     );
   }
