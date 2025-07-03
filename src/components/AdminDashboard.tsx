@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -52,7 +52,7 @@ import {
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
@@ -68,7 +68,7 @@ type Stats = {
 export default function AdminDashboard() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
   const [pendingArtists, setPendingArtists] = useState<Artist[]>([]);
   const [hasPendingArtistNotification, setHasPendingArtistNotification] = useState(false);
@@ -77,8 +77,7 @@ export default function AdminDashboard() {
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
   const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
 
-  useEffect(() => {
-    const refreshData = async () => {
+  const refreshData = useCallback(async () => {
      setLoading(true);
      setError(null);
      try {
@@ -105,47 +104,19 @@ export default function AdminDashboard() {
      } finally {
         setLoading(false);
      }
-    };
+  }, []);
 
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === 'admin@cloudstage.in') {
-        setIsAuthenticated(true);
+        setCurrentUser(user);
         refreshData();
       } else {
         router.push("/admin");
       }
     });
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  const refreshData = async () => {
-     setLoading(true);
-     setError(null);
-     try {
-       const [events, artists, status, artistsCount, eventsCount, ticketsCount] = await Promise.all([
-          getPendingEvents(),
-          getPendingArtistsFromDb(),
-          getSiteStatus(),
-          getArtistsCount(),
-          getEventsCount(),
-          getTicketsCount()
-       ]);
-       
-       setPendingEvents(events);
-       setPendingArtists(artists);
-       setSiteStatus(status);
-       setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
-       
-       if(artists.length > 0) {
-          setHasPendingArtistNotification(true);
-       }
-     } catch (err) {
-        setError("Could not load dashboard data. Please check your internet connection and try again.");
-     } finally {
-        setLoading(false);
-     }
-  };
+  }, [router, refreshData]);
 
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {
@@ -197,7 +168,7 @@ export default function AdminDashboard() {
     }
   };
   
-  if (!isAuthenticated) {
+  if (!currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
@@ -397,8 +368,8 @@ export default function AdminDashboard() {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{pendingEvents.length + pendingArtists.length}</div>
-                <p className="text-xs text-muted-foreground">{pendingEvents.length} events & {pendingArtists.length} artists</p>
+                <div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-16" /> : (pendingEvents.length + pendingArtists.length)}</div>
+                <p className="text-xs text-muted-foreground">{loading ? '...' : `${pendingEvents.length} events & ${pendingArtists.length} artists`}</p>
               </CardContent>
             </Card>
           </div>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -51,36 +51,36 @@ export default function ArtistDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchArtistData = async (user: User) => {
-        setLoading(true);
-        setError(null);
-        try {
-          const profile = await getArtistProfile(user.uid);
-          if (profile) {
-            if (profile.isApproved) {
-              setArtist(profile);
-              const events = await getArtistEvents(user.uid);
-              setMyEvents(events);
-            } else {
-              router.push('/artist/pending');
-            }
-          } else {
-            toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
-            router.push('/artist/register');
-          }
-        } catch (err) {
-          console.error("Dashboard loading error:", err);
-          if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
-            setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
-          } else {
-            setError("Could not load your dashboard. Please check your internet connection and try again.");
-          }
-        } finally {
-          setLoading(false);
+  const fetchArtistData = useCallback(async (user: User) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profile = await getArtistProfile(user.uid);
+      if (profile) {
+        if (profile.isApproved) {
+          setArtist(profile);
+          const events = await getArtistEvents(user.uid);
+          setMyEvents(events);
+        } else {
+          router.push('/artist/pending');
         }
-    };
+      } else {
+        toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
+        router.push('/artist/register');
+      }
+    } catch (err) {
+      console.error("Dashboard loading error:", err);
+      if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
+        setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
+      } else {
+        setError("Could not load your dashboard. Please check your internet connection and try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [router, toast]);
     
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchArtistData(user);
@@ -91,8 +91,7 @@ export default function ArtistDashboard() {
     });
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchArtistData, router]);
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
@@ -151,7 +150,7 @@ export default function ArtistDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={() => window.location.reload()}>
+        <Button onClick={() => auth.currentUser && fetchArtistData(auth.currentUser)}>
           Try Again
         </Button>
       </div>
@@ -164,8 +163,8 @@ export default function ArtistDashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <h2 className="text-2xl font-semibold">Verifying Your Access</h2>
-        <p className="text-muted-foreground">Please wait while we check your artist profile...</p>
+        <h2 className="text-2xl font-semibold">Redirecting...</h2>
+        <p className="text-muted-foreground">Please wait...</p>
       </div>
     );
   }

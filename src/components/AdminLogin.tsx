@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { FirebaseError } from "firebase/app";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email."),
@@ -46,27 +46,30 @@ export default function AdminLogin() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      
-      if (userCredential.user.email === "admin@cloudstage.in") {
-        // Set the admin role in Firestore for security rule checking
-        const adminDocRef = doc(db, 'admins', userCredential.user.uid);
-        await setDoc(adminDocRef, { isAdmin: true }, { merge: true });
+      const adminDocRef = doc(db, 'admins', userCredential.user.uid);
+      const adminDoc = await getDoc(adminDocRef);
 
-        toast({
-          title: "Login Successful",
-          description: "Redirecting to admin dashboard...",
-        });
-        router.push("/admin/dashboard");
-      } else {
-        // This case handles a valid Firebase user who is not the whitelisted admin
-        await signOut(auth);
-        toast({
+      // A simple way to seed the first admin.
+      // In a real app, this would be done via a backend script.
+      if (userCredential.user.email === "admin@cloudstage.in" && !adminDoc.exists()) {
+        await setDoc(adminDocRef, { isAdmin: true });
+      } else if (!adminDoc.exists() || !adminDoc.data()?.isAdmin) {
+         await signOut(auth);
+         toast({
           variant: "destructive",
           title: "Access Denied",
-          description: "Only the designated admin account can log in here.",
+          description: "You do not have admin privileges.",
         });
         setLoading(false);
+        return;
       }
+      
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to admin dashboard...",
+      });
+      router.push("/admin/dashboard");
+
     } catch (error) {
        let title = "Login Failed";
        let description = "An unexpected error occurred. Please try again.";
