@@ -220,13 +220,30 @@ export default function EventDetailPage() {
       );
     }
 
-    // For live or upcoming events, ticket is required
     if (hasTicket) {
-       return (
+      if (event.status === "upcoming") {
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                 <span tabIndex={0} className="w-full">
+                    <Button size="lg" className="w-full text-lg py-6" disabled>
+                      <Play className="mr-2 h-6 w-6" /> Join Event
+                    </Button>
+                 </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>This event hasn't started yet. You can join once it's live.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+      // For Live events
+      return (
         <Button asChild size="lg" disabled={!canWatch} className="w-full text-lg py-6 transition-transform transform hover:scale-105">
           <Link href={`/play/${event.id}`}>
-            <Play className="mr-2 h-6 w-6" /> 
-            {event.status === 'live' ? 'Watch Now' : 'Join Event'}
+            <Play className="mr-2 h-6 w-6" /> Watch Now
           </Link>
         </Button>
       );

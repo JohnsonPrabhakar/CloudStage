@@ -33,7 +33,7 @@ import { type Event, type EventCategory, type Artist } from "@/lib/types";
 import { Sparkles, Upload, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { addEvent, getArtistProfile, getEventById } from "@/lib/firebase-service";
+import { addEvent, getArtistProfile, getEventById, getYouTubeEmbedUrl } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
@@ -57,8 +57,8 @@ const formSchema = z.object({
   date: z.string().min(1, "Date and time are required."),
   banner: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL.").refine(
-    (url) => url.includes("youtube.com/embed/") || url.includes("youtube.com/live/"),
-    "Please provide a valid YouTube Live or Embed URL."
+    (url) => url.includes("youtube.com/embed/"),
+    "Please provide a valid YouTube URL (e.g., watch, live, or youtu.be link)."
   ),
   ticketPrice: z.coerce.number().min(0, "Price must be a positive number."),
   description: z.string().min(10, "Description must be at least 10 characters."),
@@ -139,28 +139,13 @@ export default function CreateEventForm() {
       fetchAndSetEvent();
     }
   }, [searchParams, form, toast]);
-
-  const convertToEmbedUrl = (url: string): string => {
-    if (!url) return "";
-    let videoId = null;
-
-    if (url.includes("youtube.com/watch?v=")) {
-      videoId = url.split("v=")[1]?.split('&')[0];
-    } else if (url.includes("youtu.be/")) {
-      videoId = url.split("youtu.be/")[1]?.split('?')[0];
-    } else if (url.includes("youtube.com/embed/")) {
-      return url;
-    } else if (url.includes("youtube.com/live/")) {
-        videoId = url.split("live/")[1]?.split('?')[0];
-    }
-
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
-  };
   
   const handleStreamUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const originalUrl = e.target.value;
-    const embedUrl = convertToEmbedUrl(originalUrl);
-    form.setValue("streamUrl", embedUrl, { shouldValidate: true, shouldDirty: true });
+    const embedUrl = getYouTubeEmbedUrl(originalUrl);
+    // Set the converted URL if valid, otherwise keep the user's input
+    // so that validation can catch the invalid format.
+    form.setValue("streamUrl", embedUrl || originalUrl, { shouldValidate: true, shouldDirty: true });
   };
 
   async function handleGenerateDescription() {

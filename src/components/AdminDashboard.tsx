@@ -46,9 +46,9 @@ import {
     rejectArtist as rejectArtistInDb,
     getSiteStatus,
     updateSiteStatus,
-    getArtistsCount,
-    getEventsCount,
-    getTicketsCount,
+    getArtistsCountListener,
+    getEventsCountListener,
+    getTicketsCountListener,
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
@@ -77,34 +77,19 @@ export default function AdminDashboard() {
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
   const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const [artistsCount, eventsCount, ticketsCount] = await Promise.all([
-        getArtistsCount(),
-        getEventsCount(),
-        getTicketsCount(),
-      ]);
-      setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
-    } catch (err) {
-      // Don't block the UI for stats, just log the error
-      console.error("Failed to fetch dashboard stats:", err);
-    }
-  }, []);
-
   useEffect(() => {
     let eventsUnsubscribe: (() => void) | undefined;
     let artistsUnsubscribe: (() => void) | undefined;
+    let statsUnsubscribers: (() => void)[] = [];
 
     const authUnsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === 'admin@cloudstage.in') {
         setCurrentUser(user);
         
-        // Fetch one-time data
         getSiteStatus().then(setSiteStatus);
-        fetchStats();
-
-        // Set up real-time listeners
+        
         try {
+            // Set up real-time listeners
             eventsUnsubscribe = getPendingEventsListener(setPendingEvents);
             artistsUnsubscribe = getPendingArtistsListener((artists) => {
                 setPendingArtists(artists);
@@ -112,6 +97,13 @@ export default function AdminDashboard() {
                     setHasPendingArtistNotification(true);
                 }
             });
+
+            // Set up stats listeners
+            const artistsListener = getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count })));
+            const eventsListener = getEventsCountListener((count) => setStats(s => ({ ...s, events: count })));
+            const ticketsListener = getTicketsCountListener((count) => setStats(s => ({ ...s, tickets: count })));
+            statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener);
+
         } catch(err) {
             console.error("Admin dashboard listener error:", err);
             setError("Could not connect to real-time updates. Please check your internet connection.");
@@ -127,8 +119,9 @@ export default function AdminDashboard() {
       authUnsubscribe();
       if (eventsUnsubscribe) eventsUnsubscribe();
       if (artistsUnsubscribe) artistsUnsubscribe();
+      statsUnsubscribers.forEach(unsub => unsub());
     };
-  }, [router, fetchStats]);
+  }, [router]);
 
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {

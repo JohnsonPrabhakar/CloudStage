@@ -81,25 +81,59 @@ const deleteFileByUrl = async (url: string) => {
 }
 
 // --- YOUTUBE HELPER ---
-const getYouTubeVideoId = (url: string): string | null => {
+export const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
+
   let videoId: string | null = null;
+  
   try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname === 'youtu.be') {
-        videoId = urlObj.pathname.slice(1);
-    } else if (urlObj.hostname.includes('youtube.com')) {
-        videoId = urlObj.searchParams.get('v') || (urlObj.pathname.split('/').pop() ?? null);
-    }
-    if(videoId && (videoId === "embed" || videoId === "live")) {
-        videoId = urlObj.pathname.split('/').pop() ?? null;
-    }
-  } catch (e) {
-    // Fallback for invalid URLs
-    return null;
+      // Case: Standard watch URL (e.g., youtube.com/watch?v=...)
+      if (url.includes("youtube.com/watch")) {
+        const urlParams = new URLSearchParams(new URL(url).search);
+        videoId = urlParams.get("v");
+      }
+      // Case: Shortened youtu.be URL
+      else if (url.includes("youtu.be/")) {
+        videoId = new URL(url).pathname.slice(1);
+      }
+      // Case: Embed URL
+      else if (url.includes("youtube.com/embed/")) {
+        videoId = new URL(url).pathname.split('/embed/')[1];
+      }
+      // Case: Live URL
+      else if (url.includes("youtube.com/live/")) {
+        videoId = new URL(url).pathname.split('/live/')[1];
+      }
+  } catch(e) {
+      // Fallback for invalid or partially typed URLs
+      const patterns = [
+          /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/,
+          /(?:https?:\/\/)?youtu\.be\/([^?]+)/,
+          /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^?]+)/,
+          /(?:https?:\/\/)?(?:www\.)?youtube\.com\/live\/([^?]+)/
+      ];
+      for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match && match[1]) {
+              videoId = match[1];
+              break;
+          }
+      }
   }
-  return videoId;
+
+  // Sanitize videoId from potential extra path segments
+  if (videoId) {
+      videoId = videoId.split('?')[0].split('&')[0];
+  }
+  
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
 };
+
+const getYouTubeVideoId = (url: string): string | null => {
+    const embedUrl = getYouTubeEmbedUrl(url);
+    if (!embedUrl) return null;
+    return embedUrl.split('/embed/')[1];
+}
 
 
 // EVENT-RELATED FUNCTIONS
@@ -132,9 +166,20 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
   }
 };
 
-
 export const getApprovedEvents = async (): Promise<Event[]> => {
-  const q = query(eventsCollection, where('moderationStatus', '==', 'approved'));
+  const now = new Date();
+  // Fetch events from the last 2 hours onwards.
+  // This captures ongoing live events and all future upcoming events,
+  // preventing the download of the entire past events collection.
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+  const q = query(
+    eventsCollection,
+    where('moderationStatus', '==', 'approved'),
+    where('date', '>=', twoHoursAgo.toISOString()),
+    orderBy('date', 'asc') // Sort ascending to get soonest events
+  );
+
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
@@ -163,12 +208,9 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
-  // We remove the orderBy clause to avoid needing a composite index.
-  // The sorting will be handled on the client side after fetching.
   const q = query(eventsCollection, where('artistId', '==', artistId));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-    // Sort events by date in descending order (newest first) on the client
     const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(sortedEvents);
   });
@@ -432,20 +474,31 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
   }
 };
 
-// --- DASHBOARD COUNT FUNCTIONS ---
-export const getArtistsCount = async (): Promise<number> => {
+// --- DASHBOARD COUNT LISTENER FUNCTIONS ---
+export const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {
   const q = query(artistsCollection, where('isApproved', '==', true));
-  const snapshot = await getCountFromServer(q);
-  return snapshot.data().count;
-}
-export const getEventsCount = async (): Promise<number> => {
-  const snapshot = await getCountFromServer(eventsCollection);
-  return snapshot.data().count;
-}
-export const getTicketsCount = async (): Promise<number> => {
-  const snapshot = await getCountFromServer(ticketsCollection);
-  return snapshot.data().count;
-}
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("Artist count listener failed:", error);
+  });
+};
+
+export const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
+  return onSnapshot(eventsCollection, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("Event count listener failed:", error);
+  });
+};
+
+export const getTicketsCountListener = (callback: (count: number) => void): (() => void) => {
+  return onSnapshot(ticketsCollection, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("Ticket count listener failed:", error);
+  });
+};
 
 
 // CONFIG/SITE STATUS FUNCTIONS
