@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, Ticket, Film, ArrowRight } from "lucide-react";
-import Image from "next/image";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -34,12 +33,7 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Image
-              src="/logo.png"
-              alt="CloudStage Logo"
-              width={40}
-              height={40}
-            />
+            <Ticket className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -74,12 +68,7 @@ export function Header() {
                       className="flex items-center space-x-2"
                       onClick={() => setIsSheetOpen(false)}
                     >
-                      <Image
-                        src="/logo.png"
-                        alt="CloudStage Logo"
-                        width={32}
-                        height={32}
-                      />
+                      <Ticket className="h-7 w-7 text-primary" />
                       <span className="text-xl font-bold">CloudStage</span>
                     </Link>
                   </SheetTitle>
@@ -103,12 +92,7 @@ export function Header() {
 
           <div className="flex-1 md:hidden">
             <Link href="/" className="flex items-center justify-center space-x-2">
-                  <Image
-                    src="/logo.png"
-                    alt="CloudStage Logo"
-                    width={32}
-                    height={32}
-                  />
+                  <Ticket className="h-7 w-7 text-primary" />
                   <span className="text-xl font-bold">CloudStage</span>
             </Link>
           </div>

@@ -72,9 +72,8 @@ const deleteFileByUrl = async (url: string) => {
     await deleteObject(fileRef);
   } catch (error: any) {
     if (error.code === 'storage/object-not-found') {
-      console.warn("Tried to delete a file that doesn't exist:", url);
+      // This is not a critical error, just a warning.
     } else {
-      console.error("Error deleting file from storage:", error);
       // Don't re-throw, allow the operation to continue
     }
   }
@@ -127,7 +126,6 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
     });
 
   } catch (error) {
-    console.error("Error adding event: ", error);
     if (error instanceof Error && (error.message.includes('storage') || error.message.includes('permission'))) {
         throw new Error("Failed to upload event poster. Please check file format and permissions.");
     }
@@ -297,7 +295,6 @@ export const createTicket = async (userId: string, eventId: string): Promise<{ s
     });
     return { success: true, message: 'Ticket successfully acquired!' };
   } catch (error) {
-    console.error("Error creating ticket in Firestore: ", error);
     return { success: false, message: 'Could not acquire ticket. Please try again.' };
   }
 };
@@ -406,7 +403,6 @@ export const getAllMovies = async (): Promise<Movie[]> => {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => fromFirestore<Movie>(doc));
   } catch (error) {
-    console.error("Error fetching all movies: ", error);
     throw error;
   }
 };
@@ -420,7 +416,6 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     }
     return null;
   } catch (error) {
-    console.error("Error fetching movie by ID: ", error);
     throw error;
   }
 };
@@ -450,7 +445,7 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
       return 'offline';
     }
   } catch (error) {
-    console.error("Could not fetch site status, defaulting to online:", error);
+    // Could not fetch site status, defaulting to online
   }
   return 'online';
 };

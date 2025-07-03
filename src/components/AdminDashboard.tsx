@@ -99,7 +99,6 @@ export default function AdminDashboard() {
           setHasPendingArtistNotification(true);
        }
      } catch (err) {
-        console.error("Failed to load admin data:", err);
         setError("Could not load dashboard data. Please check your internet connection and try again.");
      } finally {
         setLoading(false);
@@ -192,13 +191,45 @@ export default function AdminDashboard() {
   
   const renderArtistTable = () => {
     if (loading) {
-        return (
-            <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-            </div>
-        )
+      return (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+              <TableHead className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[...Array(3)].map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                    <Skeleton className="h-5 w-32 mb-2" />
+                    <Skeleton className="h-4 w-40" />
+                </TableCell>
+                <TableCell>
+                    <Skeleton className="h-4 w-48 mb-2" />
+                    <Skeleton className="h-4 w-40" />
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-5 w-5 rounded-full" />
+                    <Skeleton className="h-5 w-5 rounded-full" />
+                    <Skeleton className="h-5 w-5 rounded-full" />
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-2 justify-end">
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )
     }
     if (pendingArtists.length > 0) {
         return (
