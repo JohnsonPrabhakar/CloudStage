@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -49,51 +49,48 @@ export default function ArtistDashboard() {
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
-  const fetchDataForUser = useCallback(async (user: User) => {
-    setError(null);
-    setLoading(true);
-    try {
-      const profile = await getArtistProfile(user.uid);
-      if (profile) {
-        if (profile.isApproved) {
-          const events = await getArtistEvents(user.uid);
-          setArtist(profile);
-          setMyEvents(events);
-        } else {
-          router.push('/artist/pending');
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is signed in. Let's verify their artist profile.
+        try {
+          const profile = await getArtistProfile(user.uid);
+          
+          if (profile) {
+            if (profile.isApproved) {
+              // This is the success case. Load dashboard data.
+              const events = await getArtistEvents(user.uid);
+              setArtist(profile);
+              setMyEvents(events);
+            } else {
+              // Profile exists but is not approved.
+              router.push('/artist/pending');
+            }
+          } else {
+            // User is authenticated but has no profile. Redirect to register.
+            toast({
+              variant: "destructive",
+              title: "Artist Profile Not Found",
+              description: "Please complete your artist profile to continue.",
+            });
+            router.push('/artist/register');
+          }
+        } catch (err) {
+          console.error("Dashboard data fetch error:", err);
+          setError("Could not load your dashboard. Please check your internet connection and try again.");
+        } finally {
+          setLoading(false);
         }
       } else {
-        // If user is logged in but has no artist profile, redirect to registration
-        toast({
-            variant: "destructive",
-            title: "Artist Profile Not Found",
-            description: "Please complete your artist profile to continue.",
-        });
-        router.push('/artist/register');
-      }
-    } catch (err) {
-      console.error("Dashboard data fetch error:", err);
-      setError("Could not load your dashboard. Please check your internet connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [router, toast]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-        fetchDataForUser(user);
-      } else {
-        // No user is signed in, redirect to login.
+        // No user is signed in. Redirect to login.
         router.push('/artist/login');
       }
     });
 
     return () => unsubscribe();
-  }, [router, fetchDataForUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleBoost = async (eventId: string, amount: number) => {
@@ -153,7 +150,7 @@ export default function ArtistDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={() => currentUser && fetchDataForUser(currentUser)}>
+        <Button onClick={() => window.location.reload()}>
           Try Again
         </Button>
       </div>

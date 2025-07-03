@@ -69,8 +69,7 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // This is the key fix: If auth is valid but profile is missing,
-        // route to registration to complete the profile.
+        // This is the case where the user is authenticated but has no artist document.
         toast({
             title: "Profile Incomplete",
             description: "Please complete your artist profile to continue.",
