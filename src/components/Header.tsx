@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -33,7 +34,7 @@ export function Header() {
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Ticket className="h-8 w-8 text-primary" />
+            <Image src="https://placehold.co/32x32.png" alt="CloudStage Logo" width={32} height={32} data-ai-hint="logo" />
             <span className="text-xl font-bold">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
@@ -68,7 +69,7 @@ export function Header() {
                       className="flex items-center space-x-2"
                       onClick={() => setIsSheetOpen(false)}
                     >
-                      <Ticket className="h-7 w-7 text-primary" />
+                      <Image src="https://placehold.co/28x28.png" alt="CloudStage Logo" width={28} height={28} data-ai-hint="logo" />
                       <span className="text-xl font-bold">CloudStage</span>
                     </Link>
                   </SheetTitle>
@@ -92,7 +93,7 @@ export function Header() {
 
           <div className="flex-1 md:hidden">
             <Link href="/" className="flex items-center justify-center space-x-2">
-                  <Ticket className="h-7 w-7 text-primary" />
+                  <Image src="https://placehold.co/28x28.png" alt="CloudStage Logo" width={28} height={28} data-ai-hint="logo" />
                   <span className="text-xl font-bold">CloudStage</span>
             </Link>
           </div>
