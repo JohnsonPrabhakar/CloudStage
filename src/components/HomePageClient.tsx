@@ -9,9 +9,29 @@ import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar } from "lucide-react";
-import { Badge } from "./ui/badge";
 import { EventCalendarView } from "./EventCalendarView";
 import { Card, CardContent } from "./ui/card";
+
+const getEventHint = (category: Event['category']): string => {
+    switch (category) {
+        case 'Music':
+            return 'concert crowd';
+        case 'Stand-up Comedy':
+            return 'comedy club';
+        case 'Meditation / Yoga':
+            return 'yoga meditation';
+        case 'Magic Show':
+            return 'magician stage';
+        case 'Talk':
+            return 'panel discussion';
+        case 'Devotional / Bhajan / Satsang':
+            return 'devotional music';
+        case 'Workshop':
+            return 'workshop class';
+        default:
+            return 'live event';
+    }
+};
 
 export function HomePageClient() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
@@ -33,13 +53,10 @@ export function HomePageClient() {
   }, []);
 
   const { liveEvents, upcomingEvents, pastEvents, heroEvent } = useMemo(() => {
-    if (loading) {
-      return { liveEvents: [], upcomingEvents: [], pastEvents: [], heroEvent: null };
-    }
     const now = new Date();
     const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
 
-    if (allEvents.length === 0) {
+    if (!allEvents || allEvents.length === 0) {
       return { liveEvents: [], upcomingEvents: [], pastEvents: [], heroEvent: null };
     }
 
@@ -83,13 +100,16 @@ export function HomePageClient() {
     categorized.live.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+    const boostedUpcoming = categorized.upcoming.filter(e => e.isBoosted);
+    const nonBoostedUpcoming = categorized.upcoming.filter(e => !e.isBoosted);
+
     return {
         liveEvents: categorized.live,
-        upcomingEvents: categorized.upcoming,
+        upcomingEvents: [...boostedUpcoming, ...nonBoostedUpcoming],
         pastEvents: categorized.past,
-        heroEvent: categorized.live[0] || categorized.upcoming[0] || categorized.past[0] || null
+        heroEvent: categorized.live[0] || boostedUpcoming[0] || nonBoostedUpcoming[0] || categorized.past[0] || null
     };
-  }, [allEvents, loading]);
+  }, [allEvents]);
   
   const renderMockCategories = () => {
     const categories = [
@@ -101,12 +121,13 @@ export function HomePageClient() {
     ]
     return (
         <div className="space-y-8">
-            <div className="text-center pt-8">
-                <Button asChild size="lg">
+            <div className="text-center">
+                 <h2 className="text-3xl font-bold tracking-tight">The stage is quiet for now...</h2>
+                 <p className="text-muted-foreground mt-2">But here are the kinds of events you can host or watch on CloudStage.</p>
+                <Button asChild size="lg" className="mt-6">
                     <Link href="/artist/register">Become an Artist <ArrowRight className="ml-2 h-5 w-5"/></Link>
                 </Button>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-center">Discover Events Across All Categories</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map(cat => (
                     <Card key={cat.name} className="overflow-hidden group">
@@ -160,7 +181,7 @@ export function HomePageClient() {
                 alt={heroEvent?.title || "Live entertainment stage"} 
                 fill 
                 className="object-cover z-0 brightness-50" 
-                data-ai-hint="concert crowd"
+                data-ai-hint={heroEvent ? getEventHint(heroEvent.category) : 'concert crowd'}
                 priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
@@ -186,7 +207,7 @@ export function HomePageClient() {
             </div>
         </div>
 
-      {allEvents.length === 0 ? (
+      {!allEvents || allEvents.length === 0 ? (
           renderMockCategories()
       ) : (
           <div className="space-y-16">

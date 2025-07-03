@@ -17,6 +17,27 @@ type EventCardProps = {
   event: Event;
 };
 
+const getEventHint = (category: Event['category']): string => {
+    switch (category) {
+        case 'Music':
+            return 'concert stage';
+        case 'Stand-up Comedy':
+            return 'comedy club';
+        case 'Meditation / Yoga':
+            return 'yoga meditation';
+        case 'Magic Show':
+            return 'magician stage';
+        case 'Talk':
+            return 'panel discussion';
+        case 'Devotional / Bhajan / Satsang':
+            return 'devotional music';
+        case 'Workshop':
+            return 'workshop class';
+        default:
+            return 'live event';
+    }
+};
+
 export function EventCard({ event }: EventCardProps) {
   const getAction = () => {
     switch (event.status) {
@@ -53,7 +74,7 @@ export function EventCard({ event }: EventCardProps) {
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
-            data-ai-hint="concert crowd"
+            data-ai-hint={getEventHint(event.category)}
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
            <div className="absolute top-2 right-2 flex gap-2">
