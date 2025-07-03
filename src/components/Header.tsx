@@ -10,8 +10,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film } from "lucide-react";
+import { Menu, Ticket, Film, ArrowRight } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -29,7 +30,7 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/60 backdrop-blur-xl">
       <div className="container flex h-16 items-center">
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex">
@@ -66,7 +67,7 @@ export function Header() {
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left">
+              <SheetContent side="left" className="border-r-border/50 bg-background/80 backdrop-blur-xl">
                 <SheetHeader>
                   <SheetTitle>
                     <Link
@@ -116,7 +117,7 @@ export function Header() {
           <div className="hidden md:flex">
             <nav className="flex items-center">
                 <Button asChild>
-                    <Link href="/artist/register">Get Started</Link>
+                    <Link href="/artist/register">Get Started <ArrowRight className="ml-2"/> </Link>
                 </Button>
             </nav>
           </div>

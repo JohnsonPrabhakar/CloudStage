@@ -25,11 +25,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#800000" />
+        <meta name="theme-color" content="#1a0000" />
       </head>
       <body
         className={cn(
-          "min-h-screen bg-background font-body antialiased",
+          "min-h-screen font-body antialiased",
         )}
       >
         <div className="relative flex min-h-screen flex-col">

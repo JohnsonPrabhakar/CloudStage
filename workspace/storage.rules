@@ -1,32 +1,22 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // --- Public Read Access ---
-    // All files are publicly readable so they can be displayed in the app.
+    // Allow public read for all files
     match /{allPaths=**} {
       allow read;
     }
 
-    // --- Artist Profile Pictures ---
-    // An artist can only upload/update their own profile picture.
-    match /artists/{artistId}/profile.jpg {
+    // Secure artist-specific uploads
+    match /artists/{artistId}/{allPaths=**} {
+      // Only the authenticated user whose UID matches the {artistId} can write.
       allow write: if request.auth != null && request.auth.uid == artistId;
     }
-
-    // --- Event Banners ---
-    // An artist can only create/update banners for events under their own ID.
-    // This rule avoids reading from Firestore, preventing the hanging issue.
-    match /artists/{artistId}/events/{eventId}/banner.jpg {
-      allow write: if request.auth != null && request.auth.uid == artistId;
-    }
-
-    // --- Movies ---
-    // Only the authenticated admin user can upload movie files and posters.
-    match /movies/{movieId}/{fileName} {
-      allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    
+    // Secure movie uploads for admin
+    match /movies/{movieId}/{allPaths=**} {
+        allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
   }
 }

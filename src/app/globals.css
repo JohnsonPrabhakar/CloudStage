@@ -4,61 +4,51 @@
 
 body {
   font-family: 'Roboto', sans-serif;
+  background-color: hsl(var(--background-end));
+  background-image: radial-gradient(ellipse at 50% 0%, hsl(var(--background-start)), hsl(var(--background-end)) 70%);
+  background-attachment: fixed;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 98%; /* Light Grey */
-    --foreground: 0 0% 9%; /* Dark Grey for Text */
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 0 72% 30%; /* Maroon */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 72% 30%; /* Maroon */
-    --chart-1: 0 72% 30%;
-    --chart-2: 0 63% 42%;
-    --chart-3: 0 59% 52%;
-    --chart-4: 0 58% 65%;
-    --chart-5: 0 54% 75%;
-    --radius: 0.5rem;
-  }
-  .dark {
-    --background: 0 0% 12%;
+    --background-start: 350 100% 15%; /* Spotlight color */
+    --background-end: 350 100% 5%; /* Dark background color */
+    
+    --background: 350 100% 5%; /* For components that need a solid bg */
     --foreground: 0 0% 98%;
-    --card: 0 0% 15%;
+
+    --card: 0 0% 100% / 0.05;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 12%;
+
+    --popover: 350 100% 5%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 100% 25%;
+
+    --primary: 347 89% 46%; /* Brighter Maroon/Red */
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 50%;
+
+    --secondary: 0 0% 100% / 0.1;
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 25%;
+    
+    --muted: 0 0% 100% / 0.1;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 100% / 0.1;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 0 100% 25%;
-    --chart-1: 0 100% 25%;
-    --chart-2: 0 0% 50%;
-    --chart-3: 0 0% 74.1%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+
+    --border: 0 0% 100% / 0.1;
+    --input: 0 0% 100% / 0.1;
+    --ring: 347 89% 46%;
+    
+    --chart-1: 347 89% 46%;
+    --chart-2: 347 70% 56%;
+    --chart-3: 347 90% 66%;
+    --chart-4: 347 80% 76%;
+    --chart-5: 347 95% 86%;
+
+    --radius: 0.5rem;
   }
 }
 
@@ -68,6 +58,20 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .glowing-border {
+    @apply border border-transparent;
+    background:
+      linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+      linear-gradient(145deg, hsl(var(--primary) / 0.5), hsl(var(--background-start) / 0.5)) border-box;
+  }
+  .glowing-border-hover:hover {
+     background:
+      linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+      linear-gradient(145deg, hsl(var(--primary)), hsl(var(--background-start))) border-box;
   }
 }
 

@@ -44,26 +44,27 @@ export function EventCard({ event }: EventCardProps) {
   const action = getAction();
 
   return (
-    <Card className="flex flex-col overflow-hidden h-full transition-all hover:shadow-xl hover:-translate-y-1">
-      <Link href={`/events/${event.id}`} className="block group">
+    <Card className="flex flex-col overflow-hidden h-full group">
+      <Link href={`/events/${event.id}`} className="block overflow-hidden rounded-t-lg">
         <div className="relative h-48 w-full">
           <Image
             src={event.bannerUrl}
             alt={event.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
             data-ai-hint="concert crowd"
           />
+           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
            <div className="absolute top-2 right-2 flex gap-2">
             {event.isBoosted && (
-                <Badge className="bg-amber-500 text-white">
+                <Badge className="bg-amber-500 text-white shadow-md">
                     <Sparkles className="mr-1 h-3 w-3" />
                     Boosted
                 </Badge>
             )}
             <Badge
-                className="capitalize"
+                className="capitalize shadow-md"
                 variant={event.status === "live" ? "destructive" : "secondary"}
             >
                 {event.status}
@@ -74,7 +75,7 @@ export function EventCard({ event }: EventCardProps) {
       <CardHeader className="flex-grow">
         <Badge variant="outline" className="w-fit mb-2">{event.category}</Badge>
         <Link href={`/events/${event.id}`} className="block">
-          <CardTitle className="text-xl hover:text-primary transition-colors">
+          <CardTitle className="text-xl group-hover:text-primary transition-colors">
             {event.title}
           </CardTitle>
         </Link>
