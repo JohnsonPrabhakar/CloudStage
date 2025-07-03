@@ -49,12 +49,13 @@ export function HomePageClient() {
     const sortedEvents = [...allEvents].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     for (const event of sortedEvents) {
-      const eventDate = new Date(event.date);
       let finalStatus = event.status;
 
+      // Only re-calculate for non-past events to respect final DB status
       if (finalStatus !== 'past') {
-          if (eventDate <= now) {
-              finalStatus = eventDate >= liveThreshold ? 'live' : 'past';
+          if (new Date(event.date) <= now) {
+              // If event start time is in the past
+              finalStatus = new Date(event.date) >= liveThreshold ? 'live' : 'past';
           }
       }
       
@@ -69,6 +70,7 @@ export function HomePageClient() {
       }
     }
     
+    // Sort upcoming events from soonest to latest
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     setLiveEvents(categorized.live);
@@ -76,22 +78,6 @@ export function HomePageClient() {
     setPastEvents(categorized.past);
 
   }, [allEvents, loading]);
-  
-  const renderEventGrid = (events: Event[], title: string) => {
-    if (events.length === 0) {
-      return null;
-    }
-    return (
-      <section className="py-8 md:py-12">
-        <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">{title}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      </section>
-    );
-  };
   
   const heroEvent = upcomingEvents[0] || liveEvents[0] || allEvents[0];
 
@@ -117,11 +103,17 @@ export function HomePageClient() {
   if (allEvents.length === 0) {
     return (
       <div className="container mx-auto p-4 md:p-8">
-        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg shadow-lg glowing-border">
+        <div className="text-center py-24 text-foreground bg-card/50 rounded-lg shadow-lg glowing-border flex flex-col items-center">
           <PartyPopper className="mx-auto h-16 w-16 text-primary mb-4" />
-          <h2 className="text-3xl font-bold text-foreground">The Stage is Quiet... For Now</h2>
-          <p className="mt-2 text-lg">There are no events scheduled at the moment.</p>
-          <p>Please check back later for new and exciting shows!</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">The Stage is Yours!</h1>
+          <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
+            Watch live music shows, comedy, magic, yoga, and more, or become an artist and create your own events.
+          </p>
+          <Button asChild size="lg" className="mt-8">
+            <Link href="/artist/register">
+              Become an Artist <ArrowRight className="ml-2 h-5 w-5"/>
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -155,9 +147,52 @@ export function HomePageClient() {
             </div>
         )}
 
-      {renderEventGrid(liveEvents, "Happening Now 🔴")}
-      {renderEventGrid(upcomingEvents, "Coming Soon ✨")}
-      {renderEventGrid(pastEvents, "Catch Up On Past Shows 🎬")}
+      <div className="space-y-16">
+        <section>
+          <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Happening Now 🔴</h2>
+          {liveEvents.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {liveEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+              <p>No events are live right now. Check out what's coming soon!</p>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Coming Soon ✨</h2>
+          {upcomingEvents.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {upcomingEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+              <p>You're early! Check back soon for new performances.</p>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Catch Up On Past Shows 🎬</h2>
+          {pastEvents.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {pastEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+              <p>Once events are over, their recordings will appear here.</p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
