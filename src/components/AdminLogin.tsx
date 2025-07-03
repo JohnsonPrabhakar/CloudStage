@@ -19,8 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { FirebaseError } from "firebase/app";
+import { doc, setDoc } from "firebase/firestore";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email."),
@@ -47,6 +48,10 @@ export default function AdminLogin() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       
       if (userCredential.user.email === "admin@cloudstage.in") {
+        // Set the admin role in Firestore for security rule checking
+        const adminDocRef = doc(db, 'admins', userCredential.user.uid);
+        await setDoc(adminDocRef, { isAdmin: true }, { merge: true });
+
         toast({
           title: "Login Successful",
           description: "Redirecting to admin dashboard...",

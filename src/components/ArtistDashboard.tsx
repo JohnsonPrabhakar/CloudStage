@@ -52,6 +52,7 @@ export default function ArtistDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchArtistData = useCallback(async (user: User) => {
+    setLoading(true);
     setError(null);
     try {
       const profile = await getArtistProfile(user.uid);
@@ -68,7 +69,6 @@ export default function ArtistDashboard() {
         router.push('/artist/register');
       }
     } catch (err) {
-      console.error("Failed to fetch artist data:", err);
       if (err instanceof FirebaseError && (err.code === 'permission-denied' || err.code === 'unauthenticated')) {
         setError("Permissions Error: Your account doesn't have access to this data. Please try logging in again or contact support.");
       } else {
@@ -120,7 +120,7 @@ export default function ArtistDashboard() {
           url: url,
         });
       } catch (error) {
-        console.error("Error sharing:", error);
+        // User cancelled share, do nothing.
       }
     } else {
       handleCopyLink(event.id);
