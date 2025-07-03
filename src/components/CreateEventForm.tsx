@@ -30,7 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event, type EventCategory, type Artist } from "@/lib/types";
-import { Sparkles, Upload, ChevronLeft, Info } from "lucide-react";
+import { Sparkles, Upload, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { addEvent, getArtistProfile, getEventById } from "@/lib/firebase-service";
@@ -74,6 +74,7 @@ export default function CreateEventForm() {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
@@ -208,28 +209,29 @@ export default function CreateEventForm() {
         return;
     }
 
-    const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'> = {
-      title: values.title,
-      artist: artist.name,
-      artistId: artist.id,
-      description: values.description,
-      category: values.category as EventCategory,
-      genre: values.genre,
-      language: values.language,
-      date: new Date(values.date).toISOString(),
-      status: new Date(values.date) > new Date() ? "upcoming" : "past",
-      streamUrl: values.streamUrl,
-      ticketPrice: values.ticketPrice,
-      isBoosted: values.boost ?? false,
-      boostAmount: values.boost ? 100 : 0,
-      views: 0,
-      watchTime: 0,
-      ticketsSold: 0,
-    };
-    
-    const bannerFile = values.banner?.[0];
-
+    setIsSubmitting(true);
     try {
+        const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'> = {
+          title: values.title,
+          artist: artist.name,
+          artistId: artist.id,
+          description: values.description,
+          category: values.category as EventCategory,
+          genre: values.genre,
+          language: values.language,
+          date: new Date(values.date).toISOString(),
+          status: new Date(values.date) > new Date() ? "upcoming" : "past",
+          streamUrl: values.streamUrl,
+          ticketPrice: values.ticketPrice,
+          isBoosted: values.boost ?? false,
+          boostAmount: values.boost ? 100 : 0,
+          views: 0,
+          watchTime: 0,
+          ticketsSold: 0,
+        };
+        
+        const bannerFile = values.banner?.[0];
+
         await addEvent(eventData, bannerFile);
         toast({
             title: "Event Submitted!",
@@ -242,6 +244,8 @@ export default function CreateEventForm() {
             description: "There was an error submitting your event. Please try again.",
             variant: "destructive",
         });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -489,8 +493,15 @@ export default function CreateEventForm() {
                 </CardContent>
               </Card>
 
-              <Button type="submit" size="lg" className="w-full md:w-auto" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Submitting..." : "Submit for Approval"}
+              <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting || !artist}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit for Approval"
+                )}
               </Button>
             </form>
           </Form>
