@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -186,7 +187,7 @@ export default function EventPlayer({ event }: { event: Event }) {
              <iframe
                 width="100%"
                 height="100%"
-                src={`${event.streamUrl}?autoplay=1`}
+                src={`${event.streamUrl.includes('?') ? event.streamUrl + '&' : event.streamUrl + '?'}autoplay=1`}
                 title="YouTube video player"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
