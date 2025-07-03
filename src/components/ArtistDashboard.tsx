@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -51,8 +51,7 @@ export default function ArtistDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchArtistData = async (user: User) => {
-    setLoading(true);
+  const fetchArtistData = useCallback(async (user: User) => {
     setError(null);
     try {
       const profile = await getArtistProfile(user.uid);
@@ -65,11 +64,8 @@ export default function ArtistDashboard() {
           router.push('/artist/pending');
         }
       } else {
-        // If a user is authenticated but has no artist profile, they are not an artist.
-        // Sign them out and redirect to the artist login page.
-        await signOut(auth);
-        toast({ variant: 'destructive', title: 'Access Denied', description: 'You must be logged in with an approved artist account.' });
-        router.push('/artist/login');
+        toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
+        router.push('/artist/register');
       }
     } catch (err) {
       console.error("Failed to fetch artist data:", err);
@@ -81,21 +77,20 @@ export default function ArtistDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router, toast]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchArtistData(user);
       } else {
-        router.push('/artist/login');
         setLoading(false);
+        router.push('/artist/login');
       }
     });
 
     return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, toast]);
+  }, [fetchArtistData, router]);
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
