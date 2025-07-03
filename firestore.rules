@@ -4,86 +4,72 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helper Functions ---
-    function isAuth() {
-      return request.auth != null;
-    }
-    
+    // Helper function to check for admin role based on email.
+    // This is the single source of truth for admin privileges.
     function isAdmin() {
-      // The single source of truth for admin role is the email address in the auth token.
-      return isAuth() && request.auth.token.email == 'admin@cloudstage.in';
-    }
-
-    function isOwner(uid) {
-      return isAuth() && request.auth.uid == uid;
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
     
-    // --- Collection Rules ---
+    // Helper function to check if the user is the owner of a document.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
 
-    // Artists collection: profiles of performers.
+    // Artists collection: Defines who can read, write, and manage artist profiles.
     match /artists/{artistId} {
-      // Anyone can view an artist's profile.
+      // ANYONE can view a single artist profile (e.g., for artist profile pages).
       allow get: if true;
-      // Only an admin can query the list of artists (e.g., for the approval dashboard).
+      // ONLY an admin can query the list of all artists (for the admin dashboard).
       allow list: if isAdmin();
-      // A user can create their own artist profile.
+      // A user can create their OWN artist profile upon registration.
       allow create: if isOwner(artistId);
       // An artist can update their own profile, or an admin can update any profile.
       allow update: if isOwner(artistId) || isAdmin();
-      // Only an admin can delete an artist profile.
+      // ONLY an admin can delete an artist profile.
       allow delete: if isAdmin();
     }
 
-    // Admins collection: used to mark users as administrators.
-    match /admins/{adminId} {
-        // Only an admin can read or create documents here. 
-        // This is primarily for a fallback creation on first login.
-        allow get, create: if isOwner(adminId) && isAdmin();
-    }
-
-    // Events collection: all performances on the platform.
+    // Events collection: Defines access control for creating and viewing events.
     match /events/{eventId} {
-      // Read is allowed if the event is approved (public), or if the user is an admin,
-      // or if the user is the artist who created the event.
-      allow get: if resource.data.moderationStatus == 'approved' || isAdmin() || (isAuth() && request.auth.uid == resource.data.artistId);
-      // Listing events has stricter rules.
-      allow list: if isAdmin() || resource.data.moderationStatus == 'approved';
-
+      // ANYONE can view a single approved event.
+      allow get: if resource.data.moderationStatus == 'approved';
+      // ONLY admins or the event's creator can query/view events that are not yet approved.
+      allow list: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.artistId);
+      
       // An authenticated artist can create an event for themselves.
-      allow create: if isAuth() && request.auth.uid == request.resource.data.artistId;
-      // An artist can update their own event, or an admin can.
-      allow update: if (isAuth() && request.auth.uid == resource.data.artistId) || isAdmin();
-      // Only an admin can delete an event.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.artistId;
+      // An artist can update their own event, or an admin can update any event.
+      allow update: if (request.auth != null && request.auth.uid == resource.data.artistId) || isAdmin();
+      // ONLY an admin can delete an event.
       allow delete: if isAdmin();
     }
 
-    // Movies collection: for on-demand video content.
+    // Movies collection: Only admins have write access.
     match /movies/{movieId} {
       // Anyone can view or list movies.
       allow get, list: if true;
-      // Only an admin can create, update, or delete movies.
+      // ONLY an admin can create, update, or delete movies.
       allow write: if isAdmin();
     }
 
-    // Tickets collection: user-purchased tickets for events.
+    // Tickets collection: Users can create their own tickets but cannot tamper with others'.
     match /tickets/{ticketId} {
-      // A user can read their own tickets. An admin can read any ticket.
-      allow get, list: if isAuth() && (isOwner(resource.data.userId) || isAdmin());
-      // A user can create a ticket for themselves.
-      allow create: if isAuth() && isOwner(request.resource.data.userId);
+      // A user can read their OWN tickets. An admin can read ALL tickets.
+      allow get, list: if isOwner(resource.data.userId) || isAdmin();
       
-      // Tickets are immutable by clients once created.
+      // An authenticated user can create a ticket for themselves.
+      allow create: if isOwner(request.resource.data.userId);
+      
+      // Tickets cannot be updated or deleted by anyone to ensure integrity.
       allow update, delete: if false;
     }
     
-    // Config collection: for global site settings like maintenance mode.
+    // Config collection for site-wide settings like maintenance mode.
     match /config/{docId} {
-      // Anyone can read the site configuration.
+      // Anyone can read the site configuration (e.g., to see if bookings are offline).
       allow get: if true;
-      // Only an admin can change the site configuration.
+      // ONLY an admin can change the site configuration.
       allow write: if isAdmin();
     }
   }
 }
-
-    

@@ -112,7 +112,7 @@ export default function AdminDashboard() {
         setCurrentUser(user);
         refreshData();
       } else {
-        router.push("/admin");
+        router.push("/admin/login");
       }
     });
     return () => unsubscribe();
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
     await signOut(auth);
     toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-    router.push("/admin");
+    router.push("/admin/login");
   };
 
   const handleStatusToggle = async (isOnline: boolean) => {
@@ -470,5 +470,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    

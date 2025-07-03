@@ -4,41 +4,40 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // --- Helper Functions ---
-    function isAuth() {
-      return request.auth != null;
-    }
-
+    // Helper function to check for admin role based on email.
     function isAdmin() {
-      // The single source of truth for admin role is the email address in the auth token.
-      return isAuth() && request.auth.token.email == 'admin@cloudstage.in';
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
-
-    // --- File Access Rules ---
-
-    // By default, allow public read access on all files. This is necessary for
-    // users to see images and watch videos. Write access is restricted below.
-    match /{allPaths=**} {
-      allow get: if true;
-    }
-
-    // --- Secure Write Rules ---
     
-    // Artists can only write a profile picture to their own designated folder.
+    // Helper function to check if the user is the owner.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Artist Profile Pictures: `artists/{artistId}/profile.jpg`
+    // An artist can only upload/delete a profile picture for their own profile.
     match /artists/{artistId}/profile.jpg {
-      allow write: if isAuth() && request.auth.uid == artistId;
+      allow read: if true; // Profile pictures are public.
+      allow write: if isOwner(artistId); // Only the artist can create/update/delete their picture.
     }
     
-    // Artists can only write banners to events associated with their own artistId.
+    // Event Banners: `artists/{artistId}/events/{eventId}/banner.jpg`
+    // An artist can upload a banner for an event they are creating.
     match /artists/{artistId}/events/{eventId}/banner.jpg {
-       allow write: if isAuth() && request.auth.uid == artistId;
+        allow read: if true; // Banners are public.
+        allow write: if isOwner(artistId); // Only the artist can manage their event banners.
     }
 
-    // Only admins can upload movie files and posters to the movies folder.
-    match /movies/{movieId}/{allPaths=**} {
-        allow write: if isAdmin();
+    // Movie Files: `movies/{movieId}/{fileName}`
+    // Only admins can upload movie files and posters.
+    match /movies/{movieId}/{fileName} {
+      allow read: if true; // Movie files and posters are public for streaming.
+      allow write: if isAdmin(); // Only admins can create/update/delete movie assets.
+    }
+
+    // Deny any other paths by default for security.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }
-
-    

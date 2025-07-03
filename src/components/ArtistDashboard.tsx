@@ -56,7 +56,6 @@ export default function ArtistDashboard() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch profile and events in parallel for faster loading
       const [profile, events] = await Promise.all([
         getArtistProfile(user.uid),
         getArtistEvents(user.uid)
@@ -75,8 +74,8 @@ export default function ArtistDashboard() {
       }
     } catch (err) {
       console.error("Dashboard loading error:", err);
-      if (err instanceof FirebaseError) {
-        setError(`Error: ${err.message}. Please check your connection and security rules.`);
+      if (err instanceof FirebaseError && (err.code.includes('permission-denied') || err.code.includes('unauthenticated'))) {
+         setError("Could not load your dashboard. You may not have the required permissions. Please try logging in again.");
       } else {
         setError("Could not load your dashboard. Please check your internet connection and try again.");
       }
@@ -166,8 +165,6 @@ export default function ArtistDashboard() {
   }
 
   if (!artist) {
-    // This state is hit after loading/auth checks, but before a redirect completes.
-    // Showing the loader provides a consistent experience.
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -294,5 +291,3 @@ export default function ArtistDashboard() {
     </div>
   );
 }
-
-    

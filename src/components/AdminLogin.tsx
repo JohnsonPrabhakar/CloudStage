@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { FirebaseError } from "firebase/app";
 import { doc, setDoc, getDoc } from "firebase/firestore";
@@ -44,8 +44,6 @@ export default function AdminLogin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
 
-    // The security rules use the admin email, so we must check it on the client
-    // before attempting any Firestore operations that require admin privileges.
     if (values.email !== "admin@cloudstage.in") {
         toast({
             variant: "destructive",
@@ -57,15 +55,8 @@ export default function AdminLogin() {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const adminDocRef = doc(db, 'admins', userCredential.user.uid);
-      
-      // As a fallback, create the admin document if it doesn't exist.
-      // This is allowed by the security rule: `allow create: if isAdmin();`
-      const adminDoc = await getDoc(adminDocRef);
-      if (!adminDoc.exists()) {
-        await setDoc(adminDocRef, { role: "admin", createdAt: new Date() });
-      }
+      // The security rules are based on the email, so we just need to sign in.
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       
       toast({
         title: "Login Successful",
@@ -146,5 +137,3 @@ export default function AdminLogin() {
     </div>
   );
 }
-
-    
