@@ -1,27 +1,27 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
     
     function isAdmin() {
-      return request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true;
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
 
-    // Artist Profile Pictures
-    match /artists/{artistId}/profile.jpg {
-      allow read: if true;
-      allow write: if request.auth.uid == artistId || isAdmin();
-    }
-
-    // Event Banners
-    match /artists/{artistId}/events/{eventId}/banner.jpg {
-      allow read: if true;
-      allow write: if request.auth.uid == artistId || isAdmin();
+    // Allow public read for all files. This is needed for images and videos to be displayed in the app.
+    match /{allPaths=**} {
+      allow get: if true;
     }
     
-    // Movie files and posters
-    match /movies/{movieId}/{fileName} {
-      allow read: if true;
+    // Artist-specific files (profile picture, event banners)
+    match /artists/{artistId}/{path=**} {
+      // Only the artist themselves can write to their own folder.
+      allow write: if request.auth != null && request.auth.uid == artistId;
+    }
+
+    // Movie files (videos, posters)
+    match /movies/{movieId}/{path=**} {
+      // Only admins can write movie files.
       allow write: if isAdmin();
     }
   }

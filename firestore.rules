@@ -1,46 +1,74 @@
-{
-  "rules": {
-    "admins": {
-      "$uid": {
-        "allow read, write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
-      }
-    },
-    "artists": {
-      "$artistId": {
-        "allow get": "true",
-        "allow list": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true",
-        "allow create": "request.auth != null && request.auth.uid == $artistId",
-        "allow update": "request.auth != null && (request.auth.uid == $artistId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
-        "allow delete": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
-      }
-    },
-    "events": {
-      "$eventId": {
-        "allow get": "resource.data.moderationStatus == 'approved' || (request.auth != null && (get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true || request.auth.uid == resource.data.artistId))",
-        "allow list": "(request.query.where.moderationStatus is string && request.query.where.moderationStatus == 'approved') || (request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true) || (request.auth != null && request.query.where.artistId is string && request.query.where.artistId == request.auth.uid)",
-        "allow create": "request.auth != null && request.resource.data.artistId == request.auth.uid",
-        "allow update": "request.auth != null && (request.auth.uid == resource.data.artistId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
-        "allow delete": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
-      }
-    },
-    "movies": {
-      "$movieId": {
-        "allow read": "true",
-        "allow write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
-      }
-    },
-    "tickets": {
-      "$ticketId": {
-        "allow create": "request.auth != null && request.resource.data.userId == request.auth.uid",
-        "allow read": "request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
-        "allow list": "request.auth != null && ( (request.query.where.userId is string && request.query.where.userId == request.auth.uid) || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true )"
-      }
-    },
-    "config": {
-      "$configId": {
-        "allow read": "true",
-        "allow write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
-      }
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAdmin() {
+      // Check if the user is authenticated and has the admin email.
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    }
+
+    // Artists collection
+    match /artists/{artistId} {
+      // Any user can view an artist's profile.
+      allow get: if true;
+      // Only admins can list all artists (for pending approvals and counts).
+      allow list: if isAdmin();
+      // An artist can create their own profile.
+      allow create: if request.auth.uid == artistId;
+      // An artist can update their own profile, or an admin can update it.
+      allow update: if (request.auth.uid == artistId) || isAdmin();
+      // Only an admin can delete an artist profile.
+      allow delete: if isAdmin();
+    }
+
+    // Events collection
+    match /events/{eventId} {
+      // An event can be read (get/list) if it's approved, OR if the reader is the admin, 
+      // OR if the reader is the artist who owns it.
+      allow read: if resource.data.moderationStatus == 'approved' 
+                  || isAdmin() 
+                  || (request.auth != null && request.auth.uid == resource.data.artistId);
+      
+      // An authenticated artist can create an event.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.artistId;
+      // An artist can update their own event, or an admin can.
+      allow update: if (request.auth != null && request.auth.uid == resource.data.artistId) || isAdmin();
+      // Only an admin can delete an event.
+      allow delete: if isAdmin();
+    }
+
+    // Movies collection
+    match /movies/{movieId} {
+      // Anyone can view or list movies.
+      allow get, list: if true;
+      // Only an admin can create, update, or delete movies.
+      allow write: if isAdmin();
+    }
+
+    // Tickets collection
+    match /tickets/{ticketId} {
+      // A ticket can be read (get/list) if the reader is the admin OR if the reader is the user who owns it.
+      allow read: if request.auth != null && (isAdmin() || request.auth.uid == resource.data.userId);
+      
+      // An authenticated user can create a ticket for themselves.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      // Tickets cannot be changed or deleted by users.
+      allow update, delete: if false;
+    }
+    
+    // Config collection for site status
+    match /config/{docId} {
+      // Anyone can read the site configuration.
+      allow get: if true;
+      // Only an admin can change the site configuration.
+      allow write: if isAdmin();
+    }
+    
+    // Admins collection to verify admin status
+    match /admins/{userId} {
+      allow read: if isAdmin();
     }
   }
 }
