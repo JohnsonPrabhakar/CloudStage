@@ -62,12 +62,12 @@ export default function ArtistDashboard() {
             setArtist(profile);
             setMyEvents(events);
         } else {
-            // This case handles if somehow an unapproved user lands here.
-            router.push('/artist/pending');
+            // If profile is gone or un-approved somehow, re-route.
+            router.push('/artist/login');
         }
       } catch (err) {
-        console.error("Dashboard loading error:", err);
-        setError("Could not load your dashboard. Please check your internet connection and try again.");
+        console.error("Dashboard refresh error:", err);
+        setError("Could not refresh your dashboard. Please check your internet connection and try again.");
       } finally {
         setLoading(false);
       }
@@ -76,46 +76,54 @@ export default function ArtistDashboard() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is authenticated, now verify their artist profile.
-        setLoading(true);
-        setError(null);
-        try {
-          const profile = await getArtistProfile(user.uid);
-
-          if (profile) {
-            if (profile.isApproved) {
-              // Profile exists and is approved, fetch events and render dashboard.
-              const events = await getArtistEvents(user.uid);
-              setArtist(profile);
-              setMyEvents(events);
-            } else {
-              // Profile exists but is not approved.
-              router.push('/artist/pending');
-            }
-          } else {
-            // No artist profile found for this authenticated user.
-            toast({
-              variant: 'destructive',
-              title: 'Artist Profile Not Found',
-              description: 'Please complete your artist registration to access the dashboard.'
-            });
-            router.push('/artist/register');
-          }
-        } catch (err) {
-          console.error("Dashboard verification error:", err);
-          setError("Could not verify your artist profile. Please check your internet connection and try again.");
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        // No user is logged in, redirect to login page.
+      if (!user) {
+        // If no user is logged in, they must go to the login page.
         router.push('/artist/login');
+        return;
+      }
+
+      // If a user is logged in, we must verify their artist profile.
+      setLoading(true);
+      setError(null);
+
+      try {
+        const profile = await getArtistProfile(user.uid);
+
+        if (!profile) {
+          // A user is authenticated but has no artist profile document.
+          toast({
+            title: "Artist Profile Not Found",
+            description: "Please complete your artist registration to access the dashboard.",
+            variant: "destructive"
+          });
+          router.push('/artist/register');
+          return;
+        }
+
+        if (!profile.isApproved) {
+          // The artist profile exists but has not been approved by an admin yet.
+          router.push('/artist/pending');
+          return;
+        }
+
+        // If we reach here, the user is a valid, approved artist.
+        // We can now safely fetch their dashboard data.
+        const events = await getArtistEvents(user.uid);
+        setArtist(profile);
+        setMyEvents(events);
+
+      } catch (err) {
+        console.error("Dashboard verification error:", err);
+        setError("Could not load your dashboard. Please check your internet connection and try again.");
+      } finally {
+        setLoading(false);
       }
     });
 
     return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, toast]);
+
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
@@ -182,8 +190,8 @@ export default function ArtistDashboard() {
   }
 
   if (!artist) {
-    // This state should ideally not be reached because of the redirects,
-    // but it's a good fallback.
+    // This state should ideally not be reached due to the redirects in useEffect,
+    // but it serves as a safe fallback.
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <h2 className="text-2xl font-semibold">Redirecting...</h2>
