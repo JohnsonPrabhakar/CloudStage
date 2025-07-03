@@ -169,19 +169,25 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const now = new Date();
   // Fetch events from the last 2 hours onwards.
-  // This captures ongoing live events and all future upcoming events,
-  // preventing the download of the entire past events collection.
   const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
+  // This query avoids the composite index by filtering only on the date range
+  // and ordering by that same field. We will filter by status on the client.
   const q = query(
     eventsCollection,
-    where('moderationStatus', '==', 'approved'),
     where('date', '>=', twoHoursAgo.toISOString()),
-    orderBy('date', 'asc') // Sort ascending to get soonest events
+    orderBy('date', 'asc'),
+    limit(100) // Fetch a larger batch to filter from
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
+  const allRecentEvents = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+
+  // Now, filter for 'approved' events on the client-side
+  const approvedEvents = allRecentEvents.filter(event => event.moderationStatus === 'approved');
+
+  // Return up to 20 of the approved events.
+  return approvedEvents.slice(0, 20);
 };
 
 export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
