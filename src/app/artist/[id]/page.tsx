@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getArtistProfile, getArtistEvents } from "@/lib/firebase-service";
+import { getArtistProfile, getArtistEventsListener } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
 import {
   Youtube,
@@ -36,34 +36,46 @@ export default function ArtistProfilePage() {
       return;
     }
 
+    let eventsUnsubscribe: (() => void) | undefined;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [foundArtist, events] = await Promise.all([
-          getArtistProfile(artistId),
-          getArtistEvents(artistId),
-        ]);
-
+        const foundArtist = await getArtistProfile(artistId);
         setArtist(foundArtist || null);
 
         if (foundArtist) {
-          const approvedAndPastEvents = events.filter(
-            (e) =>
-              e.moderationStatus === "approved" &&
-              new Date(e.date) < new Date()
-          );
-          setArtistEvents(approvedAndPastEvents);
+          // Set up the listener for events
+          eventsUnsubscribe = getArtistEventsListener(artistId, (events) => {
+            const approvedAndPastEvents = events.filter(
+              (e) =>
+                e.moderationStatus === "approved" &&
+                new Date(e.date) < new Date()
+            );
+            setArtistEvents(approvedAndPastEvents);
+            setLoading(false); // Set loading to false once we have events
+          });
+        } else {
+            // Artist not found, stop loading
+            setArtist(null);
+            setLoading(false);
         }
       } catch (err) {
         console.error("Failed to fetch artist profile data:", err);
         setError("Could not load artist details. Please try again later.");
-      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
+
+    // Cleanup function to unsubscribe from the listener on component unmount
+    return () => {
+      if (eventsUnsubscribe) {
+        eventsUnsubscribe();
+      }
+    };
   }, [params.id]);
 
   if (loading) {
