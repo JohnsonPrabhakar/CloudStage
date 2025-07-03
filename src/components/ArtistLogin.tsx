@@ -45,11 +45,14 @@ export default function ArtistLogin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
+      // Step 1: Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      // Step 2: Fetch artist profile from Firestore
       const artistProfile = await getArtistProfile(user.uid);
 
+      // Step 3: Conditional routing based on profile
       if (artistProfile) {
         if (artistProfile.isApproved) {
           toast({
@@ -60,20 +63,18 @@ export default function ArtistLogin() {
         } else {
           toast({
             variant: "default",
-            title: "Account Pending",
-            description: "Your account is awaiting admin approval.",
+            title: "Account Pending Approval",
+            description: "Your artist profile is still under review. You will be redirected.",
           });
           router.push('/artist/pending');
         }
       } else {
-        // This is the "limbo" state. User is authenticated but has no profile.
-        // Guide them to the registration page to complete their profile.
+        // Profile does not exist, route to registration
         toast({
-            title: "Let's Complete Your Profile",
-            description: "We've found your account, but your artist profile is missing. Let's get that set up now.",
+            title: "Profile Not Found",
+            description: "We couldn't find an artist profile for this account. Please complete your registration.",
+            variant: "destructive"
         });
-        // Redirect to registration page. The user is kept logged in
-        // so the registration page can pick up their UID and email.
         router.push('/artist/register');
       }
 
@@ -87,13 +88,13 @@ export default function ArtistLogin() {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
-            description = "Invalid email or password. Please double-check your credentials or register if you're a new artist.";
+            description = "Invalid email or password. Please double-check your credentials.";
             break;
           case 'auth/network-request-failed':
-            description = "A network error occurred. Please check your internet connection.";
+            description = "A network error occurred. Please check your internet connection and try again.";
             break;
           default:
-            description = `An unexpected server error occurred. Please try again later.`;
+            description = `An unexpected server error occurred. Please try again later. (${error.code})`;
             break;
         }
       }

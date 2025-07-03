@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -46,59 +46,65 @@ import { FirebaseError } from "firebase/app";
 export default function ArtistDashboard() {
   const router = useRouter();
   const { toast } = useToast();
-  const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [artist, setArtist] = useState<Artist | null>(null);
+  const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const fetchArtistData = useCallback(async (user: User) => {
+  const verifyAndFetchData = async (user: User) => {
     setLoading(true);
     setError(null);
     try {
-      const [profile, events] = await Promise.all([
-        getArtistProfile(user.uid),
-        getArtistEvents(user.uid)
-      ]);
+      const profile = await getArtistProfile(user.uid);
 
       if (profile) {
         if (profile.isApproved) {
+          // Profile exists and is approved, fetch events and render dashboard.
+          const events = await getArtistEvents(user.uid);
           setArtist(profile);
           setMyEvents(events);
         } else {
+          // Profile exists but is not approved.
           router.push('/artist/pending');
         }
       } else {
-        toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist registration to access the dashboard.' });
+        // No artist profile found for this authenticated user.
+        toast({ 
+          variant: 'destructive', 
+          title: 'Artist Profile Not Found', 
+          description: 'Please complete your artist registration to access the dashboard.' 
+        });
         router.push('/artist/register');
       }
     } catch (err) {
       console.error("Dashboard loading error:", err);
-      if (err instanceof FirebaseError && (err.code.includes('permission-denied') || err.code.includes('unauthenticated'))) {
-         setError("Could not load your dashboard. You may not have the required permissions. Please try logging in again.");
+      if (err instanceof FirebaseError) {
+         setError("Could not load your dashboard. A database permission error occurred. Please try logging in again.");
       } else {
         setError("Could not load your dashboard. Please check your internet connection and try again.");
       }
     } finally {
       setLoading(false);
     }
-  }, [router, toast]);
+  };
     
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        fetchArtistData(user);
+        verifyAndFetchData(user);
       } else {
         setCurrentUser(null);
         setArtist(null);
-        setLoading(false);
+        setLoading(false); // Stop loading if no user
         router.push('/artist/login');
       }
     });
 
     return () => unsubscribe();
-  }, [fetchArtistData, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
@@ -157,7 +163,7 @@ export default function ArtistDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={() => currentUser && fetchArtistData(currentUser)}>
+        <Button onClick={() => currentUser && verifyAndFetchData(currentUser)}>
           Try Again
         </Button>
       </div>
@@ -165,6 +171,8 @@ export default function ArtistDashboard() {
   }
 
   if (!artist) {
+    // This state should ideally not be reached, as redirects handle it.
+    // It's a fallback UI.
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
