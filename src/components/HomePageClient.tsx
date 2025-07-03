@@ -202,16 +202,16 @@ export function HomePageClient() {
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg">
-                      <Link href="#upcoming-events">
-                          <Calendar className="mr-2 h-5 w-5"/>
-                          Explore Events
-                      </Link>
+                    <Link href="#live-events">
+                      <Radio className="mr-2 h-5 w-5" />
+                      Live Events
+                    </Link>
                   </Button>
                   <Button asChild size="lg" variant="secondary">
-                      <Link href="/artist/register">
-                          <ArrowRight className="mr-2 h-5 w-5"/>
-                          For Artists
-                      </Link>
+                    <Link href="#upcoming-events">
+                      <Calendar className="mr-2 h-5 w-5" />
+                      Upcoming Events
+                    </Link>
                   </Button>
                 </div>
             </div>
@@ -265,5 +265,3 @@ export function HomePageClient() {
     </div>
   );
 }
-
-    
