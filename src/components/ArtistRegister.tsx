@@ -98,34 +98,33 @@ export default function ArtistRegister() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
-
-    if (!currentUser && (!values.password || values.password.length < 8)) {
-        form.setError("password", { message: "Password is required and must be at least 8 characters." });
-        setLoading(false);
-        return;
-    }
-    
-    const profilePictureFile = values.profilePicture?.[0];
-
     try {
-        if (currentUser) {
-            await createArtistProfileForUser(currentUser.uid, values, profilePictureFile);
-            toast({
-                title: "Profile Completed!",
-                description: "Your profile is now pending admin approval.",
-            });
-            router.push("/artist/pending");
-        } else {
-            await registerArtist(values as Required<z.infer<typeof formSchema>>, profilePictureFile);
-            toast({
-                title: "Registration Submitted!",
-                description: "Your profile is now pending admin approval. You will be redirected to the login page.",
-            });
-            router.push("/artist/login");
-        }
+      // Handle password validation manually inside the try block
+      if (!currentUser && (!values.password || values.password.length < 8)) {
+        throw new Error("Password is required and must be at least 8 characters.");
+      }
+      
+      const profilePictureFile = values.profilePicture?.[0];
+
+      if (currentUser) {
+          await createArtistProfileForUser(currentUser.uid, values, profilePictureFile);
+          toast({
+              title: "Profile Completed!",
+              description: "Your profile is now pending admin approval.",
+          });
+          router.push("/artist/pending");
+      } else {
+          await registerArtist(values as Required<z.infer<typeof formSchema>>, profilePictureFile);
+          toast({
+              title: "Registration Submitted!",
+              description: "Your profile is now pending admin approval. You will be redirected to the login page.",
+          });
+          router.push("/artist/login");
+      }
     } catch (error) {
         console.error("Registration failed:", error);
         let description = "An unexpected error occurred. Please try again.";
+        let title = "Registration Failed";
 
         if (error instanceof FirebaseError) {
           switch (error.code) {
@@ -136,12 +135,20 @@ export default function ArtistRegister() {
                   message: "This email is already in use. Please log in.",
               });
               break;
+            default:
+              description = "An unexpected server error occurred. Please try again later.";
+              break;
           }
+        } else if (error instanceof Error && error.message.includes("Password")) {
+            // Handle our custom validation error
+            title = "Validation Error";
+            description = error.message;
+            form.setError("password", { message: description });
         }
         
         toast({
             variant: "destructive",
-            title: "Registration Failed",
+            title,
             description,
         });
     } finally {
