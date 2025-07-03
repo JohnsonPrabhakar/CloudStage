@@ -167,17 +167,23 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 };
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
-  // This query is designed to avoid composite indexes and permission errors.
-  // It fetches the 50 most recent events that are approved, which is a safe
-  // query for public access. The client will then categorize them.
+  // Query for all approved events.
+  // NOTE: This approach fetches all approved documents and sorts/limits on the client.
+  // This is done to avoid a composite index requirement on Firestore (moderationStatus + date)
+  // which was causing the app to crash. For large-scale applications, creating the
+  // recommended index in the Firebase Console would be the more performant solution.
   const q = query(
     eventsCollection,
-    where('moderationStatus', '==', 'approved'),
-    orderBy('date', 'desc'),
-    limit(50)
+    where('moderationStatus', '==', 'approved')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
+  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+
+  // Sort by date descending on the client
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  // Limit to the most recent 50 on the client
+  return events.slice(0, 50);
 };
 
 export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
