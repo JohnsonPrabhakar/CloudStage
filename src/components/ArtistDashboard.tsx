@@ -53,6 +53,7 @@ export default function ArtistDashboard() {
   
   const fetchDataForUser = useCallback(async (user: User) => {
     setError(null);
+    setLoading(true);
     try {
       const profile = await getArtistProfile(user.uid);
       if (profile) {
@@ -64,12 +65,13 @@ export default function ArtistDashboard() {
           router.push('/artist/pending');
         }
       } else {
+        // If user is logged in but has no artist profile, redirect to registration
         toast({
             variant: "destructive",
             title: "Artist Profile Not Found",
-            description: "We could not find an artist profile for your account. Please contact support.",
+            description: "Please complete your artist profile to continue.",
         });
-        router.push('/');
+        router.push('/artist/register');
       }
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
@@ -81,7 +83,6 @@ export default function ArtistDashboard() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setLoading(true);
       if (user) {
         setCurrentUser(user);
         fetchDataForUser(user);

@@ -69,12 +69,13 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
+        // This is the key fix: If auth is valid but profile is missing,
+        // route to registration to complete the profile.
         toast({
-            variant: "destructive",
-            title: "Profile Not Found",
-            description: "An artist profile for this account could not be found. Please contact support.",
+            title: "Profile Incomplete",
+            description: "Please complete your artist profile to continue.",
         });
-        router.push('/');
+        router.push('/artist/register');
       }
 
     } catch (error) {
@@ -145,6 +146,12 @@ export default function ArtistLogin() {
                     <Button type="submit" className="w-full" disabled={loading}>
                         {loading ? "Logging in..." : "Login"}
                     </Button>
+                    <CardDescription>
+                        Don&apos;t have an account?{" "}
+                        <Link href="/artist/register" className="text-primary hover:underline">
+                            Register here
+                        </Link>
+                    </CardDescription>
                 </CardFooter>
             </form>
          </Form>
