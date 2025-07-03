@@ -1,81 +1,78 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
+    }
+
     function isAdmin() {
-      // Check if the user is authenticated and has the admin email.
-      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+      // Admin role is determined by their email address in the auth token.
+      return isAuth() && request.auth.token.email == 'admin@cloudstage.in';
     }
 
-    // Artists collection
-    match /artists/{artistId} {
-      // Anyone can get a specific artist's profile.
-      allow get: if true;
-      // Only an admin can list all artists.
-      allow list: if isAdmin();
-      // An artist can create their own profile.
-      allow create: if request.auth.uid == artistId;
-      // An artist can update their own profile, or an admin can update it.
-      allow update: if (request.auth.uid == artistId) || isAdmin();
-      // Only an admin can delete an artist profile.
-      allow delete: if isAdmin();
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
 
-    // Events collection
-    match /events/{eventId} {
-      // GET: An event can be read if it's approved, or by an admin, or by its owner.
-      allow get: if resource.data.moderationStatus == 'approved' 
-                  || isAdmin() 
-                  || (request.auth != null && request.auth.uid == resource.data.artistId);
-      
-      // LIST: Anyone can list APPROVED events. Admins can list ALL events. An artist can list THEIR OWN events.
-      // This relies on the client including the correct `where` clause in the query.
-      allow list: if (request.query.where.size() > 0 && request.query.where[0][0] == 'moderationStatus' && request.query.where[0][2] == 'approved')
-                  || isAdmin()
-                  || (request.auth != null && request.query.where.size() > 0 && request.query.where[0][0] == 'artistId' && request.query.where[0][2] == request.auth.uid);
+    // --- Collections Rules ---
 
-      // An authenticated artist can create an event.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.artistId;
-      // An artist can update their own event, or an admin can.
-      allow update: if (request.auth != null && request.auth.uid == resource.data.artistId) || isAdmin();
-      // Only an admin can delete an event.
-      allow delete: if isAdmin();
-    }
-
-    // Movies collection
-    match /movies/{movieId} {
-      // Anyone can view or list movies.
-      allow get, list: if true;
-      // Only an admin can create, update, or delete movies.
-      allow write: if isAdmin();
-    }
-
-    // Tickets collection
-    match /tickets/{ticketId} {
-      // GET: A ticket can be read by its owner or an admin.
-      allow get: if request.auth != null && (isAdmin() || request.auth.uid == resource.data.userId);
-
-      // LIST: An admin can list all tickets. A user can list THEIR OWN tickets.
-      allow list: if isAdmin() || (request.auth != null && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid);
-      
-      // An authenticated user can create a ticket for themselves.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      // Tickets cannot be changed or deleted by users.
-      allow update, delete: if false;
-    }
-    
-    // Config collection for site status
-    match /config/{docId} {
-      // Anyone can read the site configuration.
-      allow get: if true;
-      // Only an admin can change the site configuration.
-      allow write: if isAdmin();
-    }
-    
-    // Admins collection (used for role verification)
+    // Admins: only admins can read or create admin records.
     match /admins/{adminId} {
       allow get, create: if isAdmin();
+    }
+
+    // Artists: Publicly readable, but only owners/admins can modify.
+    match /artists/{artistId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isOwner(artistId);
+      allow update: if isOwner(artistId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Events: Complex rules for listing and viewing based on status and role.
+    match /events/{eventId} {
+      // GET: An event can be viewed if it's approved, or by its owner, or by an admin.
+      allow get: if resource.data.moderationStatus == 'approved' 
+                  || (isAuth() && resource.data.artistId == request.auth.uid) 
+                  || isAdmin();
+      
+      // LIST: A list of events can be read under three conditions:
+      // 1. The general public can list events that are approved.
+      // 2. An artist can list all of their own events (pending, approved, etc).
+      // 3. An admin can list any/all events.
+      allow list: if (resource.data.moderationStatus == 'approved') 
+                  || (isAuth() && resource.data.artistId == request.auth.uid)
+                  || isAdmin();
+
+      // WRITE: Only the owner artist or an admin can create/update/delete events.
+      allow create: if isAuth() && request.resource.data.artistId == request.auth.uid;
+      allow update: if (isAuth() && resource.data.artistId == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Movies: Publicly readable, admin-only write access.
+    match /movies/{movieId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Tickets: Users can create their own tickets and view them. Admins can view all tickets.
+    match /tickets/{ticketId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+      // Tickets are immutable by users.
+      allow update, delete: if false; 
+    }
+    
+    // Config: Publicly readable, admin-only write access.
+    match /config/{docId} {
+      allow get: if true;
+      allow write: if isAdmin();
     }
   }
 }
