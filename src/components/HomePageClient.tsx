@@ -54,6 +54,7 @@ export function HomePageClient() {
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
+    // A more realistic threshold for 'live' might be a few hours.
     const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
 
     if (!allEvents || allEvents.length === 0) {
@@ -70,6 +71,7 @@ export function HomePageClient() {
       past: [],
     };
     
+    // Initial sort by date ascending to process events chronologically.
     const sortedEvents = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const event of sortedEvents) {
