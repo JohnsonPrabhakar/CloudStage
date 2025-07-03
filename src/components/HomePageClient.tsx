@@ -9,7 +9,7 @@ import { EventCard } from "@/components/EventCard";
 import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, PartyPopper } from "lucide-react";
 import { Badge } from "./ui/badge";
 
 export function HomePageClient() {
@@ -69,7 +69,6 @@ export function HomePageClient() {
       }
     }
     
-    // Sort upcoming events by soonest first
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     setLiveEvents(categorized.live);
@@ -79,23 +78,8 @@ export function HomePageClient() {
   }, [allEvents, loading]);
   
   const renderEventGrid = (events: Event[], title: string) => {
-    if (loading) {
-        return (
-             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex flex-col space-y-3">
-                        <Skeleton className="h-[200px] w-full rounded-xl" />
-                        <div className="space-y-2">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-5/6" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        )
-    }
     if (events.length === 0) {
-      return null; // Don't render the section if there are no events to show
+      return null;
     }
     return (
       <section className="py-8 md:py-12">
@@ -111,12 +95,41 @@ export function HomePageClient() {
   
   const heroEvent = upcomingEvents[0] || liveEvents[0] || allEvents[0];
 
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-8 space-y-16">
+        <Skeleton className="w-full h-[50vh] rounded-lg" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col space-y-3">
+              <Skeleton className="h-[200px] w-full rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (allEvents.length === 0) {
+    return (
+      <div className="container mx-auto p-4 md:p-8">
+        <div className="text-center py-24 text-muted-foreground bg-card/50 rounded-lg shadow-lg glowing-border">
+          <PartyPopper className="mx-auto h-16 w-16 text-primary mb-4" />
+          <h2 className="text-3xl font-bold text-foreground">The Stage is Quiet... For Now</h2>
+          <p className="mt-2 text-lg">There are no events scheduled at the moment.</p>
+          <p>Please check back later for new and exciting shows!</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-16">
-        {/* Hero Section */}
-        {loading ? (
-             <Skeleton className="w-full h-[50vh] rounded-lg" />
-        ) : heroEvent && (
+        {heroEvent && (
             <div className="relative w-full h-[50vh] rounded-2xl overflow-hidden flex items-end p-4 md:p-8 text-white glowing-border">
                 <Image 
                     src={heroEvent.bannerUrl} 
