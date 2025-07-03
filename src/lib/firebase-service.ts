@@ -167,27 +167,17 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 };
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
-  const now = new Date();
-  // Fetch events from the last 2 hours onwards.
-  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-
-  // This query avoids the composite index by filtering only on the date range
-  // and ordering by that same field. We will filter by status on the client.
+  // This query is designed to avoid composite indexes and permission errors.
+  // It fetches the 50 most recent events that are approved, which is a safe
+  // query for public access. The client will then categorize them.
   const q = query(
     eventsCollection,
-    where('date', '>=', twoHoursAgo.toISOString()),
-    orderBy('date', 'asc'),
-    limit(100) // Fetch a larger batch to filter from
+    where('moderationStatus', '==', 'approved'),
+    orderBy('date', 'desc'),
+    limit(50)
   );
-
   const snapshot = await getDocs(q);
-  const allRecentEvents = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-
-  // Now, filter for 'approved' events on the client-side
-  const approvedEvents = allRecentEvents.filter(event => event.moderationStatus === 'approved');
-
-  // Return up to 20 of the approved events.
-  return approvedEvents.slice(0, 20);
+  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
 
 export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
