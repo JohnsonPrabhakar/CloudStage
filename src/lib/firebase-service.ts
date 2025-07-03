@@ -163,10 +163,14 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
-  const q = query(eventsCollection, where('artistId', '==', artistId), orderBy('date', 'desc'));
+  // We remove the orderBy clause to avoid needing a composite index.
+  // The sorting will be handled on the client side after fetching.
+  const q = query(eventsCollection, where('artistId', '==', artistId));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-    callback(events);
+    // Sort events by date in descending order (newest first) on the client
+    const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(sortedEvents);
   });
 };
 
