@@ -25,7 +25,7 @@ export function Header() {
       href: "/my-tickets",
       icon: <Ticket className="h-4 w-4" />,
     },
-    { label: "Artist Dashboard", href: "/artist/dashboard" },
+    { label: "Artist Dashboard", href: "/artist/login" },
     { label: "Admin", href: "/admin" },
   ];
 
@@ -104,5 +104,3 @@ export function Header() {
     </header>
   );
 }
-
-    
