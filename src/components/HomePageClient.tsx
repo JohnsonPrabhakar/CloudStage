@@ -117,7 +117,7 @@ export function HomePageClient() {
         { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://images.unsplash.com/photo-1611956425642-d5a8169abd63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxTdGFuZCUyMHVwJTIwY29tZWR5fGVufDB8fHx8MTc1MTUxMDEyOXww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation", imageUrl: "https://images.unsplash.com/photo-1588286840104-8957b019727f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx5b2dhfGVufDB8fHx8MTc1MTQ2NTI5OHww&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage", imageUrl: "https://images.unsplash.com/photo-1556195332-95503f664ced?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxNYWdpYyUyMFNob3d8ZW58MHx8fHwxNzUxNTEwNzgwfDA&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://images.unsplash.com/photo-1447619297994-b829cc1ab44a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxQcmF5ZXJ8ZW58MHx8fHwxNzUxNTEwOTI5fDA&ixlib=rb-4.1.0&q=80&w=1080" },
         { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion", imageUrl: "https://images.unsplash.com/photo-1747476263861-c9eec8f97ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMXx8VGFsayUyMHNob3dzJTIwYW5kJTIwZGViYXRlfGVufDB8fHx8MTc1MTUwOTc0NXww&ixlib=rb-4.1.0&q=80&w=1080" },
     ];
     return (
@@ -155,7 +155,28 @@ export function HomePageClient() {
   if (loading) {
     return (
       <div className="container mx-auto p-4 md:p-8 space-y-16">
-        <Skeleton className="w-full h-[50vh] rounded-lg" />
+        <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
+            <div className="relative z-20 max-w-4xl mx-auto">
+                <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
+                <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto text-muted-foreground">
+                    Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
+                </p>
+                <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <Button asChild size="lg">
+                      <Link href="#live-events">
+                          <Radio className="mr-2 h-5 w-5 animate-pulse"/>
+                          Live Events
+                      </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="secondary">
+                      <Link href="#upcoming-events">
+                          <Calendar className="mr-2 h-5 w-5"/>
+                          Upcoming
+                      </Link>
+                  </Button>
+                </div>
+            </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex flex-col space-y-3">
