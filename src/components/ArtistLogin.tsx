@@ -45,14 +45,11 @@ export default function ArtistLogin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
-      // Step 1: Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Step 2: Fetch artist profile from Firestore to determine routing
       const artistProfile = await getArtistProfile(user.uid);
 
-      // Step 3: Conditional routing based on profile status
       if (artistProfile) {
         if (artistProfile.isApproved) {
           toast({
@@ -69,7 +66,6 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // This is the case where the user is authenticated but has no artist document.
         toast({
             title: "Profile Incomplete",
             description: "Please complete your artist profile to continue.",

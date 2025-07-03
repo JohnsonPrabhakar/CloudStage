@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -57,7 +58,6 @@ export default function EventDetailPage() {
       setError(null);
       try {
         const eventId = params.id as string;
-        // Fetch event and site status in parallel
         const [foundEvent, status] = await Promise.all([
           getEventById(eventId),
           getSiteStatus()
@@ -67,12 +67,12 @@ export default function EventDetailPage() {
         
         if (foundEvent && foundEvent.moderationStatus === 'approved') {
             setEvent(foundEvent);
-            // Fetch the associated artist from Firestore
             const foundArtist = await getArtistProfile(foundEvent.artistId);
             setArtist(foundArtist || null);
         } else {
             setEvent(null);
             setArtist(null);
+            setError("This event may not exist or is no longer available.");
         }
       } catch (err) {
         console.error("Failed to fetch event:", err);
@@ -85,16 +85,14 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     fetchEventAndStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   useEffect(() => {
-    // Check if user has a ticket after user and event are loaded
     const checkTicketStatus = async () => {
       if (currentUser && event) {
-        const ticketExists = await checkForExistingTicket(currentUser.uid, event.id);
-        setHasTicket(ticketExists);
+        setHasTicket(await checkForExistingTicket(currentUser.uid, event.id));
       } else {
-        // Reset if user logs out or event changes
         setHasTicket(false);
       }
     };
@@ -102,7 +100,6 @@ export default function EventDetailPage() {
   }, [currentUser, event]);
 
   useEffect(() => {
-    // Generate random number on client after mount to avoid hydration mismatch
     setAttendees(Math.floor(Math.random() * 5000 + 1000));
   }, []);
 
@@ -137,7 +134,7 @@ export default function EventDetailPage() {
   const isValidStreamUrl = (url: string) => {
     try {
         const urlObj = new URL(url);
-        return urlObj.protocol === 'https:' && urlObj.hostname.includes('youtube.com');
+        return urlObj.protocol === 'https:' && (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be'));
     } catch (e) {
         return false;
     }
@@ -149,43 +146,29 @@ export default function EventDetailPage() {
         <div className="w-full h-96 bg-muted rounded-lg mb-8"></div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-6">
-            <div className="h-10 w-3/4 bg-muted rounded"></div>
-            <div className="h-6 w-1/2 bg-muted rounded"></div>
+            <Skeleton className="h-10 w-3/4 bg-muted rounded" />
+            <Skeleton className="h-6 w-1/2 bg-muted rounded" />
             <div className="space-y-2">
-              <div className="h-4 w-full bg-muted rounded"></div>
-              <div className="h-4 w-full bg-muted rounded"></div>
-              <div className="h-4 w-3/4 bg-muted rounded"></div>
+              <Skeleton className="h-4 w-full bg-muted rounded" />
+              <Skeleton className="h-4 w-full bg-muted rounded" />
+              <Skeleton className="h-4 w-3/4 bg-muted rounded" />
             </div>
           </div>
           <div className="space-y-4">
-            <div className="h-12 w-full bg-muted rounded-lg"></div>
-            <div className="h-40 bg-muted rounded-lg"></div>
+            <Skeleton className="h-12 w-full bg-muted rounded-lg" />
+            <Skeleton className="h-40 bg-muted rounded-lg" />
           </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !event || !artist) {
     return (
-        <div className="container mx-auto p-8 text-center">
-            <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
-            <h1 className="text-3xl font-bold">Connection Error</h1>
-            <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-            <Button onClick={fetchEventAndStatus}>
-                Try Again
-            </Button>
-        </div>
-    )
-  }
-
-  if (!event || !artist) {
-    return (
-      <div className="container mx-auto p-4 text-center">
-        <h1 className="text-4xl font-bold">Event Not Found</h1>
-        <p className="text-muted-foreground mt-4">
-          This event may not exist or is no longer available.
-        </p>
+      <div className="container mx-auto p-8 text-center">
+        <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
+        <h1 className="text-3xl font-bold">{error ? "An Error Occurred" : "Event Not Found"}</h1>
+        <p className="text-muted-foreground mt-2 mb-6">{error || "The requested event could not be found."}</p>
         <Button onClick={() => router.push("/")} className="mt-8">
           Back to Home
         </Button>
@@ -196,13 +179,12 @@ export default function EventDetailPage() {
   const canWatch = isValidStreamUrl(event.streamUrl);
 
   const getAction = () => {
-    // Shared button for buying a ticket
     const buyTicketButton = (
       <Button
         size="lg"
         className="w-full text-lg py-6 transition-transform transform hover:scale-105"
         onClick={handleBuyTicket}
-        disabled={siteStatus === 'offline'}
+        disabled={siteStatus === 'offline' || event.status === 'past'}
       >
         <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
       </Button>
@@ -227,44 +209,31 @@ export default function EventDetailPage() {
       );
     }
     
-    switch (event.status) {
-      case "live":
-      case "upcoming":
-        if (hasTicket) {
-          return (
-            <Button
-              asChild
-              size="lg"
-              disabled={!canWatch}
-              className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-            >
-              <Link href={`/play/${event.id}`}>
-                <Play className="mr-2 h-6 w-6" /> 
-                {event.status === 'live' ? 'Watch Now' : 'Join Event'}
-              </Link>
-            </Button>
-          );
-        }
-        return buyTicketButton;
-
-      case "past":
-        return (
-          <Button
-            asChild
-            size="lg"
-            disabled={!canWatch}
-            className="w-full text-lg py-6"
-            variant="secondary"
-          >
-            <Link href={`/play/${event.id}`}>
-              <Play className="mr-2 h-6 w-6" /> Watch Recording
-            </Link>
-          </Button>
-        );
-      
-      default:
-        return null;
+    // For past events, anyone can watch the recording
+    if (event.status === "past") {
+      return (
+        <Button asChild size="lg" disabled={!canWatch} className="w-full text-lg py-6" variant="secondary">
+          <Link href={`/play/${event.id}`}>
+            <Play className="mr-2 h-6 w-6" /> Watch Recording
+          </Link>
+        </Button>
+      );
     }
+
+    // For live or upcoming events, ticket is required
+    if (hasTicket) {
+       return (
+        <Button asChild size="lg" disabled={!canWatch} className="w-full text-lg py-6 transition-transform transform hover:scale-105">
+          <Link href={`/play/${event.id}`}>
+            <Play className="mr-2 h-6 w-6" /> 
+            {event.status === 'live' ? 'Watch Now' : 'Join Event'}
+          </Link>
+        </Button>
+      );
+    }
+    
+    // If none of the above, user needs to buy a ticket
+    return buyTicketButton;
   };
 
   return (

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { type Event, type Ticket as TicketType } from "@/lib/types";
-import { getEventById, getUserTickets } from "@/lib/firebase-service";
+import { getUserTicketsListener } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
-import { Ticket, LogIn, WifiOff } from "lucide-react";
+import { Ticket, LogIn, WifiOff, Loader2 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,43 +19,44 @@ export default function MyTicketsPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const fetchTickets = async (currentUser: User) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const tickets = await getUserTickets(currentUser.uid);
-      if (tickets.length > 0) {
-        const eventPromises = tickets.map(ticket => getEventById(ticket.eventId));
-        const eventResults = await Promise.all(eventPromises);
-        const validEvents = eventResults.filter((event): event is Event => event !== null);
-        setTicketedEvents(validEvents);
-      } else {
-        setTicketedEvents([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch tickets or events:", error);
-      setError("Could not load your tickets. Please check your connection and try again.");
-      setTicketedEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        // User is signed in, fetch their tickets.
-        fetchTickets(currentUser);
-      } else {
-        // User is signed out.
+      if (!currentUser) {
         setTicketedEvents([]);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => authUnsubscribe();
   }, []);
+
+  useEffect(() => {
+    let listenerUnsubscribe: (() => void) | undefined;
+    
+    if (user) {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        listenerUnsubscribe = getUserTicketsListener(user.uid, (events) => {
+          setTicketedEvents(events);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error("Failed to set up ticket listener:", err);
+        setError("Could not load your tickets. Please check your connection and try again.");
+        setTicketedEvents([]);
+        setLoading(false);
+      }
+    }
+    
+    return () => {
+      if (listenerUnsubscribe) {
+        listenerUnsubscribe();
+      }
+    };
+  }, [user]);
 
   if (loading) {
     return (
@@ -93,7 +94,7 @@ export default function MyTicketsPage() {
             <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
             <h1 className="text-3xl font-bold">Connection Error</h1>
             <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-            <Button onClick={() => user && fetchTickets(user)}>
+            <Button onClick={() => window.location.reload()}>
                 Try Again
             </Button>
         </div>

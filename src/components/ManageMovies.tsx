@@ -133,6 +133,7 @@ export default function ManageMovies() {
                   width={50}
                   height={75}
                   className="rounded-md object-cover"
+                  data-ai-hint="movie poster"
                 />
               </TableCell>
               <TableCell className="font-medium">{movie.title}</TableCell>

@@ -9,14 +9,8 @@ import { EventCard } from "@/components/EventCard";
 import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar } from "lucide-react";
+import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar, RadioTower } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
 const getEventHint = (category: Event['category']): string => {
     switch (category) {
@@ -82,12 +76,13 @@ export function HomePageClient() {
       let finalStatus: Event["status"] = event.status;
       const eventDate = new Date(event.date);
 
-      if (event.status !== 'past') {
-          if (eventDate <= now && eventDate >= liveThreshold) {
-              finalStatus = 'live';
-          } else if (eventDate < liveThreshold) {
-              finalStatus = 'past';
-          }
+      // This logic re-evaluates the status on the client-side to ensure it's up-to-date
+      if (eventDate > now) {
+        finalStatus = 'upcoming';
+      } else if (eventDate <= now && eventDate >= liveThreshold) {
+        finalStatus = 'live';
+      } else {
+        finalStatus = 'past';
       }
       
       const updatedEvent = { ...event, status: finalStatus };
@@ -162,28 +157,16 @@ export function HomePageClient() {
       <div className="container mx-auto p-4 md:p-8 space-y-16">
         <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
             <div className="relative z-20 max-w-4xl mx-auto">
-                <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
-                <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto text-muted-foreground">
-                    Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
-                </p>
-                <div className="mt-8 flex flex-wrap justify-center gap-4">
-                  <Button asChild size="lg">
-                      <Link href="#upcoming-events">
-                          <Calendar className="mr-2 h-5 w-5"/>
-                          Explore Events
-                      </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="secondary">
-                      <Link href="/artist/login">
-                          <ArrowRight className="mr-2 h-5 w-5"/>
-                          Artist Login
-                      </Link>
-                  </Button>
+                <Skeleton className="h-16 w-3/4 mx-auto mb-4" />
+                <Skeleton className="h-6 w-1/2 mx-auto mb-8" />
+                <div className="flex justify-center gap-4">
+                    <Skeleton className="h-12 w-40" />
+                    <Skeleton className="h-12 w-40" />
                 </div>
             </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex flex-col space-y-3">
               <Skeleton className="h-[200px] w-full rounded-xl" />
               <div className="space-y-2">
@@ -206,11 +189,17 @@ export function HomePageClient() {
                     Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
+                  <Button asChild size="lg">
+                      <Link href="#upcoming-events">
+                          <Calendar className="mr-2 h-5 w-5"/>
+                          Upcoming Events
+                      </Link>
+                  </Button>
                   <Button asChild size="lg" variant="secondary">
-                    <Link href="#upcoming-events">
-                      <Calendar className="mr-2 h-5 w-5" />
-                      Upcoming Events
-                    </Link>
+                      <Link href="/artist/login">
+                          <ArrowRight className="mr-2 h-5 w-5"/>
+                          Artist Login
+                      </Link>
                   </Button>
                 </div>
             </div>
@@ -220,24 +209,31 @@ export function HomePageClient() {
           renderMockCategories()
       ) : (
           <div className="space-y-16">
-
-            <section id="upcoming-events" className="scroll-mt-20 space-y-8">
-              {upcomingEvents.length > 0 ? (
-                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
-                  <AccordionItem value="item-1" className="border-none">
-                    <AccordionTrigger className="text-xl font-semibold hover:no-underline justify-center bg-muted/50 rounded-md px-4 py-3">
-                       <span>View All Upcoming Events ({upcomingEvents.length})</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {upcomingEvents.map((event) => <EventCard key={event.id} event={event} />)}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+            <section id="live-events" className="scroll-mt-20">
+              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center flex items-center justify-center gap-3">
+                <RadioTower className="h-8 w-8 text-primary animate-pulse" />
+                Happening Now
+              </h2>
+              {liveEvents.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {liveEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                </div>
               ) : (
                 <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                  <p>You're early! Check back soon for new performances.</p>
+                  <p>No events are live right now. Check out what's coming soon!</p>
+                </div>
+              )}
+            </section>
+          
+            <section id="upcoming-events" className="scroll-mt-20">
+              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Upcoming Events</h2>
+              {upcomingEvents.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {upcomingEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                  </div>
+              ) : (
+                <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+                  <p>You're all caught up! Check back soon for new performances.</p>
                 </div>
               )}
             </section>
@@ -246,7 +242,7 @@ export function HomePageClient() {
               <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Catch Up On Past Shows 🎬</h2>
               {pastEvents.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {pastEvents.map((event) => <EventCard key={event.id} event={event} />)}
+                        {pastEvents.slice(0, 4).map((event) => <EventCard key={event.id} event={event} />)}
                     </div>
                 ) : (
                     <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">

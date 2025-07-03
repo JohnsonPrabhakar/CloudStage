@@ -39,9 +39,9 @@ import {
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
 import { 
-    getPendingEvents, 
+    getPendingEventsListener, 
     updateEventStatus, 
-    getPendingArtists as getPendingArtistsFromDb,
+    getPendingArtistsListener,
     approveArtist as approveArtistInDb,
     rejectArtist as rejectArtistInDb,
     getSiteStatus,
@@ -77,51 +77,62 @@ export default function AdminDashboard() {
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
   const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
 
-  const refreshData = useCallback(async () => {
-     setLoading(true);
-     setError(null);
-     try {
-       const [events, artists, status, artistsCount, eventsCount, ticketsCount] = await Promise.all([
-          getPendingEvents(),
-          getPendingArtistsFromDb(),
-          getSiteStatus(),
-          getArtistsCount(),
-          getEventsCount(),
-          getTicketsCount()
-       ]);
-       
-       setPendingEvents(events);
-       setPendingArtists(artists);
-       setSiteStatus(status);
-       setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
-       
-       if(artists.length > 0) {
-          setHasPendingArtistNotification(true);
-       }
-     } catch (err) {
-        console.error("Admin dashboard loading error:", err);
-        setError("Could not load dashboard data. Please check your internet connection and try again.");
-     } finally {
-        setLoading(false);
-     }
+  const fetchStats = useCallback(async () => {
+    try {
+      const [artistsCount, eventsCount, ticketsCount] = await Promise.all([
+        getArtistsCount(),
+        getEventsCount(),
+        getTicketsCount(),
+      ]);
+      setStats({ artists: artistsCount, events: eventsCount, tickets: ticketsCount });
+    } catch (err) {
+      // Don't block the UI for stats, just log the error
+      console.error("Failed to fetch dashboard stats:", err);
+    }
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let eventsUnsubscribe: (() => void) | undefined;
+    let artistsUnsubscribe: (() => void) | undefined;
+
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === 'admin@cloudstage.in') {
         setCurrentUser(user);
-        refreshData();
+        
+        // Fetch one-time data
+        getSiteStatus().then(setSiteStatus);
+        fetchStats();
+
+        // Set up real-time listeners
+        try {
+            eventsUnsubscribe = getPendingEventsListener(setPendingEvents);
+            artistsUnsubscribe = getPendingArtistsListener((artists) => {
+                setPendingArtists(artists);
+                if (artists.length > 0) {
+                    setHasPendingArtistNotification(true);
+                }
+            });
+        } catch(err) {
+            console.error("Admin dashboard listener error:", err);
+            setError("Could not connect to real-time updates. Please check your internet connection.");
+        } finally {
+            setLoading(false);
+        }
       } else {
         router.push("/admin/login");
       }
     });
-    return () => unsubscribe();
-  }, [router, refreshData]);
+
+    return () => {
+      authUnsubscribe();
+      if (eventsUnsubscribe) eventsUnsubscribe();
+      if (artistsUnsubscribe) artistsUnsubscribe();
+    };
+  }, [router, fetchStats]);
 
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {
       await updateEventStatus(eventId, newStatus);
-      setPendingEvents(prev => prev.filter(e => e.id !== eventId));
       toast({
         title: `Event ${newStatus}`,
         description: `The event has been successfully ${newStatus}.`,
@@ -137,13 +148,11 @@ export default function AdminDashboard() {
   
   const handleArtistApproval = async (artistId: string) => {
     await approveArtistInDb(artistId);
-    setPendingArtists(prev => prev.filter(a => a.id !== artistId));
     toast({ title: "Artist Approved", description: "The artist can now log in." });
   };
 
   const handleArtistRejection = async (artistId: string) => {
     await rejectArtistInDb(artistId);
-    setPendingArtists(prev => prev.filter(a => a.id !== artistId));
     toast({ title: "Artist Rejected", description: "The artist's profile has been removed." });
   };
 
@@ -156,7 +165,7 @@ export default function AdminDashboard() {
   const handleStatusToggle = async (isOnline: boolean) => {
     const newStatus = isOnline ? 'online' : 'offline';
     try {
-      setSiteStatus(newStatus); // Optimistic update
+      setSiteStatus(newStatus);
       await updateSiteStatus(newStatus);
       toast({
           title: "Site Status Updated",
@@ -183,7 +192,7 @@ export default function AdminDashboard() {
         <WifiOff className="mx-auto h-16 w-16 text-destructive mb-4" />
         <h1 className="text-3xl font-bold">Connection Error</h1>
         <p className="text-muted-foreground mt-2 mb-6">{error}</p>
-        <Button onClick={refreshData}>
+        <Button onClick={() => window.location.reload()}>
           Try Again
         </Button>
       </div>
@@ -191,47 +200,6 @@ export default function AdminDashboard() {
   }
   
   const renderArtistTable = () => {
-    if (loading) {
-      return (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-              <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-              <TableHead className="text-right"><Skeleton className="h-5 w-20 ml-auto" /></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {[...Array(3)].map((_, i) => (
-              <TableRow key={i}>
-                <TableCell>
-                    <Skeleton className="h-5 w-32 mb-2" />
-                    <Skeleton className="h-4 w-40" />
-                </TableCell>
-                <TableCell>
-                    <Skeleton className="h-4 w-48 mb-2" />
-                    <Skeleton className="h-4 w-40" />
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Skeleton className="h-5 w-5 rounded-full" />
-                    <Skeleton className="h-5 w-5 rounded-full" />
-                    <Skeleton className="h-5 w-5 rounded-full" />
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex gap-2 justify-end">
-                    <Skeleton className="h-8 w-24" />
-                    <Skeleton className="h-8 w-24" />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )
-    }
     if (pendingArtists.length > 0) {
         return (
            <div className="w-full overflow-x-auto">
@@ -379,7 +347,7 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader><CardTitle>Pending Event Approvals</CardTitle></CardHeader>
             <CardContent>
-              {loading ? <p>Loading events...</p> : pendingEvents.length > 0 ? (
+              {pendingEvents.length > 0 ? (
                 <div className="w-full overflow-x-auto">
                 <Table>
                   <TableHeader>

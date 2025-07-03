@@ -97,16 +97,13 @@ export function MovieForm({ mode, initialData }: MovieFormProps) {
   }
   
   async function onSubmit(values: FormValues) {
-    if (isProcessing) return;
-
     setIsProcessing(true);
     try {
-      // Manual Validation based on uploadSource
       if (uploadSource === 'youtube') {
         if (!values.youtubeUrl || !isValidYoutubeUrl(values.youtubeUrl)) {
           throw new Error('Please provide a valid YouTube watch or share URL.');
         }
-      } else { // 'local'
+      } else {
         if (mode === 'create' && (!values.movieFile?.[0] || !values.posterFile?.[0])) {
           throw new Error('For local uploads, both a movie file and a poster image are required.');
         }

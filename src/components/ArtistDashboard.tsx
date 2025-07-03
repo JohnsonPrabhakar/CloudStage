@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { type Event, type Artist } from "@/lib/types";
-import { getArtistEvents, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
+import { getArtistEventsListener, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -45,57 +45,65 @@ import { format } from "date-fns";
 export default function ArtistDashboard() {
   const router = useRouter();
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in. Let's verify their artist profile.
-        try {
-          const profile = await getArtistProfile(user.uid);
-          
-          if (profile) {
-            if (profile.isApproved) {
-              // This is the success case. Load dashboard data.
-              const events = await getArtistEvents(user.uid);
-              setArtist(profile);
-              setMyEvents(events);
-            } else {
-              // Profile exists but is not approved.
-              router.push('/artist/pending');
-            }
-          } else {
-            // User is authenticated but has no profile. Redirect to register.
-            toast({
-              variant: "destructive",
-              title: "Artist Profile Not Found",
-              description: "Please complete your artist profile to continue.",
-            });
-            router.push('/artist/register');
-          }
-        } catch (err) {
-          console.error("Dashboard data fetch error:", err);
-          setError("Could not load your dashboard. Please check your internet connection and try again.");
-        } finally {
-          setLoading(false);
-        }
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
         // No user is signed in. Redirect to login.
         router.push('/artist/login');
       }
     });
 
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    let profileUnsubscribe: (() => void) | undefined;
+    let eventsUnsubscribe: (() => void) | undefined;
+
+    if (user) {
+      setLoading(true);
+      (async () => {
+        try {
+          const profile = await getArtistProfile(user.uid);
+          if (profile) {
+            if (profile.isApproved) {
+              setArtist(profile);
+              // Set up listener for events only for approved artists
+              eventsUnsubscribe = getArtistEventsListener(user.uid, (events) => {
+                setMyEvents(events);
+              });
+            } else {
+              router.push('/artist/pending');
+            }
+          } else {
+            router.push('/artist/register');
+          }
+        } catch (err) {
+          console.error("Dashboard data fetch error:", err);
+          setError("Could not load your dashboard. Please check your internet connection.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+
+    return () => {
+      if (profileUnsubscribe) profileUnsubscribe();
+      if (eventsUnsubscribe) eventsUnsubscribe();
+    };
+  }, [user, router]);
 
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
-    setMyEvents(prevEvents => prevEvents.map(e => e.id === eventId ? { ...e, isBoosted: true, boostAmount: amount } : e));
+    // State will update automatically via onSnapshot listener
     toast({
       title: "Event Boosted! 🚀",
       description: `Your event has been successfully boosted for ₹${amount}.`,
@@ -158,8 +166,6 @@ export default function ArtistDashboard() {
   }
 
   if (!artist) {
-    // This state indicates a redirect is in progress or has failed.
-    // The loading spinner will show until the redirect completes.
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />

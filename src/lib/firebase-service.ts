@@ -16,6 +16,7 @@ import {
   limit,
   orderBy,
   getCountFromServer,
+  onSnapshot,
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -110,14 +111,12 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
   try {
     let bannerUrl = "https://placehold.co/1280x720.png";
     if (bannerFile) {
-        // First, upload the banner to the secure path. The security rule will only check the path and auth UID.
         bannerUrl = await uploadFile(
             bannerFile,
             `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
         );
     }
     
-    // After successful upload (or if no file), create the document in Firestore with the final URL.
     await setDoc(eventRef, {
       ...eventData,
       bannerUrl: bannerUrl,
@@ -140,10 +139,12 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
 
-export const getPendingEvents = async (): Promise<Event[]> => {
+export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'pending'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromFirestore<Event>(doc));
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    callback(events);
+  });
 };
 
 export const getBoostedEvents = async (): Promise<Event[]> => {
@@ -161,15 +162,12 @@ export const getEventById = async (id: string): Promise<Event | null> => {
   return null;
 };
 
-export const getArtistEvents = async (artistId: string): Promise<Event[]> => {
-  const q = query(eventsCollection, where('artistId', '==', artistId));
-  const snapshot = await getDocs(q);
-  
-  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-
-  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  return events;
+export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+  const q = query(eventsCollection, where('artistId', '==', artistId), orderBy('date', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    callback(events);
+  });
 };
 
 export const updateEventStatus = async (id: string, status: 'approved' | 'rejected') => {
@@ -236,10 +234,12 @@ export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     return null;
 }
 
-export const getPendingArtists = async(): Promise<Artist[]> => {
+export const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('isApproved', '==', false));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromFirestore<Artist>(doc));
+    return onSnapshot(q, (snapshot) => {
+        const artists = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
+        callback(artists);
+    });
 }
 
 export const approveArtist = async (uid: string) => {
@@ -251,7 +251,6 @@ export const approveArtist = async (uid: string) => {
 
 export const rejectArtist = async (uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
-    // Before deleting the document, delete the profile picture if it exists
     const artistProfile = await getArtistProfile(uid);
     if (artistProfile?.profilePictureUrl) {
       await deleteFileByUrl(artistProfile.profilePictureUrl);
@@ -299,10 +298,20 @@ export const createTicket = async (userId: string, eventId: string): Promise<{ s
   }
 };
 
-export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
+export const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(ticketsCollection, where('userId', '==', userId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
+  
+  return onSnapshot(q, async (snapshot) => {
+    const tickets = snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
+    if (tickets.length > 0) {
+      const eventPromises = tickets.map(ticket => getEventById(ticket.eventId));
+      const eventResults = await Promise.all(eventPromises);
+      const validEvents = eventResults.filter((event): event is Event => event !== null);
+      callback(validEvents);
+    } else {
+      callback([]);
+    }
+  });
 };
 
 // --- MOVIE-RELATED FUNCTIONS ---
@@ -355,7 +364,6 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
     let finalVideoUrl = oldData.videoUrl;
     let finalPosterUrl = oldData.posterUrl;
 
-    // Determine the new URLs first, without deleting anything
     if (youtubeUrl) {
         const videoId = getYouTubeVideoId(youtubeUrl);
         if (!videoId) {
@@ -372,7 +380,6 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
         }
     }
     
-    // Update the document in Firestore with the new data
     await updateDoc(movieRef, {
         ...movieData,
         genre: movieData.genre.toLowerCase(),
@@ -381,7 +388,6 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
         posterUrl: finalPosterUrl,
     });
 
-    // After the database is successfully updated, clean up the old storage files if they changed
     if (oldData.videoUrl !== finalVideoUrl && oldData.videoUrl && !oldData.videoUrl.includes('youtube.com')) {
         await deleteFileByUrl(oldData.videoUrl);
     }
@@ -393,7 +399,9 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
 
 export const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteFileByUrl(movie.posterUrl);
-    await deleteFileByUrl(movie.videoUrl);
+    if (movie.videoUrl && !movie.videoUrl.includes('youtube')) {
+        await deleteFileByUrl(movie.videoUrl);
+    }
     await deleteDoc(doc(db, 'movies', movie.id));
 }
 
