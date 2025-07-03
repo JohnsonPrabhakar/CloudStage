@@ -10,6 +10,10 @@ body {
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   :root {
     --background-start: 350 100% 15%; /* Spotlight color */
     --background-end: 350 100% 5%; /* Dark background color */
