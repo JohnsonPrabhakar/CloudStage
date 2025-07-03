@@ -206,12 +206,6 @@ export function HomePageClient() {
                     Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
-                  <Button asChild size="lg">
-                    <Link href="#live-events">
-                      <Radio className="mr-2 h-5 w-5" />
-                      Live Events
-                    </Link>
-                  </Button>
                   <Button asChild size="lg" variant="secondary">
                     <Link href="#upcoming-events">
                       <Calendar className="mr-2 h-5 w-5" />
@@ -226,18 +220,6 @@ export function HomePageClient() {
           renderMockCategories()
       ) : (
           <div className="space-y-16">
-            <section id="live-events" className="scroll-mt-20">
-              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Happening Now 🔴</h2>
-                {liveEvents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {liveEvents.map((event) => <EventCard key={event.id} event={event} />)}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                        <p>No events are live right now. Check out what's coming soon!</p>
-                    </div>
-                )}
-            </section>
 
             <section id="upcoming-events" className="scroll-mt-20 space-y-8">
               <h2 className="text-3xl font-bold tracking-tight text-center">Coming Soon ✨</h2>
