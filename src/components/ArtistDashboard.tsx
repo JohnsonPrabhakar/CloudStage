@@ -64,7 +64,12 @@ export default function ArtistDashboard() {
           router.push('/artist/pending');
         }
       } else {
-        router.push('/artist/register');
+        toast({
+            variant: "destructive",
+            title: "Artist Profile Not Found",
+            description: "We could not find an artist profile for your account. Please contact support.",
+        });
+        router.push('/');
       }
     } catch (err) {
       console.error("Dashboard data fetch error:", err);
@@ -72,7 +77,7 @@ export default function ArtistDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, toast]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

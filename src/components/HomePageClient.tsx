@@ -169,9 +169,9 @@ export function HomePageClient() {
                       </Link>
                   </Button>
                   <Button asChild size="lg" variant="secondary">
-                      <Link href="/artist/register">
+                      <Link href="/artist/login">
                           <ArrowRight className="mr-2 h-5 w-5"/>
-                          For Artists
+                          Artist Login
                       </Link>
                   </Button>
                 </div>

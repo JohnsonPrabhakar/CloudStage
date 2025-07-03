@@ -69,13 +69,12 @@ export default function ArtistLogin() {
           router.push('/artist/pending');
         }
       } else {
-        // If no profile exists, this user needs to register as an artist.
         toast({
+            variant: "destructive",
             title: "Profile Not Found",
-            description: "We couldn't find an artist profile for this account. Please complete your registration.",
-            variant: "destructive"
+            description: "An artist profile for this account could not be found. Please contact support.",
         });
-        router.push('/artist/register');
+        router.push('/');
       }
 
     } catch (error) {
@@ -146,12 +145,6 @@ export default function ArtistLogin() {
                     <Button type="submit" className="w-full" disabled={loading}>
                         {loading ? "Logging in..." : "Login"}
                     </Button>
-                    <p className="text-sm text-muted-foreground">
-                        Don't have an account?{" "}
-                        <Link href="/artist/register" className="text-primary hover:underline">
-                         Register here
-                        </Link>
-                    </p>
                 </CardFooter>
             </form>
          </Form>
