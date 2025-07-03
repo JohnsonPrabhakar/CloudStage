@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -230,8 +231,15 @@ export default function EventDetailPage() {
         }
         if (hasTicket) {
              return (
-              <Button size="lg" className="w-full text-lg py-6" disabled>
-                <Ticket className="mr-2 h-6 w-6" /> You have a ticket!
+              <Button
+                asChild
+                size="lg"
+                disabled={!canWatch}
+                className="w-full text-lg py-6 transition-transform transform hover:scale-105"
+              >
+                <Link href={`/play/${event.id}`}>
+                  <Play className="mr-2 h-6 w-6" /> Join Event
+                </Link>
               </Button>
             );
         }
