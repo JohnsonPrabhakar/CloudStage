@@ -1,43 +1,28 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function to check for admin role based on email.
+
     function isAdmin() {
       return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
-    
-    // Helper function to check if the user is the owner.
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
 
-    // Artist Profile Pictures: `artists/{artistId}/profile.jpg`
-    // An artist can only upload/delete a profile picture for their own profile.
+    // Artists can upload their own profile picture.
     match /artists/{artistId}/profile.jpg {
-      allow read: if true; // Profile pictures are public.
-      allow write: if isOwner(artistId); // Only the artist can create/update/delete their picture.
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == artistId;
     }
-    
-    // Event Banners: `artists/{artistId}/events/{eventId}/banner.jpg`
-    // An artist can upload a banner for an event they are creating.
+
+    // Artists can upload banners for their events.
     match /artists/{artistId}/events/{eventId}/banner.jpg {
-        allow read: if true; // Banners are public.
-        allow write: if isOwner(artistId); // Only the artist can manage their event banners.
+       allow read: if true;
+       allow write: if request.auth != null && request.auth.uid == artistId;
     }
 
-    // Movie Files: `movies/{movieId}/{fileName}`
-    // Only admins can upload movie files and posters.
-    match /movies/{movieId}/{fileName} {
-      allow read: if true; // Movie files and posters are public for streaming.
-      allow write: if isAdmin(); // Only admins can create/update/delete movie assets.
-    }
-
-    // Deny any other paths by default for security.
-    match /{allPaths=**} {
-      allow read, write: if false;
+    // Movie files can only be managed by admins.
+    match /movies/{movieId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
