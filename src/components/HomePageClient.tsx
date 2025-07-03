@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -114,13 +113,13 @@ export function HomePageClient() {
   
   const renderMockCategories = () => {
     const categories = [
-        { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage" },
-        { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club" },
-        { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation" },
-        { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage" },
-        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music" },
-        { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion" },
-    ]
+        { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://placehold.co/600x400.png" },
+        { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion", imageUrl: "https://images.unsplash.com/photo-1747476263861-c9eec8f97ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMXx8VGFsayUyMHNob3dzJTIwYW5kJTIwZGViYXRlfGVufDB8fHx8MTc1MTUwOTc0NXww&ixlib=rb-4.1.0&q=80&w=1080" },
+    ];
     return (
         <div className="space-y-8">
             <div className="text-center">
@@ -133,7 +132,7 @@ export function HomePageClient() {
                         <CardContent className="p-0">
                             <div className="relative h-48 w-full">
                                 <Image
-                                    src={`https://placehold.co/600x400.png`}
+                                    src={cat.imageUrl}
                                     alt={cat.name}
                                     fill
                                     className="object-cover transition-transform duration-300 group-hover:scale-105"
