@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -117,23 +118,21 @@ export function HomePageClient() {
         { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club" },
         { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation" },
         { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage" },
+        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music" },
         { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion" },
     ]
     return (
         <div className="space-y-8">
             <div className="text-center">
-                 <h2 className="text-3xl font-bold tracking-tight">The stage is quiet for now...</h2>
-                 <p className="text-muted-foreground mt-2">But here are the kinds of events you can host or watch on CloudStage.</p>
-                <Button asChild size="lg" className="mt-6">
-                    <Link href="/artist/register">Become an Artist <ArrowRight className="ml-2 h-5 w-5"/></Link>
-                </Button>
+                 <h2 className="text-3xl font-bold tracking-tight">The stage is quiet... for now.</h2>
+                 <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">While there are no scheduled events, here are the kinds of live experiences you can discover on CloudStage.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map(cat => (
                     <Card key={cat.name} className="overflow-hidden group">
                         <CardContent className="p-0">
                             <div className="relative h-48 w-full">
-                                <Image 
+                                <Image
                                     src={`https://placehold.co/600x400.png`}
                                     alt={cat.name}
                                     fill
