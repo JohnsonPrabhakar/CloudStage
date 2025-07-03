@@ -3,28 +3,26 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-    
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-    
-    // Public read for all files
-    match /{allPaths=**} {
-      allow read: if true;
+      return request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Artists can only upload to their own folder structure.
-    // e.g., artists/{userId}/profile.jpg or artists/{userId}/events/{eventId}/banner.jpg
-    match /artists/{userId}/{allPaths=**} {
-      allow write: if isOwner(userId);
+    // Artist Profile Pictures
+    match /artists/{artistId}/profile.jpg {
+      allow read: if true;
+      allow write: if request.auth.uid == artistId || isAdmin();
+    }
+
+    // Event Banners
+    match /artists/{artistId}/events/{eventId}/banner.jpg {
+      allow read: if true;
+      allow write: if request.auth.uid == artistId || isAdmin();
     }
     
-    // Admins can upload movie files and posters.
-    match /movies/{movieId}/{allPaths=**} {
-        allow write: if isAdmin();
+    // Movie files and posters
+    match /movies/{movieId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

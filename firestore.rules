@@ -1,48 +1,46 @@
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-  
-    // Helper function to check if a user is an admin
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    // Admins collection: Only other admins can read/write this.
-    match /admins/{adminId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Events: Public read, but restricted write/update
-    match /events/{eventId} {
-      allow read: if true;
-      allow create: if request.auth != null && request.resource.data.artistId == request.auth.uid;
-      allow update: if request.auth != null && (isAdmin() || resource.data.artistId == request.auth.uid);
-      allow delete: if isAdmin();
-    }
-    
-    // Artists: Public read on profiles. Only the artist can create/update their own profile. Admins can update/delete.
-    match /artists/{artistId} {
-      allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == artistId;
-      allow delete: if isAdmin();
-    }
-
-    // Tickets: Users can only manage their own tickets. Admins have full access.
-    match /tickets/{ticketId} {
-      allow read, create: if request.auth != null && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update, delete: if isAdmin();
-    }
-    
-    // Movies: Public read, but only admins can create, update, or delete.
-    match /movies/{movieId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    
-    // Config: Only admins can read/write site configuration.
-    match /config/{configId} {
-        allow read, write: if isAdmin();
+{
+  "rules": {
+    "admins": {
+      "$uid": {
+        "allow read, write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
+      }
+    },
+    "artists": {
+      "$artistId": {
+        "allow get": "true",
+        "allow list": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true",
+        "allow create": "request.auth != null && request.auth.uid == $artistId",
+        "allow update": "request.auth != null && (request.auth.uid == $artistId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
+        "allow delete": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
+      }
+    },
+    "events": {
+      "$eventId": {
+        "allow get": "resource.data.moderationStatus == 'approved' || (request.auth != null && (get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true || request.auth.uid == resource.data.artistId))",
+        "allow list": "(request.query.where.moderationStatus is string && request.query.where.moderationStatus == 'approved') || (request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true) || (request.auth != null && request.query.where.artistId is string && request.query.where.artistId == request.auth.uid)",
+        "allow create": "request.auth != null && request.resource.data.artistId == request.auth.uid",
+        "allow update": "request.auth != null && (request.auth.uid == resource.data.artistId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
+        "allow delete": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
+      }
+    },
+    "movies": {
+      "$movieId": {
+        "allow read": "true",
+        "allow write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
+      }
+    },
+    "tickets": {
+      "$ticketId": {
+        "allow create": "request.auth != null && request.resource.data.userId == request.auth.uid",
+        "allow read": "request.auth != null && (request.auth.uid == resource.data.userId || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true)",
+        "allow list": "request.auth != null && ( (request.query.where.userId is string && request.query.where.userId == request.auth.uid) || get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true )"
+      }
+    },
+    "config": {
+      "$configId": {
+        "allow read": "true",
+        "allow write": "request.auth != null && get(/databases/(default)/documents/admins/$(request.auth.uid)).data.isAdmin == true"
+      }
     }
   }
 }
