@@ -196,62 +196,57 @@ export default function EventDetailPage() {
   const canWatch = isValidStreamUrl(event.streamUrl);
 
   const getAction = () => {
+    // Shared button for buying a ticket
+    const buyTicketButton = (
+      <Button
+        size="lg"
+        className="w-full text-lg py-6 transition-transform transform hover:scale-105"
+        onClick={handleBuyTicket}
+        disabled={siteStatus === 'offline'}
+      >
+        <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
+      </Button>
+    );
+
+    if (siteStatus === 'offline' && event.status !== 'past') {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="w-full">
+                <Button size="lg" className="w-full text-lg py-6" disabled>
+                  Bookings Currently Offline
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>The booking system is temporarily disabled. Please check back later.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    
     switch (event.status) {
       case "live":
-        return (
-          <Button
-            asChild
-            size="lg"
-            disabled={!canWatch}
-            className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-          >
-            <Link href={`/play/${event.id}`}>
-              <Play className="mr-2 h-6 w-6" /> Watch Now
-            </Link>
-          </Button>
-        );
       case "upcoming":
-        if (siteStatus === 'offline') {
+        if (hasTicket) {
           return (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0} className="w-full">
-                    <Button size="lg" className="w-full text-lg py-6" disabled>
-                      Bookings Currently Offline
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>The booking system is temporarily disabled for maintenance. Please check back later.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Button
+              asChild
+              size="lg"
+              disabled={!canWatch}
+              className="w-full text-lg py-6 transition-transform transform hover:scale-105"
+            >
+              <Link href={`/play/${event.id}`}>
+                <Play className="mr-2 h-6 w-6" /> 
+                {event.status === 'live' ? 'Watch Now' : 'Join Event'}
+              </Link>
+            </Button>
           );
         }
-        if (hasTicket) {
-             return (
-              <Button
-                asChild
-                size="lg"
-                disabled={!canWatch}
-                className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-              >
-                <Link href={`/play/${event.id}`}>
-                  <Play className="mr-2 h-6 w-6" /> Join Event
-                </Link>
-              </Button>
-            );
-        }
-        return (
-          <Button
-            size="lg"
-            className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-            onClick={handleBuyTicket}
-          >
-            <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
-          </Button>
-        );
+        return buyTicketButton;
+
       case "past":
         return (
           <Button
@@ -266,6 +261,9 @@ export default function EventDetailPage() {
             </Link>
           </Button>
         );
+      
+      default:
+        return null;
     }
   };
 
