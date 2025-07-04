@@ -18,7 +18,7 @@ import {
   onSnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback } from './types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -139,6 +139,32 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 
 // EVENT-RELATED FUNCTIONS
+
+export const addEvent = async (
+  eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
+  bannerImage?: File
+) => {
+  // 1. Create the event document in Firestore to get an ID
+  const docRef = await addDoc(eventsCollection, {
+    ...eventData,
+    bannerUrl: '', // To be updated later
+    createdAt: serverTimestamp(),
+    eventCode: 'TBA',
+  });
+  const eventId = docRef.id;
+
+  // 2. Upload banner image if provided
+  let bannerUrl = 'https://placehold.co/1280x720.png'; // Default placeholder
+  if (bannerImage) {
+    const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+    bannerUrl = await uploadFile(bannerImage, bannerPath);
+  }
+
+  // 3. Generate event code and update the document with banner URL and code
+  const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
+  await updateDoc(docRef, { bannerUrl, eventCode });
+};
+
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(

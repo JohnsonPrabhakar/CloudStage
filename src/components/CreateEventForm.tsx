@@ -33,7 +33,7 @@ import { type EventCategory, type Artist } from "@/lib/types";
 import { Sparkles, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { getArtistProfile, getEventById, getYouTubeEmbedUrl } from "@/lib/firebase-service";
+import { getArtistProfile, getEventById, getYouTubeEmbedUrl, addEvent } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
@@ -211,46 +211,35 @@ export default function CreateEventForm() {
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData();
-      // Append all text-based form values
-      formData.append('title', values.title);
-      formData.append('artist', artist.name);
-      formData.append('artistId', artist.id);
-      formData.append('category', values.category);
-      formData.append('genre', values.genre);
-      formData.append('language', values.language);
-      formData.append('date', values.date);
-      formData.append('streamUrl', values.streamUrl);
-      formData.append('ticketPrice', values.ticketPrice.toString());
-      formData.append('description', values.description);
-      formData.append('boost', (values.boost ?? false).toString());
-
-      // Append the banner file if it exists
-      if (bannerFile) {
-        formData.append('banner', bannerFile);
-      }
+        const eventData = {
+          title: values.title,
+          artist: artist.name,
+          artistId: artist.id,
+          description: values.description,
+          category: values.category as EventCategory,
+          genre: values.genre,
+          language: values.language,
+          date: new Date(values.date).toISOString(),
+          status: new Date(values.date) > new Date() ? 'upcoming' : 'past',
+          streamUrl: values.streamUrl,
+          ticketPrice: values.ticketPrice,
+          isBoosted: values.boost ?? false,
+          boostAmount: values.boost ? 100 : 0,
+          moderationStatus: 'pending' as const,
+        };
+        
+        await addEvent(eventData, bannerFile ?? undefined);
       
-      const response = await fetch('/api/events/create', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        // Use errorData.message directly, as we now send the specific error
-        throw new Error(errorData.message || 'Failed to submit event. Please try again.');
-      }
-      
-      toast({
-        title: "Event Submitted!",
-        description: "Your event is now pending admin approval.",
-      });
-      router.push("/artist/dashboard");
+        toast({
+            title: "Event Submitted!",
+            description: "Your event is now pending admin approval.",
+        });
+        router.push("/artist/dashboard");
 
     } catch (error: any) {
       toast({
         title: "Submission Failed",
-        description: error.message,
+        description: error.message || 'An unknown error occurred.',
         variant: "destructive",
       });
     } finally {
