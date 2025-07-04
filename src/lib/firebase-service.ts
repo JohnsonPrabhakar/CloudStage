@@ -67,6 +67,7 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
     return downloadURL;
   } catch (error) {
     console.error(`[uploadFile] Firebase Storage Error during upload to ${path}:`, error);
+    // Re-throw the error to be handled by the calling function
     throw new Error("File upload failed. Check storage rules and network connection.");
   }
 }
@@ -143,29 +144,27 @@ export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
   bannerImage?: File
 ): Promise<void> => {
-  let finalBannerUrl = 'https://placehold.co/1280x720.png';
-
   // Create the document reference first to get an ID.
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
+  let finalBannerUrl: string;
 
-  // If a banner image is provided, upload it first.
   if (bannerImage) {
+    // This `try...catch` block ensures that if the upload fails, the function stops.
     try {
       const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
       finalBannerUrl = await uploadFile(bannerImage, bannerPath);
     } catch (error) {
-      // If the upload fails, we stop the entire process and re-throw the error.
-      // This prevents creating an event document without a banner.
-      console.error("Banner upload failed, aborting event creation.", error);
-      if (error instanceof Error) {
-        throw new Error(`Banner upload failed: ${error.message}`);
-      }
-      throw new Error("An unknown error occurred during banner upload.");
+      console.error("Banner upload failed. Aborting event creation.", error);
+      // Re-throw the error so the UI can catch it and inform the user.
+      throw new Error(`Banner upload failed: ${(error as Error).message}`);
     }
+  } else {
+    // A banner is required, so if it's not provided, we throw an error.
+    throw new Error("A banner image is required to create an event.");
   }
-  
-  // If we've reached here, the upload (if any) was successful. Now, create the document.
+
+  // If we've reached here, the upload was successful. Now, create the document.
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
 
   await setDoc(docRef, {
@@ -668,3 +667,5 @@ export const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id'
         submittedAt: serverTimestamp(),
     });
 };
+
+    
