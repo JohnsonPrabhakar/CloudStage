@@ -73,9 +73,9 @@ export async function POST(request: Request) {
       const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
       const storageRef = ref(storage, bannerPath);
       
-      // FIX: Pass the File object from FormData directly to uploadBytes.
-      // This is more robust than converting to an ArrayBuffer in a server environment.
-      await uploadBytes(storageRef, bannerFile, { contentType: bannerFile.type });
+      // Convert File to ArrayBuffer for upload
+      const buffer = await bannerFile.arrayBuffer();
+      await uploadBytes(storageRef, buffer, { contentType: bannerFile.type });
       
       console.log(`[API /events/create] Upload complete for path: ${bannerPath}`);
       finalBannerUrl = await getDownloadURL(storageRef);
