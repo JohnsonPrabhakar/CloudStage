@@ -62,7 +62,7 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 export const uploadFile = async (file: File, path: string): Promise<string> => {
   const storageRef = ref(storage, path);
   try {
-    const snapshot = await uploadBytes(storageRef, file);
+    const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
   } catch (error) {
@@ -138,31 +138,48 @@ const getYouTubeVideoId = (url: string): string | null => {
 }
 
 
-// EVENT-RELATED FUNCTIONS
+// --- EVENT-RELATED FUNCTIONS ---
+
+const uploadBannerAndUpdateEvent = async (
+  bannerImage: File,
+  artistId: string,
+  eventId: string
+) => {
+  const eventDocRef = doc(db, 'events', eventId);
+  try {
+    const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
+    const bannerUrl = await uploadFile(bannerImage, bannerPath);
+    await updateDoc(eventDocRef, { bannerUrl });
+    console.log(`[backgroundUpload] Successfully uploaded banner for event ${eventId}`);
+  } catch (error) {
+    console.error(`[backgroundUpload] Banner upload failed for event ${eventId}:`, error);
+    // Optionally, update the document to reflect the failure
+    await updateDoc(eventDocRef, { bannerUrl: 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed' });
+  }
+};
 
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
   bannerImage?: File
 ) => {
-  // 1. Create the event document in Firestore to get an ID
+  const initialBannerUrl = bannerImage
+    ? 'https://placehold.co/1280x720/cccccc/ffffff.png?text=Uploading...'
+    : 'https://placehold.co/1280x720.png';
+
   const docRef = await addDoc(eventsCollection, {
     ...eventData,
-    bannerUrl: '', // To be updated later
+    bannerUrl: initialBannerUrl,
     createdAt: serverTimestamp(),
     eventCode: 'TBA',
   });
   const eventId = docRef.id;
 
-  // 2. Upload banner image if provided
-  let bannerUrl = 'https://placehold.co/1280x720.png'; // Default placeholder
-  if (bannerImage) {
-    const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
-    bannerUrl = await uploadFile(bannerImage, bannerPath);
-  }
-
-  // 3. Generate event code and update the document with banner URL and code
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
-  await updateDoc(docRef, { bannerUrl, eventCode });
+  await updateDoc(docRef, { eventCode });
+
+  if (bannerImage) {
+    uploadBannerAndUpdateEvent(bannerImage, eventData.artistId, eventId);
+  }
 };
 
 

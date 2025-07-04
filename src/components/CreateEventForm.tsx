@@ -208,6 +208,11 @@ export default function CreateEventForm() {
       return;
     }
 
+    if (!bannerFile && !searchParams.get('duplicate')) {
+      toast({ variant: 'destructive', title: 'Missing Banner', description: 'Please upload an event banner to continue.' });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -232,7 +237,7 @@ export default function CreateEventForm() {
       
         toast({
             title: "Event Submitted!",
-            description: "Your event is now pending admin approval.",
+            description: "Your event is now pending admin approval. The banner is uploading in the background.",
         });
         router.push("/artist/dashboard");
 
