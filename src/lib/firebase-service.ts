@@ -323,25 +323,32 @@ export const checkForExistingTicket = async (userId: string, eventId: string): P
   return !snapshot.empty;
 };
 
-export const createTicket = async (userId: string, eventId: string, price: number): Promise<{ success: boolean; message: string }> => {
-  const alreadyExists = await checkForExistingTicket(userId, eventId);
-  if (alreadyExists) {
-    return { success: false, message: 'You already have a ticket for this event.' };
-  }
+export const createTicket = async (
+    userId: string,
+    eventId: string,
+    price: number,
+    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string }
+): Promise<{ success: boolean; message: string; ticketId?: string }> => {
+    const alreadyExists = await checkForExistingTicket(userId, eventId);
+    if (alreadyExists) {
+        return { success: false, message: 'You already have a ticket for this event.' };
+    }
 
-  try {
-    await addDoc(ticketsCollection, {
-      userId,
-      eventId,
-      pricePaid: price,
-      createdAt: serverTimestamp(),
-      isPaid: false, // In a real app, this would be handled by a payment gateway callback
-      paymentId: null,
-    });
-    return { success: true, message: 'Ticket successfully acquired!' };
-  } catch (error) {
-    return { success: false, message: 'Could not acquire ticket. Please try again.' };
-  }
+    try {
+        const ticketRef = await addDoc(ticketsCollection, {
+            userId,
+            eventId,
+            pricePaid: price,
+            createdAt: serverTimestamp(),
+            isPaid: false, // In a real app, this would be handled by a payment gateway callback
+            paymentId: null,
+            ...contactDetails
+        });
+        return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
+    } catch (error) {
+        console.error("Error creating ticket: ", error);
+        return { success: false, message: 'Could not acquire ticket. Please try again.' };
+    }
 };
 
 export const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {

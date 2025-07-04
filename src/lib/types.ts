@@ -1,3 +1,4 @@
+
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
@@ -88,6 +89,9 @@ export interface Ticket {
   isPaid: boolean;
   paymentId: string | null;
   pricePaid: number;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
 }
 
 export interface ChatMessage {

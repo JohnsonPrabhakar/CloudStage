@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getEventById, createTicket, checkForExistingTicket, getSiteStatus, getArtistProfile } from "@/lib/firebase-service";
+import { getEventById, checkForExistingTicket, getSiteStatus, getArtistProfile } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -103,34 +103,6 @@ export default function EventDetailPage() {
   useEffect(() => {
     setAttendees(Math.floor(Math.random() * 5000 + 1000));
   }, []);
-
-  const handleBuyTicket = async () => {
-    if (!event) return;
-    if (!currentUser) {
-        toast({
-            variant: "destructive",
-            title: "Please Log In",
-            description: "You need to be logged in to get a ticket.",
-        });
-        router.push("/artist/login");
-        return;
-    }
-
-    const result = await createTicket(currentUser.uid, event.id, event.ticketPrice);
-    if (result.success) {
-        setHasTicket(true);
-        toast({
-            title: "Ticket Acquired!",
-            description: `You've successfully got a ticket for ${event.title}.`,
-        });
-    } else {
-        toast({
-            variant: "destructive",
-            title: "Failed to Get Ticket",
-            description: result.message,
-        });
-    }
-  };
   
   const isValidStreamUrl = (url: string) => {
     try {
@@ -184,12 +156,14 @@ export default function EventDetailPage() {
   const getAction = () => {
     const buyTicketButton = (
       <Button
+        asChild
         size="lg"
         className="w-full text-lg py-6 transition-transform transform hover:scale-105"
-        onClick={handleBuyTicket}
         disabled={siteStatus === 'offline' || event.status === 'past'}
       >
-        <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
+        <Link href={`/confirm-ticket/${event.id}`}>
+            <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
+        </Link>
       </Button>
     );
 
