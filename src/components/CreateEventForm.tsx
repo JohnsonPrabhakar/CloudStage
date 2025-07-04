@@ -29,11 +29,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type EventCategory, type Artist } from "@/lib/types";
-import { Sparkles, Upload, ChevronLeft, Info, Loader2 } from "lucide-react";
+import { type EventCategory, type Artist } from "@/lib/types";
+import { Sparkles, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { addEvent, getArtistProfile, getEventById, getYouTubeEmbedUrl } from "@/lib/firebase-service";
+import { getArtistProfile, getEventById, getYouTubeEmbedUrl } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
@@ -149,7 +149,7 @@ export default function CreateEventForm() {
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 5 * 1024 * 1024) {
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
             toast({ variant: 'destructive', title: 'File too large', description: 'Banner image must be less than 5MB.' });
             return;
         }
@@ -204,66 +204,56 @@ export default function CreateEventForm() {
 
   async function onSubmit(values: FormValues) {
     if (!artist) {
-        toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
-        return;
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
+      return;
     }
-    
+
     setIsSubmitting(true);
+
     try {
-        const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'> = {
-          title: values.title,
-          artist: artist.name,
-          artistId: artist.id,
-          description: values.description,
-          category: values.category as EventCategory,
-          genre: values.genre,
-          language: values.language,
-          date: new Date(values.date).toISOString(),
-          status: new Date(values.date) > new Date() ? "upcoming" : "past",
-          streamUrl: values.streamUrl,
-          ticketPrice: values.ticketPrice,
-          isBoosted: values.boost ?? false,
-          boostAmount: values.boost ? 100 : 0,
-          views: 0,
-          watchTime: 0,
-          ticketsSold: 0,
-        };
-        
-        // Step 1: Create the event document in Firestore and get the new event's ID
-        const newEventId = await addEvent(eventData);
+      const formData = new FormData();
+      // Append all text-based form values
+      formData.append('title', values.title);
+      formData.append('artist', artist.name);
+      formData.append('artistId', artist.id);
+      formData.append('category', values.category);
+      formData.append('genre', values.genre);
+      formData.append('language', values.language);
+      formData.append('date', values.date);
+      formData.append('streamUrl', values.streamUrl);
+      formData.append('ticketPrice', values.ticketPrice.toString());
+      formData.append('description', values.description);
+      formData.append('boost', (values.boost ?? false).toString());
 
-        // Step 2: If a banner file exists, upload it via our new API route
-        if (bannerFile) {
-            const formData = new FormData();
-            formData.append("banner", bannerFile);
-            formData.append("artistId", artist.id);
-            formData.append("eventId", newEventId);
+      // Append the banner file if it exists
+      if (bannerFile) {
+        formData.append('banner', bannerFile);
+      }
+      
+      const response = await fetch('/api/events/create', {
+        method: 'POST',
+        body: formData,
+      });
 
-            const response = await fetch('/api/events/banner', {
-                method: 'POST',
-                body: formData,
-            });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'An unknown error occurred on the server.');
+      }
+      
+      toast({
+        title: "Event Submitted!",
+        description: "Your event is now pending admin approval.",
+      });
+      router.push("/artist/dashboard");
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Banner upload failed.');
-            }
-        }
-        
-        toast({
-            title: "Event Submitted!",
-            description: "Your event is now pending admin approval.",
-        });
-        router.push("/artist/dashboard");
-
-    } catch(error: any) {
-         toast({
-            title: "Submission Failed",
-            description: error.message || "There was an error submitting your event. Please check the console for details and try again.",
-            variant: "destructive",
-        });
+    } catch (error: any) {
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to fetch. Please check your network connection and try again.",
+        variant: "destructive",
+      });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 

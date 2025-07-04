@@ -140,29 +140,6 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>): Promise<string> => {
-  try {
-    const docRef = await addDoc(eventsCollection, {
-      ...eventData,
-      bannerUrl: "https://placehold.co/1280x720.png", // Default placeholder
-      eventCode: "TBA",
-      moderationStatus: 'pending',
-      createdAt: serverTimestamp(),
-    });
-
-    // Generate event code and update the document
-    const eventId = docRef.id;
-    const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
-    await updateDoc(docRef, { eventCode: eventCode });
-    
-    return eventId;
-  } catch (error) {
-    console.error('[addEvent] An error occurred during event creation:', error);
-    throw error;
-  }
-};
-
-
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(
     eventsCollection,
