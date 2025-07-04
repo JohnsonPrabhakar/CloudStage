@@ -18,7 +18,7 @@ import {
   getCountFromServer,
   onSnapshot,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie } from './types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -475,6 +475,35 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
     throw error;
   }
 };
+
+
+// --- CHAT FUNCTIONS ---
+
+export const getChatMessagesListener = (
+  eventId: string,
+  callback: (messages: ChatMessage[]) => void
+): (() => void) => {
+  const messagesCollection = collection(db, 'events', eventId, 'messages');
+  const q = query(messagesCollection, orderBy('createdAt', 'asc'), limit(50));
+  
+  return onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => fromFirestore<ChatMessage>(doc));
+    callback(messages);
+  });
+};
+
+export const sendChatMessage = async (eventId: string, name: string, message: string): Promise<void> => {
+    if (!name.trim() || !message.trim()) {
+        throw new Error("Name and message cannot be empty.");
+    }
+    const messagesCollection = collection(db, 'events', eventId, 'messages');
+    await addDoc(messagesCollection, {
+        name,
+        message,
+        createdAt: serverTimestamp()
+    });
+}
+
 
 // --- DASHBOARD COUNT LISTENER FUNCTIONS ---
 export const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { type Event } from "@/lib/types";
+import { type Event, type ChatMessage } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { getChatMessagesListener, sendChatMessage } from "@/lib/firebase-service";
+
 
 const AdOverlay = ({
   onClose,
@@ -84,12 +86,6 @@ const AdOverlay = ({
   );
 };
 
-const initialMessages = [
-    { name: 'Fan123', message: 'This is amazing! 🔥' },
-    { name: 'MusicLover', message: 'Playing my favorite song!' },
-    { name: 'Rocker', message: 'Turn it up! 🤘' },
-];
-
 export default function EventPlayer({ event }: { event: Event }) {
   const router = useRouter();
   
@@ -98,7 +94,7 @@ export default function EventPlayer({ event }: { event: Event }) {
   
   const [chatName, setChatName] = useState("");
   const [chatMessage, setChatMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState(initialMessages);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const [reactions, setReactions] = useState<{ id: number; icon: string; left: string }[]>([]);
@@ -112,6 +108,14 @@ export default function EventPlayer({ event }: { event: Event }) {
 
     return () => clearTimeout(midRollTimer);
   }, []);
+  
+  // Real-time chat listener
+  useEffect(() => {
+    const unsubscribe = getChatMessagesListener(event.id, (messages) => {
+      setChatHistory(messages);
+    });
+    return () => unsubscribe();
+  }, [event.id]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -147,11 +151,16 @@ export default function EventPlayer({ event }: { event: Event }) {
     }, 5000); // Show ad for 5 seconds before navigating
   };
   
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (chatMessage.trim() && chatName.trim()) {
-        setChatHistory([...chatHistory, { name: chatName, message: chatMessage}]);
-        setChatMessage("");
+        try {
+            await sendChatMessage(event.id, chatName, chatMessage);
+            setChatMessage("");
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            // Optionally show a toast to the user here
+        }
     }
   }
 
@@ -222,8 +231,8 @@ export default function EventPlayer({ event }: { event: Event }) {
             <CardTitle>Live Chat</CardTitle>
           </CardHeader>
           <CardContent ref={chatContainerRef} className="flex-grow overflow-y-auto space-y-4">
-             {chatHistory.map((chat, index) => (
-                <div key={index} className="flex items-start gap-3">
+             {chatHistory.map((chat) => (
+                <div key={chat.id} className="flex items-start gap-3">
                   <Avatar className="h-8 w-8">
                      <AvatarImage src={`https://i.pravatar.cc/40?u=${chat.name}`} alt={chat.name} />
                     <AvatarFallback>{chat.name.substring(0, 1)}</AvatarFallback>

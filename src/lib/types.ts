@@ -74,3 +74,10 @@ export interface Ticket {
   isPaid: boolean;
   paymentId: string | null;
 }
+
+export interface ChatMessage {
+  id: string;
+  name: string;
+  message: string;
+  createdAt: any;
+}
