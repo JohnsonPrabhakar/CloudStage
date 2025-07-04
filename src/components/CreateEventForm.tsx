@@ -237,7 +237,8 @@ export default function CreateEventForm() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'An unknown error occurred on the server.');
+        // Use errorData.message directly, as we now send the specific error
+        throw new Error(errorData.message || 'Failed to submit event. Please try again.');
       }
       
       toast({
@@ -249,7 +250,7 @@ export default function CreateEventForm() {
     } catch (error: any) {
       toast({
         title: "Submission Failed",
-        description: error.message || "Failed to fetch. Please check your network connection and try again.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
