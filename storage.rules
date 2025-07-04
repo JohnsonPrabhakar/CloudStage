@@ -3,37 +3,34 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Allow public read access to all files by default.
-    // This allows anyone to view banners, posters, profile pictures etc.
+  
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
+    }
+
+    // Public read access for all files to allow images and videos to be displayed.
     match /{allPaths=**} {
-      allow read;
+      allow read: if true;
     }
 
-    // --- WRITE RULES ---
-
-    // Artists can write to their own profile picture path.
-    match /artists/{userId}/profile.jpg {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Artists can write to their own designated paths for profile pictures.
+    match /artists/{artistId}/profile.jpg {
+      allow write: if request.auth != null && request.auth.uid == artistId;
     }
 
-    // Artists can write a verification video to their own path.
-    match /artists/{userId}/verification_sample.mp4 {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Artists can write banners to their own designated event paths.
+    match /artists/{artistId}/events/{eventId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 5 * 1024 * 1024;
     }
 
-    // Artists can write a banner to their own events folder.
-    // This is the key rule to fix the banner upload issue.
-    match /artists/{userId}/events/{eventId}/banner.jpg {
-      allow write: if request.auth != null 
-                   && request.auth.uid == userId 
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+    // Artists can upload verification videos
+    match /artists/{artistId}/verification_sample.mp4 {
+      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 50 * 1024 * 1024;
     }
-
-    // Admins (or any authenticated user, protected by client-side logic) can upload movie files.
+    
+    // Only admins can write to the movies directory.
     match /movies/{movieId}/{fileName} {
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }
