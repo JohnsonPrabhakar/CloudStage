@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import { type Event } from "@/lib/types";
@@ -69,7 +70,7 @@ export function EventCard({ event }: EventCardProps) {
       <Link href={`/events/${event.id}`} className="block overflow-hidden rounded-t-lg">
         <div className="relative h-48 w-full">
           <Image
-            src={event.bannerUrl}
+            src={event.bannerUrl || "https://placehold.co/600x400.png"}
             alt={event.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
