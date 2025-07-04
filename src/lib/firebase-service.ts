@@ -148,24 +148,15 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>, bannerFile?: File) => {
+export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>) => {
   console.log('[addEvent] Starting event creation process...');
   const eventRef = doc(collection(db, 'events'));
   const eventId = eventRef.id;
   console.log(`[addEvent] Generated temporary event ID: ${eventId}`);
 
   try {
-    let bannerUrl = "https://placehold.co/1280x720.png";
-    if (bannerFile) {
-        console.log('[addEvent] Banner file provided. Starting upload...');
-        bannerUrl = await uploadFile(
-            bannerFile,
-            `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
-        );
-        console.log(`[addEvent] Banner uploaded successfully. URL: ${bannerUrl}`);
-    } else {
-      console.log('[addEvent] No banner file provided. Using placeholder.');
-    }
+    const bannerUrl = "https://placehold.co/1280x720.png";
+    console.log('[addEvent] Using placeholder banner.');
     
     const finalEventPayload = {
       ...eventData,

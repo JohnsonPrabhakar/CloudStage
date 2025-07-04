@@ -55,7 +55,6 @@ const formSchema = z.object({
   genre: z.string().min(1, "Genre is required."),
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
-  banner: z.any().optional(),
   streamUrl: z.string().url("Must be a valid URL.").refine(
     (url) => url.includes("youtube.com/embed/"),
     "Please provide a valid YouTube URL (e.g., watch, live, or youtu.be link)."
@@ -75,7 +74,6 @@ export default function CreateEventForm() {
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -216,10 +214,7 @@ export default function CreateEventForm() {
           ticketsSold: 0,
         };
         
-        const bannerFile = values.banner?.[0];
-        console.log("[CreateEventForm] Banner file to be uploaded:", bannerFile);
-
-        await addEvent(eventData, bannerFile);
+        await addEvent(eventData);
         toast({
             title: "Event Submitted!",
             description: "Your event is now pending admin approval.",
@@ -399,32 +394,6 @@ export default function CreateEventForm() {
                   </FormItem>
                 )}
               />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                 <FormField
-                  control={form.control}
-                  name="banner"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Banner Image (JPG, PNG)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="file" 
-                          accept="image/jpeg, image/png"
-                          onChange={(e) => {
-                            field.onChange(e.target.files);
-                            if (e.target.files && e.target.files[0]) {
-                              setBannerPreview(URL.createObjectURL(e.target.files[0]));
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {bannerPreview && <Image src={bannerPreview} alt="Banner preview" width={200} height={100} className="rounded-md border object-cover"/>}
-              </div>
 
                <FormField
                   control={form.control}
