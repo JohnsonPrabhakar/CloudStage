@@ -15,10 +15,9 @@ import {
   deleteDoc,
   limit,
   orderBy,
-  getCountFromServer,
   onSnapshot,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequest, type EventFeedback } from './types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -26,7 +25,6 @@ const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
 const ticketsCollection = collection(db, 'tickets');
 const moviesCollection = collection(db, 'movies');
-const verificationRequestsCollection = collection(db, 'verificationRequests');
 const eventFeedbackCollection = collection(db, 'eventFeedback');
 
 
@@ -178,9 +176,10 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   const snapshot = await getDocs(q);
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
-  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  
-  return events.slice(0, 50);
+  // Sort by date descending (newest first) and return up to 50
+  return events
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 50);
 };
 
 export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
@@ -336,7 +335,7 @@ export const createTicket = async (userId: string, eventId: string, price: numbe
       eventId,
       pricePaid: price,
       createdAt: serverTimestamp(),
-      isPaid: false,
+      isPaid: false, // In a real app, this would be handled by a payment gateway callback
       paymentId: null,
     });
     return { success: true, message: 'Ticket successfully acquired!' };
@@ -553,61 +552,59 @@ export const updateSiteStatus = async (status: 'online' | 'offline') => {
 // --- ARTIST VERIFICATION FUNCTIONS ---
 
 export const submitVerificationRequest = async (
-    requestData: Omit<VerificationRequest, 'id' | 'submittedAt' | 'status' | 'reviewedByAdmin' | 'reviewedAt' | 'sampleVideoUrl'>,
+    artistId: string,
+    requestData: Omit<VerificationRequestData, 'status' | 'submittedAt' | 'reviewedByAdmin' | 'reviewedAt'>,
     sampleVideoFile?: File
 ) => {
+    const artistDoc = doc(db, 'artists', artistId);
     let sampleVideoUrl: string | undefined;
     if (sampleVideoFile) {
-        sampleVideoUrl = await uploadFile(sampleVideoFile, `verificationRequests/${requestData.artistId}/sampleVideo`);
+        // Use a path the artist has permission to write to
+        sampleVideoUrl = await uploadFile(sampleVideoFile, `artists/${artistId}/verification_sample.mp4`);
     }
 
-    await addDoc(verificationRequestsCollection, {
+    const verificationPayload: VerificationRequestData = {
         ...requestData,
         sampleVideoUrl,
         submittedAt: serverTimestamp(),
         status: 'pending',
         reviewedByAdmin: null,
         reviewedAt: null,
+    };
+
+    await updateDoc(artistDoc, {
+        verificationRequest: verificationPayload
     });
 };
 
-export const getVerificationRequestForArtist = async (artistId: string): Promise<VerificationRequest | null> => {
-    const q = query(verificationRequestsCollection, where('artistId', '==', artistId), orderBy('submittedAt', 'desc'), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-        return null;
-    }
-    return fromFirestore<VerificationRequest>(snapshot.docs[0]);
-};
-
-export const getPendingVerificationRequestsListener = (callback: (requests: VerificationRequest[]) => void): (() => void) => {
-    const q = query(verificationRequestsCollection, where('status', '==', 'pending'), orderBy('submittedAt', 'desc'));
+export const getPendingVerificationRequestsListener = (callback: (artists: Artist[]) => void): (() => void) => {
+    const q = query(artistsCollection, where('verificationRequest.status', '==', 'pending'));
     return onSnapshot(q, (snapshot) => {
-        const requests = snapshot.docs.map(doc => fromFirestore<VerificationRequest>(doc));
-        callback(requests);
+        const artistsWithPendingRequests = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
+        callback(artistsWithPendingRequests);
+    }, (error) => {
+        console.error("Error fetching pending requests:", error);
+        // This might happen if the composite index for this query is not created.
+        // The error handling should be done in the component.
     });
 };
 
-export const approveVerificationRequest = async (requestId: string, artistId: string, adminId: string) => {
-    const requestDoc = doc(db, 'verificationRequests', requestId);
-    await updateDoc(requestDoc, {
-        status: 'approved',
-        reviewedAt: serverTimestamp(),
-        reviewedByAdmin: adminId,
-    });
-
+export const approveVerificationRequest = async (artistId: string, adminId: string) => {
     const artistDoc = doc(db, 'artists', artistId);
     await updateDoc(artistDoc, {
         accessLevel: 'verified',
+        'verificationRequest.status': 'approved',
+        'verificationRequest.reviewedAt': serverTimestamp(),
+        'verificationRequest.reviewedByAdmin': adminId,
     });
 };
 
-export const rejectVerificationRequest = async (requestId: string, adminId: string) => {
-    const requestDoc = doc(db, 'verificationRequests', requestId);
-    await updateDoc(requestDoc, {
-        status: 'rejected',
-        reviewedAt: serverTimestamp(),
-        reviewedByAdmin: adminId,
+export const rejectVerificationRequest = async (artistId: string, adminId: string) => {
+    const artistDoc = doc(db, 'artists', artistId);
+    await updateDoc(artistDoc, {
+        'verificationRequest.status': 'rejected',
+        'verificationRequest.reviewedAt': serverTimestamp(),
+        'verificationRequest.reviewedByAdmin': adminId,
     });
 };
 

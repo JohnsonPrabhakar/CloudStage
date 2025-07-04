@@ -24,8 +24,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type Artist, type VerificationRequest } from "@/lib/types";
-import { getArtistEventsListener, getArtistProfile, toggleEventBoost, getVerificationRequestForArtist } from "@/lib/firebase-service";
+import { type Event, type Artist } from "@/lib/types";
+import { getArtistEventsListener, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -51,7 +51,6 @@ export default function ArtistDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
-  const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,10 +77,6 @@ export default function ArtistDashboard() {
           if (profile) {
             if (profile.isApproved) {
               setArtist(profile);
-              if(profile.accessLevel === 'basic') {
-                  const request = await getVerificationRequestForArtist(user.uid);
-                  setVerificationRequest(request);
-              }
               // Set up listener for events only for approved artists
               eventsUnsubscribe = getArtistEventsListener(user.uid, (events) => {
                 setMyEvents(events);
@@ -150,6 +145,8 @@ export default function ArtistDashboard() {
 
   const renderVerificationButton = () => {
       if (!artist || artist.accessLevel === 'verified') return null;
+
+      const verificationRequest = artist.verificationRequest;
 
       if (verificationRequest?.status === 'pending') {
           return (

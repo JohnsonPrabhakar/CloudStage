@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +24,7 @@ import { type Artist } from "@/lib/types";
 import { BadgeCheck, ChevronLeft, Loader2, ShieldAlert } from "lucide-react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getArtistProfile, submitVerificationRequest, getVerificationRequestForArtist } from "@/lib/firebase-service";
+import { getArtistProfile, submitVerificationRequest } from "@/lib/firebase-service";
 
 const formSchema = z.object({
   youtubeLinks: z.string().min(1, "Please provide at least one YouTube link."),
@@ -64,8 +65,7 @@ export default function ArtistVerificationForm() {
                     router.push('/artist/dashboard');
                     return;
                 }
-                const existingRequest = await getVerificationRequestForArtist(currentUser.uid);
-                if (existingRequest?.status === 'pending') {
+                if (profile.verificationRequest?.status === 'pending') {
                     setIsRequestPending(true);
                 }
             } else {
@@ -93,15 +93,14 @@ export default function ArtistVerificationForm() {
     setIsSubmitting(true);
     try {
         const requestData = {
-          artistId: user.uid,
-          artistName: artist.name,
           youtubeLinks: values.youtubeLinks.split('\n').filter(link => link.trim() !== ''),
           instagramLinks: values.instagramLinks?.split('\n').filter(link => link.trim() !== '') || [],
           messageToAdmin: values.messageToAdmin,
         };
         const sampleVideoFile = values.sampleVideo?.[0];
 
-        await submitVerificationRequest(requestData, sampleVideoFile);
+        await submitVerificationRequest(user.uid, requestData, sampleVideoFile);
+        
         toast({
             title: "Request Submitted!",
             description: "Your verification request is now under review. We'll notify you of the outcome.",

@@ -33,6 +33,17 @@ export interface Event {
 
 export type ArtistCategory = 'Music' | 'Stand-up Comedy' | 'Yoga' | 'Magic' | 'Devotional';
 
+export interface VerificationRequestData {
+    youtubeLinks: string[];
+    instagramLinks: string[];
+    sampleVideoUrl?: string;
+    messageToAdmin: string;
+    submittedAt: any;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewedByAdmin: string | null;
+    reviewedAt: any | null;
+}
+
 export interface Artist {
   id: string; // Firebase Auth UID
   name: string;
@@ -52,6 +63,7 @@ export interface Artist {
   type: 'Solo Artist' | 'Band';
   genres: string[];
   accessLevel: 'basic' | 'verified';
+  verificationRequest?: VerificationRequestData;
 }
 
 export type MovieGenre = string;
@@ -85,22 +97,8 @@ export interface ChatMessage {
   createdAt: any;
 }
 
-export interface VerificationRequest {
-    id: string;
-    artistId: string;
-    artistName: string; // For display in admin panel
-    youtubeLinks: string[];
-    instagramLinks: string[];
-    sampleVideoUrl?: string;
-    messageToAdmin: string;
-    submittedAt: any;
-    status: 'pending' | 'approved' | 'rejected';
-    reviewedByAdmin: string | null;
-    reviewedAt: any | null;
-}
-
 export interface EventFeedback {
-    id: string;
+    id:string;
     userId: string;
     artistId: string;
     eventId: string;
