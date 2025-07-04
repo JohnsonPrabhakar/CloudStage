@@ -37,7 +37,6 @@ import { addEvent, getArtistProfile, getEventById, getYouTubeEmbedUrl } from "@/
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
-import { format } from 'date-fns';
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -230,7 +229,26 @@ export default function CreateEventForm() {
           ticketsSold: 0,
         };
         
-        await addEvent(eventData, bannerFile ?? undefined);
+        // Step 1: Create the event document in Firestore and get the new event's ID
+        const newEventId = await addEvent(eventData);
+
+        // Step 2: If a banner file exists, upload it via our new API route
+        if (bannerFile) {
+            const formData = new FormData();
+            formData.append("banner", bannerFile);
+            formData.append("artistId", artist.id);
+            formData.append("eventId", newEventId);
+
+            const response = await fetch('/api/events/banner', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Banner upload failed.');
+            }
+        }
         
         toast({
             title: "Event Submitted!",

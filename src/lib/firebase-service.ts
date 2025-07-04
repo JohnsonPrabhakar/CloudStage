@@ -59,7 +59,7 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 };
 
 // --- STORAGE HELPER FUNCTIONS ---
-const uploadFile = async (file: File, path: string): Promise<string> => {
+export const uploadFile = async (file: File, path: string): Promise<string> => {
   const storageRef = ref(storage, path);
   try {
     const snapshot = await uploadBytes(storageRef, file);
@@ -140,27 +140,22 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>, bannerImage?: File) => {
-  const eventRef = doc(collection(db, 'events'));
-  const eventId = eventRef.id;
-
+export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>): Promise<string> => {
   try {
-    let bannerUrl = "https://placehold.co/1280x720.png";
-    if (bannerImage) {
-      const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
-      bannerUrl = await uploadFile(bannerImage, bannerPath);
-    }
-    
-    const finalEventPayload = {
+    const docRef = await addDoc(eventsCollection, {
       ...eventData,
-      bannerUrl: bannerUrl,
-      eventCode: `EVT-${eventId.substring(0, 8).toUpperCase()}`,
+      bannerUrl: "https://placehold.co/1280x720.png", // Default placeholder
+      eventCode: "TBA",
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
-    };
+    });
 
-    await setDoc(eventRef, finalEventPayload);
-
+    // Generate event code and update the document
+    const eventId = docRef.id;
+    const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
+    await updateDoc(docRef, { eventCode: eventCode });
+    
+    return eventId;
   } catch (error) {
     console.error('[addEvent] An error occurred during event creation:', error);
     throw error;
