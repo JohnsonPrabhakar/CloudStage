@@ -233,15 +233,17 @@ export default function CreateEventForm() {
           moderationStatus: 'pending' as const,
         };
         
+        // This now waits for the entire process, including upload, to finish.
         await addEvent(eventData, bannerFile ?? undefined);
       
         toast({
             title: "Event Submitted!",
-            description: "Your event is now pending admin approval. The banner is uploading in the background.",
+            description: "Your event has been successfully submitted for admin approval.",
         });
         router.push("/artist/dashboard");
 
     } catch (error: any) {
+      // This will now catch the upload error directly.
       toast({
         title: "Submission Failed",
         description: error.message || 'An unknown error occurred.',

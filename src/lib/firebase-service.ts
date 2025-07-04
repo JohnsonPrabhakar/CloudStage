@@ -139,47 +139,41 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 
 // --- EVENT-RELATED FUNCTIONS ---
-
-const uploadBannerAndUpdateEvent = async (
-  bannerImage: File,
-  artistId: string,
-  eventId: string
-) => {
-  const eventDocRef = doc(db, 'events', eventId);
-  try {
-    const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
-    const bannerUrl = await uploadFile(bannerImage, bannerPath);
-    await updateDoc(eventDocRef, { bannerUrl });
-    console.log(`[backgroundUpload] Successfully uploaded banner for event ${eventId}`);
-  } catch (error) {
-    console.error(`[backgroundUpload] Banner upload failed for event ${eventId}:`, error);
-    // Optionally, update the document to reflect the failure
-    await updateDoc(eventDocRef, { bannerUrl: 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed' });
-  }
-};
-
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
   bannerImage?: File
-) => {
-  const initialBannerUrl = bannerImage
-    ? 'https://placehold.co/1280x720/cccccc/ffffff.png?text=Uploading...'
-    : 'https://placehold.co/1280x720.png';
+): Promise<void> => {
+  let finalBannerUrl = 'https://placehold.co/1280x720.png';
 
-  const docRef = await addDoc(eventsCollection, {
-    ...eventData,
-    bannerUrl: initialBannerUrl,
-    createdAt: serverTimestamp(),
-    eventCode: 'TBA',
-  });
+  // Create the document reference first to get an ID.
+  const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
 
-  const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
-  await updateDoc(docRef, { eventCode });
-
+  // If a banner image is provided, upload it first.
   if (bannerImage) {
-    uploadBannerAndUpdateEvent(bannerImage, eventData.artistId, eventId);
+    try {
+      const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+      finalBannerUrl = await uploadFile(bannerImage, bannerPath);
+    } catch (error) {
+      // If the upload fails, we stop the entire process and re-throw the error.
+      // This prevents creating an event document without a banner.
+      console.error("Banner upload failed, aborting event creation.", error);
+      if (error instanceof Error) {
+        throw new Error(`Banner upload failed: ${error.message}`);
+      }
+      throw new Error("An unknown error occurred during banner upload.");
+    }
   }
+  
+  // If we've reached here, the upload (if any) was successful. Now, create the document.
+  const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
+
+  await setDoc(docRef, {
+    ...eventData,
+    bannerUrl: finalBannerUrl,
+    eventCode,
+    createdAt: serverTimestamp(),
+  });
 };
 
 
