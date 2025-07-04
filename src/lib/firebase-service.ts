@@ -347,6 +347,7 @@ export const createTicket = async (
             ...contactDetails
         });
         
+        // This is a placeholder for actual email/SMS sending logic
         console.log(`
         --- SIMULATED CONFIRMATION ---
         To: ${contactDetails.buyerEmail}, ${contactDetails.buyerPhone}
@@ -356,7 +357,7 @@ export const createTicket = async (
 
         You're all set! Here are your details:
         Event: ${eventData.title}
-        Date: ${format(new Date(eventData.date), 'PPP p')}
+        Date: ${new Date(eventData.date).toLocaleString()}
         Ticket ID: ${ticketRef.id}
         Event Code: ${eventData.eventCode}
         Watch Link: ${window.location.origin}/play/${eventData.id}
