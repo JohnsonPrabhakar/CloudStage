@@ -62,9 +62,10 @@ const uploadFile = async (file: File, path: string): Promise<string> => {
   console.log(`[uploadFile] Starting upload to path: ${path}`);
   const storageRef = ref(storage, path);
   try {
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
-    console.log(`[uploadFile] Upload successful. URL: ${downloadURL}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    console.log('[uploadFile] Upload successful. Getting download URL...');
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log(`[uploadFile] Got download URL: ${downloadURL}`);
     return downloadURL;
   } catch (error) {
     console.error(`[uploadFile] Firebase Storage Error during upload to ${path}:`, error);
@@ -75,7 +76,6 @@ const uploadFile = async (file: File, path: string): Promise<string> => {
 
 const deleteFileByUrl = async (url: string) => {
   if (!url || url.includes('placehold.co') || url.includes('youtube.com')) {
-    // Do not attempt to delete placeholders or YouTube thumbnails
     return;
   }
   try {
@@ -83,9 +83,7 @@ const deleteFileByUrl = async (url: string) => {
     await deleteObject(fileRef);
   } catch (error: any) {
     if (error.code === 'storage/object-not-found') {
-      // This is not a critical error, just a warning.
     } else {
-      // Don't re-throw, allow the operation to continue
     }
   }
 }
@@ -97,25 +95,20 @@ export const getYouTubeEmbedUrl = (url: string): string | null => {
   let videoId: string | null = null;
   
   try {
-      // Case: Standard watch URL (e.g., youtube.com/watch?v=...)
       if (url.includes("youtube.com/watch")) {
         const urlParams = new URLSearchParams(new URL(url).search);
         videoId = urlParams.get("v");
       }
-      // Case: Shortened youtu.be URL
       else if (url.includes("youtu.be/")) {
         videoId = new URL(url).pathname.slice(1);
       }
-      // Case: Embed URL
       else if (url.includes("youtube.com/embed/")) {
         videoId = new URL(url).pathname.split('/embed/')[1];
       }
-      // Case: Live URL
       else if (url.includes("youtube.com/live/")) {
         videoId = new URL(url).pathname.split('/live/')[1];
       }
   } catch(e) {
-      // Fallback for invalid or partially typed URLs
       const patterns = [
           /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)/,
           /(?:https?:\/\/)?youtu\.be\/([^?]+)/,
@@ -131,7 +124,6 @@ export const getYouTubeEmbedUrl = (url: string): string | null => {
       }
   }
 
-  // Sanitize videoId from potential extra path segments
   if (videoId) {
       videoId = videoId.split('?')[0].split('&')[0];
   }
@@ -148,15 +140,22 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>) => {
+export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'>, bannerImage?: File) => {
   console.log('[addEvent] Starting event creation process...');
   const eventRef = doc(collection(db, 'events'));
   const eventId = eventRef.id;
   console.log(`[addEvent] Generated temporary event ID: ${eventId}`);
 
   try {
-    const bannerUrl = "https://placehold.co/1280x720.png";
-    console.log('[addEvent] Using placeholder banner.');
+    let bannerUrl = "https://placehold.co/1280x720.png";
+    if (bannerImage) {
+      console.log('[addEvent] Banner image provided, starting upload...');
+      const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+      bannerUrl = await uploadFile(bannerImage, bannerPath);
+      console.log(`[addEvent] Banner upload complete. URL: ${bannerUrl}`);
+    } else {
+      console.log('[addEvent] No banner image, using placeholder.');
+    }
     
     const finalEventPayload = {
       ...eventData,
@@ -172,7 +171,6 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 
   } catch (error) {
     console.error('[addEvent] An error occurred during event creation:', error);
-    // Re-throw the error to be caught by the calling component
     throw error;
   }
 };
@@ -186,7 +184,6 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   const snapshot = await getDocs(q);
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
-  // Sort by date descending (newest first) and return up to 50
   return events
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 50);
@@ -345,6 +342,9 @@ export const createTicket = async (
     }
 
     try {
+        const eventData = await getEventById(eventId);
+        if (!eventData) throw new Error("Event not found");
+
         const ticketRef = await addDoc(ticketsCollection, {
             userId,
             eventId,
@@ -354,10 +354,30 @@ export const createTicket = async (
             paymentId: null,
             ...contactDetails
         });
+        
+        const confirmationMessage = `
+        --- SIMULATED CONFIRMATION ---
+        To: ${contactDetails.buyerEmail}, ${contactDetails.buyerPhone}
+        Subject: Your Ticket for ${eventData.title} is Confirmed!
+
+        Hi ${contactDetails.buyerName},
+
+        You're all set! Here are your details:
+        Event: ${eventData.title}
+        Date: ${format(new Date(eventData.date), 'PPP p')}
+        Ticket ID: ${ticketRef.id}
+        Event Code: ${eventData.eventCode}
+        Watch Link: ${window.location.origin}/play/${eventData.id}
+
+        Thank you for booking with CloudStage!
+        -----------------------------
+        `;
+        console.log(confirmationMessage);
+        
         return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error creating ticket: ", error);
-        return { success: false, message: 'Could not acquire ticket. Please try again.' };
+        return { success: false, message: error.message || 'Could not acquire ticket. Please try again.' };
     }
 };
 
@@ -556,7 +576,6 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
       return 'offline';
     }
   } catch (error) {
-    // Could not fetch site status, defaulting to online
   }
   return 'online';
 };
@@ -576,7 +595,6 @@ export const submitVerificationRequest = async (
     const artistDoc = doc(db, 'artists', artistId);
     let sampleVideoUrl: string | undefined;
     if (sampleVideoFile) {
-        // Use a path the artist has permission to write to
         sampleVideoUrl = await uploadFile(sampleVideoFile, `artists/${artistId}/verification_sample.mp4`);
     }
 
@@ -601,8 +619,6 @@ export const getPendingVerificationRequestsListener = (callback: (artists: Artis
         callback(artistsWithPendingRequests);
     }, (error) => {
         console.error("Error fetching pending requests:", error);
-        // This might happen if the composite index for this query is not created.
-        // The error handling should be done in the component.
     });
 };
 
@@ -637,9 +653,6 @@ export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     return snapshot.docs.map(doc => fromFirestore<Event>(doc)).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
-// NOTE: Fetching all tickets can be resource-intensive on large datasets.
-// For a production app at scale, this would ideally be replaced with a
-// cloud function that aggregates this data periodically.
 export const getAllTickets = async (): Promise<Ticket[]> => {
     const snapshot = await getDocs(ticketsCollection);
     return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));

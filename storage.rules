@@ -3,20 +3,36 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read for all files so anyone can see event banners, movie posters, etc.
+    
+    // Allow public read access to all files by default.
+    // This allows anyone to view banners, posters, profile pictures etc.
     match /{allPaths=**} {
       allow read;
     }
 
-    // Allow an authenticated artist to upload files ONLY to their own directory.
-    // This covers profile pictures, event banners, and verification samples.
-    // Restrict file size to 5MB.
-    match /artists/{artistId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 5 * 1024 * 1024;
+    // --- WRITE RULES ---
+
+    // Artists can write to their own profile picture path.
+    match /artists/{userId}/profile.jpg {
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow authenticated users (admins are checked client-side) to upload movie files.
-    match /movies/{movieId}/{allPaths=**} {
+    // Artists can write a verification video to their own path.
+    match /artists/{userId}/verification_sample.mp4 {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Artists can write a banner to their own events folder.
+    // This is the key rule to fix the banner upload issue.
+    match /artists/{userId}/events/{eventId}/banner.jpg {
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId 
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Admins (or any authenticated user, protected by client-side logic) can upload movie files.
+    match /movies/{movieId}/{fileName} {
       allow write: if request.auth != null;
     }
   }
