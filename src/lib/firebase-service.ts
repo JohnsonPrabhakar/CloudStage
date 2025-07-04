@@ -68,7 +68,7 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
   } catch (error) {
     console.error(`[uploadFile] Firebase Storage Error during upload to ${path}:`, error);
     // Re-throw the error to be handled by the calling function
-    throw new Error("File upload failed. Check storage rules and network connection.");
+    throw new Error("Banner upload failed. Please check your internet connection and try again.");
   }
 }
 
@@ -142,41 +142,32 @@ const getYouTubeVideoId = (url: string): string | null => {
 // --- EVENT-RELATED FUNCTIONS ---
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
+  bannerFile: File | null
 ): Promise<{ eventId: string }> => {
+  
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
+  let bannerUrl = 'https://placehold.co/1280x720.png'; // Default banner
 
-  const placeholderBannerUrl = `https://placehold.co/1280x720/cccccc/ffffff.png?text=Uploading...`;
+  // Step 1: Upload banner if it exists
+  if (bannerFile) {
+    const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+    // This will throw an error if it fails, stopping the process.
+    bannerUrl = await uploadFile(bannerFile, bannerPath);
+  }
+
+  // Step 2: Create event document ONLY if upload was successful (or no banner was provided)
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
 
   await setDoc(docRef, {
     ...eventData,
-    bannerUrl: placeholderBannerUrl,
+    bannerUrl,
     eventCode,
     createdAt: serverTimestamp(),
   });
 
   return { eventId };
 };
-
-export const uploadBannerAndUpdateEvent = async (eventId: string, artistId: string, bannerFile: File): Promise<void> => {
-  try {
-    const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
-    const downloadURL = await uploadFile(bannerFile, bannerPath);
-    
-    const eventDocRef = doc(db, 'events', eventId);
-    await updateDoc(eventDocRef, {
-      bannerUrl: downloadURL,
-    });
-  } catch (error) {
-    console.error(`Background banner upload failed for event ${eventId}:`, error);
-    const eventDocRef = doc(db, 'events', eventId);
-    await updateDoc(eventDocRef, {
-      bannerUrl: 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed'
-    });
-  }
-}
-
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(

@@ -33,7 +33,7 @@ import { type EventCategory, type Artist } from "@/lib/types";
 import { Sparkles, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { getArtistProfile, getEventById, getYouTubeEmbedUrl, addEvent, uploadBannerAndUpdateEvent } from "@/lib/firebase-service";
+import { getArtistProfile, getEventById, getYouTubeEmbedUrl, addEvent } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
@@ -204,64 +204,54 @@ export default function CreateEventForm() {
 
   async function onSubmit(values: FormValues) {
     if (!artist) {
-        toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
-        return;
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
+      return;
     }
 
-    // A banner is required for new events (not for duplicates unless a new one is selected)
     if (!bannerFile && !searchParams.get('duplicate')) {
-        toast({ variant: 'destructive', title: 'Missing Banner', description: 'Please upload an event banner to continue.' });
-        return;
+      toast({ variant: 'destructive', title: 'Missing Banner', description: 'Please upload an event banner to continue.' });
+      return;
     }
 
     setIsSubmitting(true);
-
+    
     try {
-        const eventData = {
-            title: values.title,
-            artist: artist.name,
-            artistId: artist.id,
-            description: values.description,
-            category: values.category as EventCategory,
-            genre: values.genre,
-            language: values.language,
-            date: new Date(values.date).toISOString(),
-            status: new Date(values.date) > new Date() ? 'upcoming' : 'past',
-            streamUrl: values.streamUrl,
-            ticketPrice: values.ticketPrice,
-            isBoosted: values.boost ?? false,
-            boostAmount: values.boost ? 100 : 0,
-            moderationStatus: 'pending' as const,
-        };
+      const eventData = {
+        title: values.title,
+        artist: artist.name,
+        artistId: artist.id,
+        description: values.description,
+        category: values.category as EventCategory,
+        genre: values.genre,
+        language: values.language,
+        date: new Date(values.date).toISOString(),
+        status: new Date(values.date) > new Date() ? 'upcoming' : 'past',
+        streamUrl: values.streamUrl,
+        ticketPrice: values.ticketPrice,
+        isBoosted: values.boost ?? false,
+        boostAmount: values.boost ? 100 : 0,
+        moderationStatus: 'pending' as const,
+      };
 
-        // Step 1: Create the event document instantly with a placeholder.
-        const { eventId } = await addEvent(eventData);
+      await addEvent(eventData, bannerFile);
 
-        // Step 2: Show success and redirect immediately.
-        toast({
-            title: "Event Submitted!",
-            description: "Your event is now pending admin approval. The banner is uploading in the background.",
-        });
-        router.push("/artist/dashboard");
-
-        // Step 3: Start the banner upload in the background (fire and forget).
-        // This won't block the UI.
-        if (bannerFile) {
-            uploadBannerAndUpdateEvent(eventId, artist.id, bannerFile);
-        }
+      toast({
+        title: "Event Submitted!",
+        description: "Your event is now pending admin approval.",
+      });
+      router.push("/artist/dashboard");
 
     } catch (error: any) {
-        // This catch will now only handle errors from the initial, fast `addEvent` call.
-        toast({
-            title: "Submission Failed",
-            description: `There was an error creating the event document: ${error.message}. Please try again.`,
-            variant: "destructive",
-        });
+      console.error("Event Submission Error:", error);
+      toast({
+        title: "Submission Failed",
+        description: `There was an error: ${error.message}. Please check your internet connection and try again.`,
+        variant: "destructive",
+      });
     } finally {
-        // This runs right away, un-disabling the button.
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
-}
+  }
 
 
   if (loading) {
