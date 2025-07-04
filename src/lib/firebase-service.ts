@@ -59,10 +59,19 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 
 // --- STORAGE HELPER FUNCTIONS ---
 const uploadFile = async (file: File, path: string): Promise<string> => {
+  console.log(`[uploadFile] Starting upload to path: ${path}`);
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+  try {
+    await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(storageRef);
+    console.log(`[uploadFile] Upload successful. URL: ${downloadURL}`);
+    return downloadURL;
+  } catch (error) {
+    console.error(`[uploadFile] Firebase Storage Error during upload to ${path}:`, error);
+    throw new Error("File upload failed. Check storage rules and network connection.");
+  }
 }
+
 
 const deleteFileByUrl = async (url: string) => {
   if (!url || url.includes('placehold.co') || url.includes('youtube.com')) {
@@ -140,33 +149,43 @@ const getYouTubeVideoId = (url: string): string | null => {
 // EVENT-RELATED FUNCTIONS
 
 export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>, bannerFile?: File) => {
+  console.log('[addEvent] Starting event creation process...');
   const eventRef = doc(collection(db, 'events'));
   const eventId = eventRef.id;
+  console.log(`[addEvent] Generated temporary event ID: ${eventId}`);
 
   try {
     let bannerUrl = "https://placehold.co/1280x720.png";
     if (bannerFile) {
+        console.log('[addEvent] Banner file provided. Starting upload...');
         bannerUrl = await uploadFile(
             bannerFile,
             `artists/${eventData.artistId}/events/${eventId}/banner.jpg`
         );
+        console.log(`[addEvent] Banner uploaded successfully. URL: ${bannerUrl}`);
+    } else {
+      console.log('[addEvent] No banner file provided. Using placeholder.');
     }
     
-    await setDoc(eventRef, {
+    const finalEventPayload = {
       ...eventData,
       bannerUrl: bannerUrl,
       eventCode: `EVT-${eventId.substring(0, 8).toUpperCase()}`,
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
-    });
+    };
+
+    console.log('[addEvent] Writing final event data to Firestore...');
+    await setDoc(eventRef, finalEventPayload);
+    console.log('[addEvent] Firestore write successful. Event created.');
 
   } catch (error) {
-    if (error instanceof Error && (error.message.includes('storage') || error.message.includes('permission'))) {
-        throw new Error("Failed to upload event poster. Please check file format and permissions.");
-    }
-    throw new Error("Could not create event.");
+    console.error('[addEvent] An error occurred during event creation:', error);
+    // Re-throw the error to be caught by the calling component
+    throw error;
   }
 };
+
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(

@@ -195,6 +195,7 @@ export default function CreateEventForm() {
     }
 
     setIsSubmitting(true);
+    console.log("[CreateEventForm] Form submitted. Values:", values);
     try {
         const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'> = {
           title: values.title,
@@ -216,6 +217,7 @@ export default function CreateEventForm() {
         };
         
         const bannerFile = values.banner?.[0];
+        console.log("[CreateEventForm] Banner file to be uploaded:", bannerFile);
 
         await addEvent(eventData, bannerFile);
         toast({
@@ -224,13 +226,15 @@ export default function CreateEventForm() {
         });
         router.push("/artist/dashboard");
     } catch(error) {
+        console.error("[CreateEventForm] Submission failed:", error);
          toast({
             title: "Submission Failed",
-            description: "There was an error submitting your event. Please try again.",
+            description: "There was an error submitting your event. Please check the console for details and try again.",
             variant: "destructive",
         });
     } finally {
         setIsSubmitting(false);
+        console.log("[CreateEventForm] Submission process finished.");
     }
   }
 

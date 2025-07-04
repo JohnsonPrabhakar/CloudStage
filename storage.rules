@@ -1,22 +1,21 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Allow public read access to all files so banners, posters, etc. can be displayed.
+    // Allow public read for all files so anyone can see event banners, movie posters, etc.
     match /{allPaths=**} {
       allow read;
     }
 
-    // --- WRITE RULES ---
-
-    // Allow an authenticated artist to upload their profile picture, banners, and verification files.
-    match /artists/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Allow an authenticated artist to upload files ONLY to their own directory.
+    // This covers profile pictures, event banners, and verification samples.
+    // Restrict file size to 5MB.
+    match /artists/{artistId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 5 * 1024 * 1024;
     }
 
-    // Allow any authenticated user to upload movies. 
-    // The application logic ensures only the admin can access the upload form.
+    // Allow authenticated users (admins are checked client-side) to upload movie files.
     match /movies/{movieId}/{allPaths=**} {
       allow write: if request.auth != null;
     }
