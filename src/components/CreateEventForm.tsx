@@ -237,7 +237,7 @@ export default function CreateEventForm() {
 
       toast({
         title: "Event Submitted!",
-        description: "Your event is now pending admin approval.",
+        description: "Your event is now pending admin approval. Redirecting...",
       });
       router.push("/artist/dashboard");
 

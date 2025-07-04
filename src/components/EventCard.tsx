@@ -65,7 +65,7 @@ export function EventCard({ event }: EventCardProps) {
 
   const action = getAction();
   
-  const displayBannerUrl = (event.bannerUrl && !event.bannerUrl.includes('?text=Uploading'))
+  const displayBannerUrl = (event.bannerUrl && !event.bannerUrl.includes('?text='))
     ? event.bannerUrl
     : "https://placehold.co/600x400.png";
 

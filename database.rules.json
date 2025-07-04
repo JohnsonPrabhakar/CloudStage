@@ -1,6 +1,40 @@
+
 {
   "rules": {
-    ".read": false,
-    ".write": false
+    "match /databases/{database}/documents": {
+      "function isAdmin()": {
+        "return": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in';"
+      },
+      "match /events/{eventId}": {
+        "allow read": "if resource.data.moderationStatus == 'approved' || (request.auth != null && resource.data.artistId == request.auth.uid) || isAdmin();",
+        "allow create": "if request.auth != null && request.resource.data.artistId == request.auth.uid;",
+        "allow update": "if (request.auth != null && resource.data.artistId == request.auth.uid && !('moderationStatus' in request.resource.data)) || isAdmin();",
+
+        "match /messages/{messageId}": {
+          "allow read, create": "if true;"
+        }
+      },
+      "match /artists/{artistId}": {
+        "allow read": "if true;",
+        "allow create": "if request.auth != null && artistId == request.auth.uid;",
+        "allow update": "if (request.auth != null && request.auth.uid == artistId) || isAdmin();"
+      },
+      "match /tickets/{ticketId}": {
+        "allow read": "if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();",
+        "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;",
+        "allow update, delete": "if false;"
+      },
+      "match /movies/{movieId}": {
+        "allow read": "if true;",
+        "allow write": "if isAdmin();"
+      },
+      "match /config/{docId}": {
+        "allow read": "if true;",
+        "allow write": "if isAdmin();"
+      },
+      "match /eventFeedback/{feedbackId}": {
+         "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;"
+      }
+    }
   }
 }
