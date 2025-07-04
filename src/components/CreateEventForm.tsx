@@ -204,10 +204,16 @@ export default function CreateEventForm() {
   }
 
   async function onSubmit(values: FormValues) {
+    console.log('[CreateEventForm] Submission started...');
     if (!artist) {
         toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
+        console.error('[CreateEventForm] Artist data is null. Aborting submission.');
         return;
     }
+    
+    console.log('[CreateEventForm] Form values:', values);
+    console.log('[CreateEventForm] Artist data:', artist);
+    console.log('[CreateEventForm] Banner file to be uploaded:', bannerFile);
 
     setIsSubmitting(true);
     try {
@@ -231,19 +237,23 @@ export default function CreateEventForm() {
         };
         
         await addEvent(eventData, bannerFile ?? undefined);
+        
+        console.log('[CreateEventForm] addEvent function completed successfully.');
         toast({
             title: "Event Submitted!",
             description: "Your event is now pending admin approval.",
         });
         router.push("/artist/dashboard");
+
     } catch(error: any) {
-        console.error("[CreateEventForm] Submission failed:", error);
+        console.error("[CreateEventForm] Submission failed in component:", error);
          toast({
             title: "Submission Failed",
             description: error.message || "There was an error submitting your event. Please check the console for details and try again.",
             variant: "destructive",
         });
     } finally {
+        console.log('[CreateEventForm] Submission process finished.');
         setIsSubmitting(false);
     }
   }
@@ -381,7 +391,7 @@ export default function CreateEventForm() {
               </div>
 
                <FormItem>
-                  <FormLabel>Upload Event Banner</FormLabel>
+                  <FormLabel>Upload Event Banner (JPG/PNG, Max 5MB)</FormLabel>
                   <FormControl>
                     <Input 
                       type="file" 
@@ -389,7 +399,6 @@ export default function CreateEventForm() {
                       onChange={handleBannerChange}
                     />
                   </FormControl>
-                  <FormDescription>JPG or PNG, max 5MB.</FormDescription>
                   <FormMessage />
                   {bannerPreview && (
                     <div className="mt-4">

@@ -151,10 +151,11 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
     if (bannerImage) {
       console.log('[addEvent] Banner image provided, starting upload...');
       const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+      console.log(`[addEvent] Banner upload path is: ${bannerPath}`);
       bannerUrl = await uploadFile(bannerImage, bannerPath);
       console.log(`[addEvent] Banner upload complete. URL: ${bannerUrl}`);
     } else {
-      console.log('[addEvent] No banner image, using placeholder.');
+      console.log('[addEvent] No banner image provided, using placeholder.');
     }
     
     const finalEventPayload = {
@@ -166,11 +167,13 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
     };
 
     console.log('[addEvent] Writing final event data to Firestore...');
+    console.log('[addEvent] Final payload:', finalEventPayload);
     await setDoc(eventRef, finalEventPayload);
     console.log('[addEvent] Firestore write successful. Event created.');
 
   } catch (error) {
     console.error('[addEvent] An error occurred during event creation:', error);
+    // Re-throw the error so the calling component can catch it and show a toast
     throw error;
   }
 };
