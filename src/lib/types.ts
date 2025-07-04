@@ -28,6 +28,7 @@ export interface Event {
   views?: number;
   watchTime?: number;
   ticketsSold?: number;
+  eventCode: string;
 }
 
 export type ArtistCategory = 'Music' | 'Stand-up Comedy' | 'Yoga' | 'Magic' | 'Devotional';
@@ -50,6 +51,7 @@ export interface Artist {
   isApproved: boolean;
   type: 'Solo Artist' | 'Band';
   genres: string[];
+  accessLevel: 'basic' | 'verified';
 }
 
 export type MovieGenre = string;
@@ -73,6 +75,7 @@ export interface Ticket {
   createdAt: any;
   isPaid: boolean;
   paymentId: string | null;
+  pricePaid: number;
 }
 
 export interface ChatMessage {
@@ -80,4 +83,28 @@ export interface ChatMessage {
   name: string;
   message: string;
   createdAt: any;
+}
+
+export interface VerificationRequest {
+    id: string;
+    artistId: string;
+    artistName: string; // For display in admin panel
+    youtubeLinks: string[];
+    instagramLinks: string[];
+    sampleVideoUrl?: string;
+    messageToAdmin: string;
+    submittedAt: any;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewedByAdmin: string | null;
+    reviewedAt: any | null;
+}
+
+export interface EventFeedback {
+    id: string;
+    userId: string;
+    artistId: string;
+    eventId: string;
+    rating: number; // 1 to 5
+    review: string;
+    submittedAt: any;
 }

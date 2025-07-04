@@ -19,6 +19,7 @@ import {
   Music,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -137,6 +138,7 @@ export default function ArtistProfilePage() {
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               <h1 className="text-4xl font-bold">{artist.name}</h1>
+              {artist.accessLevel === 'verified' && <VerifiedBadge />}
               {artist.isPremium && (
                 <Badge className="bg-amber-500 text-white">
                   <Crown className="mr-2 h-4 w-4" />

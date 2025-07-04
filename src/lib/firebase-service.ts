@@ -18,7 +18,7 @@ import {
   getCountFromServer,
   onSnapshot,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage } from './types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequest, type EventFeedback } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -26,6 +26,9 @@ const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
 const ticketsCollection = collection(db, 'tickets');
 const moviesCollection = collection(db, 'movies');
+const verificationRequestsCollection = collection(db, 'verificationRequests');
+const eventFeedbackCollection = collection(db, 'eventFeedback');
+
 
 // Helper to convert Firestore doc to a given type
 const fromFirestore = <T extends { id: string }>(doc: any): T => {
@@ -138,7 +141,7 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'>, bannerFile?: File) => {
+export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>, bannerFile?: File) => {
   const eventRef = doc(collection(db, 'events'));
   const eventId = eventRef.id;
 
@@ -154,6 +157,7 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
     await setDoc(eventRef, {
       ...eventData,
       bannerUrl: bannerUrl,
+      eventCode: `EVT-${eventId.substring(0, 8).toUpperCase()}`,
       moderationStatus: 'pending',
       createdAt: serverTimestamp(),
     });
@@ -167,11 +171,6 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
 };
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
-  // Query for all approved events.
-  // NOTE: This approach fetches all approved documents and sorts/limits on the client.
-  // This is done to avoid a composite index requirement on Firestore (moderationStatus + date)
-  // which was causing the app to crash. For large-scale applications, creating the
-  // recommended index in the Firebase Console would be the more performant solution.
   const q = query(
     eventsCollection,
     where('moderationStatus', '==', 'approved')
@@ -179,10 +178,8 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   const snapshot = await getDocs(q);
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
-  // Sort by date descending on the client
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
-  // Limit to the most recent 50 on the client
   return events.slice(0, 50);
 };
 
@@ -255,6 +252,7 @@ const buildArtistProfileObject = (data: any, profilePictureUrl?: string): Omit<A
     isApproved: false,
     type: 'Solo Artist',
     genres: [data.subCategory],
+    accessLevel: 'basic',
   };
 };
 
@@ -326,7 +324,7 @@ export const checkForExistingTicket = async (userId: string, eventId: string): P
   return !snapshot.empty;
 };
 
-export const createTicket = async (userId: string, eventId: string): Promise<{ success: boolean; message: string }> => {
+export const createTicket = async (userId: string, eventId: string, price: number): Promise<{ success: boolean; message: string }> => {
   const alreadyExists = await checkForExistingTicket(userId, eventId);
   if (alreadyExists) {
     return { success: false, message: 'You already have a ticket for this event.' };
@@ -336,6 +334,7 @@ export const createTicket = async (userId: string, eventId: string): Promise<{ s
     await addDoc(ticketsCollection, {
       userId,
       eventId,
+      pricePaid: price,
       createdAt: serverTimestamp(),
       isPaid: false,
       paymentId: null,
@@ -549,4 +548,94 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
 export const updateSiteStatus = async (status: 'online' | 'offline') => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   await setDoc(statusDoc, { status }, { merge: true });
+};
+
+// --- ARTIST VERIFICATION FUNCTIONS ---
+
+export const submitVerificationRequest = async (
+    requestData: Omit<VerificationRequest, 'id' | 'submittedAt' | 'status' | 'reviewedByAdmin' | 'reviewedAt' | 'sampleVideoUrl'>,
+    sampleVideoFile?: File
+) => {
+    let sampleVideoUrl: string | undefined;
+    if (sampleVideoFile) {
+        sampleVideoUrl = await uploadFile(sampleVideoFile, `verificationRequests/${requestData.artistId}/sampleVideo`);
+    }
+
+    await addDoc(verificationRequestsCollection, {
+        ...requestData,
+        sampleVideoUrl,
+        submittedAt: serverTimestamp(),
+        status: 'pending',
+        reviewedByAdmin: null,
+        reviewedAt: null,
+    });
+};
+
+export const getVerificationRequestForArtist = async (artistId: string): Promise<VerificationRequest | null> => {
+    const q = query(verificationRequestsCollection, where('artistId', '==', artistId), orderBy('submittedAt', 'desc'), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    return fromFirestore<VerificationRequest>(snapshot.docs[0]);
+};
+
+export const getPendingVerificationRequestsListener = (callback: (requests: VerificationRequest[]) => void): (() => void) => {
+    const q = query(verificationRequestsCollection, where('status', '==', 'pending'), orderBy('submittedAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const requests = snapshot.docs.map(doc => fromFirestore<VerificationRequest>(doc));
+        callback(requests);
+    });
+};
+
+export const approveVerificationRequest = async (requestId: string, artistId: string, adminId: string) => {
+    const requestDoc = doc(db, 'verificationRequests', requestId);
+    await updateDoc(requestDoc, {
+        status: 'approved',
+        reviewedAt: serverTimestamp(),
+        reviewedByAdmin: adminId,
+    });
+
+    const artistDoc = doc(db, 'artists', artistId);
+    await updateDoc(artistDoc, {
+        accessLevel: 'verified',
+    });
+};
+
+export const rejectVerificationRequest = async (requestId: string, adminId: string) => {
+    const requestDoc = doc(db, 'verificationRequests', requestId);
+    await updateDoc(requestDoc, {
+        status: 'rejected',
+        reviewedAt: serverTimestamp(),
+        reviewedByAdmin: adminId,
+    });
+};
+
+// --- REPORTING FUNCTIONS ---
+
+export const getCompletedEventsForReport = async (): Promise<Event[]> => {
+    const q = query(
+        eventsCollection,
+        where('moderationStatus', '==', 'approved'),
+        where('date', '<', new Date().toISOString())
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromFirestore<Event>(doc)).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+// NOTE: Fetching all tickets can be resource-intensive on large datasets.
+// For a production app at scale, this would ideally be replaced with a
+// cloud function that aggregates this data periodically.
+export const getAllTickets = async (): Promise<Ticket[]> => {
+    const snapshot = await getDocs(ticketsCollection);
+    return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
+};
+
+// --- EVENT FEEDBACK FUNCTIONS ---
+
+export const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id' | 'submittedAt'>) => {
+    await addDoc(eventFeedbackCollection, {
+        ...feedbackData,
+        submittedAt: serverTimestamp(),
+    });
 };

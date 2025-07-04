@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { type Event, type ChatMessage } from "@/lib/types";
+import { type Event, type ChatMessage, type Artist } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { getChatMessagesListener, sendChatMessage } from "@/lib/firebase-service";
+import { getChatMessagesListener, sendChatMessage, getArtistProfile } from "@/lib/firebase-service";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 
 const AdOverlay = ({
@@ -88,7 +89,7 @@ const AdOverlay = ({
 
 export default function EventPlayer({ event }: { event: Event }) {
   const router = useRouter();
-  
+  const [artist, setArtist] = useState<Artist | null>(null);
   const [showMidRollAd, setShowMidRollAd] = useState(false);
   const [showEndRollAd, setShowEndRollAd] = useState(false);
   
@@ -99,6 +100,11 @@ export default function EventPlayer({ event }: { event: Event }) {
   
   const [reactions, setReactions] = useState<{ id: number; icon: string; left: string }[]>([]);
 
+  useEffect(() => {
+    if (event.artistId) {
+        getArtistProfile(event.artistId).then(setArtist);
+    }
+  }, [event.artistId]);
 
   // Simulate mid-roll ad after 1 minute
   useEffect(() => {
@@ -206,7 +212,10 @@ export default function EventPlayer({ event }: { event: Event }) {
           <div className="py-4 flex flex-col sm:flex-row justify-between sm:items-start gap-4">
             <div>
               <h1 className="text-3xl font-bold">{event.title}</h1>
-              <p className="text-lg text-muted-foreground">by {event.artist}</p>
+              <div className="flex items-center gap-2 mt-1">
+                 <p className="text-lg text-muted-foreground">by {event.artist}</p>
+                 {artist?.accessLevel === 'verified' && <VerifiedBadge />}
+              </div>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge variant="secondary">
                   <Clapperboard className="mr-1 h-3 w-3" />

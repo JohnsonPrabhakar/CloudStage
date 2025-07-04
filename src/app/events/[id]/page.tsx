@@ -27,9 +27,10 @@ import {
   ChevronLeft,
   WifiOff,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -115,7 +116,7 @@ export default function EventDetailPage() {
         return;
     }
 
-    const result = await createTicket(currentUser.uid, event.id);
+    const result = await createTicket(currentUser.uid, event.id, event.ticketPrice);
     if (result.success) {
         setHasTicket(true);
         toast({
@@ -177,6 +178,8 @@ export default function EventDetailPage() {
   }
   
   const canWatch = isValidStreamUrl(event.streamUrl);
+  const eventDate = new Date(event.date);
+  const isEventLiveOrToday = eventDate <= new Date();
 
   const getAction = () => {
     const buyTicketButton = (
@@ -221,7 +224,7 @@ export default function EventDetailPage() {
     }
 
     if (hasTicket) {
-      if (event.status === "upcoming") {
+      if (!isEventLiveOrToday) {
         return (
           <TooltipProvider>
             <Tooltip>
@@ -239,7 +242,7 @@ export default function EventDetailPage() {
           </TooltipProvider>
         );
       }
-      // For Live events
+      // For Live/Today's events
       return (
         <Button asChild size="lg" disabled={!canWatch} className="w-full text-lg py-6 transition-transform transform hover:scale-105">
           <Link href={`/play/${event.id}`}>
@@ -282,9 +285,12 @@ export default function EventDetailPage() {
           <h1 className="text-4xl md:text-6xl font-extrabold text-white shadow-lg">
             {event.title}
           </h1>
-           <Link href={`/artist/${artist.id}`} className="text-xl md:text-2xl text-primary-foreground/90 font-medium mt-2 hover:underline">
-            by {event.artist}
-          </Link>
+           <div className="flex items-center gap-2 mt-2">
+            <Link href={`/artist/${artist.id}`} className="text-xl md:text-2xl text-primary-foreground/90 font-medium hover:underline">
+                by {event.artist}
+            </Link>
+            {artist.accessLevel === 'verified' && <VerifiedBadge />}
+          </div>
         </div>
       </div>
 

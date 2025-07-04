@@ -24,8 +24,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { type Event, type Artist } from "@/lib/types";
-import { getArtistEventsListener, getArtistProfile, toggleEventBoost } from "@/lib/firebase-service";
+import { type Event, type Artist, type VerificationRequest } from "@/lib/types";
+import { getArtistEventsListener, getArtistProfile, toggleEventBoost, getVerificationRequestForArtist } from "@/lib/firebase-service";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -39,8 +39,11 @@ import {
   LogOut,
   WifiOff,
   Loader2,
+  BadgeCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { format } from "date-fns";
+import { VerifiedBadge } from "./VerifiedBadge";
 
 export default function ArtistDashboard() {
   const router = useRouter();
@@ -48,6 +51,7 @@ export default function ArtistDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
+  const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +68,6 @@ export default function ArtistDashboard() {
   }, [router]);
 
   useEffect(() => {
-    let profileUnsubscribe: (() => void) | undefined;
     let eventsUnsubscribe: (() => void) | undefined;
 
     if (user) {
@@ -75,6 +78,10 @@ export default function ArtistDashboard() {
           if (profile) {
             if (profile.isApproved) {
               setArtist(profile);
+              if(profile.accessLevel === 'basic') {
+                  const request = await getVerificationRequestForArtist(user.uid);
+                  setVerificationRequest(request);
+              }
               // Set up listener for events only for approved artists
               eventsUnsubscribe = getArtistEventsListener(user.uid, (events) => {
                 setMyEvents(events);
@@ -95,7 +102,6 @@ export default function ArtistDashboard() {
     }
 
     return () => {
-      if (profileUnsubscribe) profileUnsubscribe();
       if (eventsUnsubscribe) eventsUnsubscribe();
     };
   }, [user, router]);
@@ -141,6 +147,38 @@ export default function ArtistDashboard() {
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push("/artist/login");
   };
+
+  const renderVerificationButton = () => {
+      if (!artist || artist.accessLevel === 'verified') return null;
+
+      if (verificationRequest?.status === 'pending') {
+          return (
+              <Button variant="outline" disabled>
+                  <ShieldAlert className="mr-2 h-4 w-4" />
+                  Verification Pending
+              </Button>
+          )
+      }
+       if (verificationRequest?.status === 'rejected') {
+          return (
+              <Button variant="destructive" asChild>
+                <Link href="/artist/verify">
+                  <BadgeCheck className="mr-2 h-4 w-4" />
+                  Re-apply for Verification
+                </Link>
+              </Button>
+          )
+      }
+
+      return (
+          <Button variant="outline" asChild>
+            <Link href="/artist/verify">
+              <BadgeCheck className="mr-2 h-4 w-4" />
+              Apply for Verified Badge
+            </Link>
+          </Button>
+      )
+  }
 
   if (loading) {
     return (
@@ -201,12 +239,16 @@ export default function ArtistDashboard() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Welcome, {artist.name}</h1>
+           <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-bold">Welcome, {artist.name}</h1>
+              {artist.accessLevel === 'verified' && <VerifiedBadge />}
+           </div>
           <p className="text-muted-foreground">
             Manage your events and grow your audience.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {renderVerificationButton()}
           <Button variant="outline" onClick={handleLogout}><LogOut className="mr-2 h-4 w-4" /> Logout</Button>
           <Button asChild variant="outline">
             <Link href="/artist/history"><History className="mr-2 h-4 w-4" /> View History</Link>

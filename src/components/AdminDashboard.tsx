@@ -35,6 +35,8 @@ import {
   WifiOff,
   Film,
   Building,
+  BadgeCheck,
+  BarChart2,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -58,6 +60,8 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import ManageMovies from "./ManageMovies";
+import ArtistVerificationRequests from "./ArtistVerificationRequests";
+import EventReports from "./EventReports";
 
 type Stats = {
   artists: number | null;
@@ -280,15 +284,16 @@ export default function AdminDashboard() {
           setHasPendingArtistNotification(false);
         }
       }}>
-        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="event-approvals">Event Approvals</TabsTrigger>
           <TabsTrigger value="artist-approvals" className="relative">
             Pending Artists
             {hasPendingArtistNotification && <Bell className="h-4 w-4 absolute top-1 right-1 text-primary animate-pulse"/>}
           </TabsTrigger>
+          <TabsTrigger value="artist-verification"><BadgeCheck className="mr-2 h-4 w-4" /> Verification</TabsTrigger>
           <TabsTrigger value="manage-movies">Manage Movies</TabsTrigger>
-          <TabsTrigger value="revenue">Platform Stats</TabsTrigger>
+          <TabsTrigger value="event-reports"><BarChart2 className="mr-2 h-4 w-4"/> Event Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-6">
@@ -385,47 +390,23 @@ export default function AdminDashboard() {
 
         <TabsContent value="artist-approvals">
           <Card>
-            <CardHeader><CardTitle>Pending Artist Approvals</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Pending Artist Registrations</CardTitle></CardHeader>
             <CardContent>
               {renderArtistTable()}
             </CardContent>
           </Card>
         </TabsContent>
 
+        <TabsContent value="artist-verification">
+            <ArtistVerificationRequests adminId={currentUser?.uid || 'admin'} />
+        </TabsContent>
+
         <TabsContent value="manage-movies">
             <ManageMovies />
         </TabsContent>
         
-        <TabsContent value="revenue">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Statistics</CardTitle>
-              <CardDescription>A real-time overview of key metrics from the Firestore database.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                      <CardHeader className="pb-2">
-                        <CardDescription>Total Artists</CardDescription>
-                        <CardTitle className="text-4xl">{stats.artists ?? "..."}</CardTitle>
-                      </CardHeader>
-                  </Card>
-                  <Card>
-                      <CardHeader className="pb-2">
-                        <CardDescription>Total Events Created</CardDescription>
-                        <CardTitle className="text-4xl">{stats.events ?? "..."}</CardTitle>
-                      </CardHeader>
-                  </Card>
-                   <Card>
-                      <CardHeader className="pb-2">
-                        <CardDescription>Total Tickets Issued</CardDescription>
-                        <CardTitle className="text-4xl">{stats.tickets ?? "..."}</CardTitle>
-                      </CardHeader>
-                  </Card>
-               </div>
-               <p className="text-sm text-muted-foreground pt-4">Razorpay integration for revenue breakdown is scheduled for a future development phase.</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="event-reports">
+          <EventReports />
         </TabsContent>
       </Tabs>
     </div>
