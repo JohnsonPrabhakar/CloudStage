@@ -16,6 +16,7 @@ import {
   limit,
   orderBy,
   onSnapshot,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback } from './types';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
@@ -59,13 +60,10 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 
 // --- STORAGE HELPER FUNCTIONS ---
 const uploadFile = async (file: File, path: string): Promise<string> => {
-  console.log(`[uploadFile] Starting upload to path: ${path}`);
   const storageRef = ref(storage, path);
   try {
     const snapshot = await uploadBytes(storageRef, file);
-    console.log('[uploadFile] Upload successful. Getting download URL...');
     const downloadURL = await getDownloadURL(snapshot.ref);
-    console.log(`[uploadFile] Got download URL: ${downloadURL}`);
     return downloadURL;
   } catch (error) {
     console.error(`[uploadFile] Firebase Storage Error during upload to ${path}:`, error);
@@ -75,7 +73,7 @@ const uploadFile = async (file: File, path: string): Promise<string> => {
 
 
 const deleteFileByUrl = async (url: string) => {
-  if (!url || url.includes('placehold.co') || url.includes('youtube.com')) {
+  if (!url || !url.startsWith('https://firebasestorage.googleapis.com')) {
     return;
   }
   try {
@@ -83,7 +81,9 @@ const deleteFileByUrl = async (url: string) => {
     await deleteObject(fileRef);
   } catch (error: any) {
     if (error.code === 'storage/object-not-found') {
+        console.warn(`File not found, could not delete: ${url}`);
     } else {
+        console.error(`Could not delete file: ${url}`, error);
     }
   }
 }
@@ -140,22 +140,15 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 // EVENT-RELATED FUNCTIONS
 
-export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'>, bannerImage?: File) => {
-  console.log('[addEvent] Starting event creation process...');
+export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'>, bannerImage?: File) => {
   const eventRef = doc(collection(db, 'events'));
   const eventId = eventRef.id;
-  console.log(`[addEvent] Generated temporary event ID: ${eventId}`);
 
   try {
     let bannerUrl = "https://placehold.co/1280x720.png";
     if (bannerImage) {
-      console.log('[addEvent] Banner image provided, starting upload...');
       const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
-      console.log(`[addEvent] Banner upload path is: ${bannerPath}`);
       bannerUrl = await uploadFile(bannerImage, bannerPath);
-      console.log(`[addEvent] Banner upload complete. URL: ${bannerUrl}`);
-    } else {
-      console.log('[addEvent] No banner image provided, using placeholder.');
     }
     
     const finalEventPayload = {
@@ -166,14 +159,10 @@ export const addEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'mode
       createdAt: serverTimestamp(),
     };
 
-    console.log('[addEvent] Writing final event data to Firestore...');
-    console.log('[addEvent] Final payload:', finalEventPayload);
     await setDoc(eventRef, finalEventPayload);
-    console.log('[addEvent] Firestore write successful. Event created.');
 
   } catch (error) {
     console.error('[addEvent] An error occurred during event creation:', error);
-    // Re-throw the error so the calling component can catch it and show a toast
     throw error;
   }
 };
@@ -353,12 +342,12 @@ export const createTicket = async (
             eventId,
             pricePaid: price,
             createdAt: serverTimestamp(),
-            isPaid: false, // In a real app, this would be handled by a payment gateway callback
-            paymentId: null,
+            isPaid: true, // In a real app, this would be handled by a payment gateway callback
+            paymentId: `MOCK_${Date.now()}`,
             ...contactDetails
         });
         
-        const confirmationMessage = `
+        console.log(`
         --- SIMULATED CONFIRMATION ---
         To: ${contactDetails.buyerEmail}, ${contactDetails.buyerPhone}
         Subject: Your Ticket for ${eventData.title} is Confirmed!
@@ -374,8 +363,7 @@ export const createTicket = async (
 
         Thank you for booking with CloudStage!
         -----------------------------
-        `;
-        console.log(confirmationMessage);
+        `);
         
         return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
     } catch (error: any) {
@@ -579,6 +567,7 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
       return 'offline';
     }
   } catch (error) {
+    console.error('Could not fetch site status, defaulting to online:', error);
   }
   return 'online';
 };

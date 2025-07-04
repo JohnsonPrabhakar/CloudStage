@@ -56,7 +56,7 @@ const formSchema = z.object({
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
   streamUrl: z.string().url("Must be a valid URL.").refine(
-    (url) => url.includes("youtube.com/embed/"),
+    (url) => getYouTubeEmbedUrl(url) !== null,
     "Please provide a valid YouTube URL (e.g., watch, live, or youtu.be link)."
   ),
   ticketPrice: z.coerce.number().min(0, "Price must be a positive number."),
@@ -82,11 +82,11 @@ export default function CreateEventForm() {
     defaultValues: {
       title: "",
       category: "Music",
-      genre: "Pop",
-      language: "English",
+      genre: "",
+      language: "",
       date: "",
       streamUrl: "",
-      ticketPrice: 10,
+      ticketPrice: 0,
       description: "",
       boost: false,
     },
@@ -125,7 +125,7 @@ export default function CreateEventForm() {
             genre: eventToDuplicate.genre,
             language: eventToDuplicate.language,
             date: '', // User must set a new date
-            streamUrl: eventToDuplicate.streamUrl,
+            streamUrl: eventToDuplicate.streamUrl.includes('youtube.com/embed') ? eventToDuplicate.streamUrl : '',
             ticketPrice: eventToDuplicate.ticketPrice,
             description: eventToDuplicate.description,
             boost: false,
@@ -204,20 +204,14 @@ export default function CreateEventForm() {
   }
 
   async function onSubmit(values: FormValues) {
-    console.log('[CreateEventForm] Submission started...');
     if (!artist) {
         toast({ variant: 'destructive', title: 'Authentication Error', description: 'Could not identify logged in artist.' });
-        console.error('[CreateEventForm] Artist data is null. Aborting submission.');
         return;
     }
     
-    console.log('[CreateEventForm] Form values:', values);
-    console.log('[CreateEventForm] Artist data:', artist);
-    console.log('[CreateEventForm] Banner file to be uploaded:', bannerFile);
-
     setIsSubmitting(true);
     try {
-        const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl'> = {
+        const eventData: Omit<Event, 'id' | 'createdAt' | 'moderationStatus' | 'bannerUrl' | 'eventCode'> = {
           title: values.title,
           artist: artist.name,
           artistId: artist.id,
@@ -238,7 +232,6 @@ export default function CreateEventForm() {
         
         await addEvent(eventData, bannerFile ?? undefined);
         
-        console.log('[CreateEventForm] addEvent function completed successfully.');
         toast({
             title: "Event Submitted!",
             description: "Your event is now pending admin approval.",
@@ -246,14 +239,12 @@ export default function CreateEventForm() {
         router.push("/artist/dashboard");
 
     } catch(error: any) {
-        console.error("[CreateEventForm] Submission failed in component:", error);
          toast({
             title: "Submission Failed",
             description: error.message || "There was an error submitting your event. Please check the console for details and try again.",
             variant: "destructive",
         });
     } finally {
-        console.log('[CreateEventForm] Submission process finished.');
         setIsSubmitting(false);
     }
   }
