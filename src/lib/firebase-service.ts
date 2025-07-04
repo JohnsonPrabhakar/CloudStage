@@ -142,38 +142,40 @@ const getYouTubeVideoId = (url: string): string | null => {
 // --- EVENT-RELATED FUNCTIONS ---
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
-  bannerImage?: File
-): Promise<void> => {
-  // Create the document reference first to get an ID.
+): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
-  let finalBannerUrl: string;
 
-  if (bannerImage) {
-    // This `try...catch` block ensures that if the upload fails, the function stops.
-    try {
-      const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
-      finalBannerUrl = await uploadFile(bannerImage, bannerPath);
-    } catch (error) {
-      console.error("Banner upload failed. Aborting event creation.", error);
-      // Re-throw the error so the UI can catch it and inform the user.
-      throw new Error(`Banner upload failed: ${(error as Error).message}`);
-    }
-  } else {
-    // A banner is required, so if it's not provided, we throw an error.
-    throw new Error("A banner image is required to create an event.");
-  }
-
-  // If we've reached here, the upload was successful. Now, create the document.
+  const placeholderBannerUrl = `https://placehold.co/1280x720/cccccc/ffffff.png?text=Uploading...`;
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
 
   await setDoc(docRef, {
     ...eventData,
-    bannerUrl: finalBannerUrl,
+    bannerUrl: placeholderBannerUrl,
     eventCode,
     createdAt: serverTimestamp(),
   });
+
+  return { eventId };
 };
+
+export const uploadBannerAndUpdateEvent = async (eventId: string, artistId: string, bannerFile: File): Promise<void> => {
+  try {
+    const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
+    const downloadURL = await uploadFile(bannerFile, bannerPath);
+    
+    const eventDocRef = doc(db, 'events', eventId);
+    await updateDoc(eventDocRef, {
+      bannerUrl: downloadURL,
+    });
+  } catch (error) {
+    console.error(`Background banner upload failed for event ${eventId}:`, error);
+    const eventDocRef = doc(db, 'events', eventId);
+    await updateDoc(eventDocRef, {
+      bannerUrl: 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed'
+    });
+  }
+}
 
 
 export const getApprovedEvents = async (): Promise<Event[]> => {
@@ -667,5 +669,3 @@ export const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id'
         submittedAt: serverTimestamp(),
     });
 };
-
-    
