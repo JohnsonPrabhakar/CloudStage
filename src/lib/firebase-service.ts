@@ -654,10 +654,11 @@ export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const q = query(
         eventsCollection,
         where('moderationStatus', '==', 'approved'),
-        where('date', '<', new Date().toISOString())
+        where('date', '<', new Date().toISOString()),
+        orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromFirestore<Event>(doc)).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 };
 
 export const getAllTickets = async (): Promise<Ticket[]> => {
