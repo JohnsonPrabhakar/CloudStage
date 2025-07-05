@@ -316,10 +316,11 @@ export const rejectArtist = async (uid: string) => {
     await deleteDoc(artistDoc);
 }
 
-export const updateArtistToPremium = async(uid: string) => {
+export const updateArtistToPremium = async(uid: string, paymentId: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isPremium: true,
+        premiumPaymentId: paymentId
     });
 }
 
@@ -340,7 +341,8 @@ export const createTicket = async (
     userId: string,
     eventId: string,
     price: number,
-    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string }
+    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
+    paymentId: string
 ): Promise<{ success: boolean; message: string; ticketId?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -356,29 +358,10 @@ export const createTicket = async (
             eventId,
             pricePaid: price,
             createdAt: serverTimestamp(),
-            isPaid: true, // In a real app, this would be handled by a payment gateway callback
-            paymentId: `MOCK_${Date.now()}`,
+            isPaid: true,
+            paymentId,
             ...contactDetails
         });
-        
-        // This is a placeholder for actual email/SMS sending logic
-        console.log(`
-        --- SIMULATED CONFIRMATION ---
-        To: ${contactDetails.buyerEmail}, ${contactDetails.buyerPhone}
-        Subject: Your Ticket for ${eventData.title} is Confirmed!
-
-        Hi ${contactDetails.buyerName},
-
-        You're all set! Here are your details:
-        Event: ${eventData.title}
-        Date: ${new Date(eventData.date).toLocaleString()}
-        Ticket ID: ${ticketRef.id}
-        Event Code: ${eventData.eventCode}
-        Watch Link: ${window.location.origin}/play/${eventData.id}
-
-        Thank you for booking with CloudStage!
-        -----------------------------
-        `);
         
         return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
     } catch (error: any) {

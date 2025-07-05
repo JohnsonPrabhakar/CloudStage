@@ -1,36 +1,22 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-  
-    function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
-    }
-
-    // Public read access for all files to allow images and videos to be displayed.
+    // Public read access for all files is generally safe for media content.
     match /{allPaths=**} {
       allow read: if true;
     }
 
-    // Artists can write to their own designated paths for profile pictures.
-    match /artists/{artistId}/profile.jpg {
+    // --- Write Rules ---
+
+    // Allow artists to write only to their own designated folders.
+    match /artists/{artistId}/{allPaths=**} {
       allow write: if request.auth != null && request.auth.uid == artistId;
     }
 
-    // Artists can write banners to their own designated event paths.
-    match /artists/{artistId}/events/{eventId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 5 * 1024 * 1024;
-    }
-
-    // Artists can upload verification videos
-    match /artists/{artistId}/verification_sample.mp4 {
-      allow write: if request.auth != null && request.auth.uid == artistId && request.resource.size < 50 * 1024 * 1024;
-    }
-    
-    // Only admins can write to the movies directory.
-    match /movies/{movieId}/{fileName} {
-      allow write: if isAdmin();
+    // Allow the admin to write to the movies directory.
+    match /movies/{movieId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.token.email == 'admin@cloudstage.in';
     }
   }
 }

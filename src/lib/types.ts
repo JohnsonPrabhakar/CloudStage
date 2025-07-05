@@ -1,4 +1,5 @@
 
+
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
@@ -65,6 +66,7 @@ export interface Artist {
   genres: string[];
   accessLevel: 'basic' | 'verified';
   verificationRequest?: VerificationRequestData;
+  premiumPaymentId?: string;
 }
 
 export type MovieGenre = string;

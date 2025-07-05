@@ -24,6 +24,8 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
+import { createRazorpayOrder } from "@/lib/actions";
+import Script from "next/script";
 
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
@@ -40,7 +42,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   const [event, setEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -94,52 +96,83 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         toast({ variant: 'destructive', title: 'Error', description: 'User or event data is missing.' });
         return;
     }
+    
+    setIsProcessingPayment(true);
 
-    setIsSubmitting(true);
     try {
-        const result = await createTicket(user.uid, event.id, event.ticketPrice, {
-            buyerName: values.fullName,
-            buyerEmail: values.email,
-            buyerPhone: values.phone,
+        const orderResponse = await createRazorpayOrder({
+            amount: event.ticketPrice,
+            receiptId: `TICKET_${eventId}_${Date.now()}`
         });
 
-        if (result.success && result.ticketId) {
-            // Simulate sending confirmations
-            const confirmationMessage = `
-            --- SIMULATED CONFIRMATION ---
-            To: ${values.email}, ${values.phone}
-            Subject: Your Ticket for ${event.title} is Confirmed!
-
-            Hi ${values.fullName},
-
-            You're all set! Here are your details:
-            Event: ${event.title}
-            Date: ${format(new Date(event.date), 'PPP p')}
-            Ticket ID: ${result.ticketId}
-            Event Code: ${event.eventCode}
-            Watch Link: ${window.location.origin}/play/${event.id}
-
-            Thank you for booking with CloudStage!
-            -----------------------------
-            `;
-            console.log(confirmationMessage);
-            
-            toast({
-                title: "Ticket Confirmed!",
-                description: "Your ticket has been booked. A confirmation has been sent to your email.",
-            });
-            router.push("/my-tickets");
-        } else {
-            throw new Error(result.message);
+        if (!orderResponse.success || !orderResponse.order) {
+            throw new Error(orderResponse.error || 'Failed to create payment order.');
         }
+
+        const { order } = orderResponse;
+        
+        const razorpayOptions = {
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+            amount: order.amount,
+            currency: 'INR',
+            name: 'CloudStage',
+            description: `Ticket for ${event.title}`,
+            order_id: order.id,
+            handler: async (response: any) => {
+                const ticketData = {
+                    buyerName: values.fullName,
+                    buyerEmail: values.email,
+                    buyerPhone: values.phone,
+                };
+                try {
+                    await createTicket(user.uid, event.id, event.ticketPrice, ticketData, response.razorpay_payment_id);
+                    toast({
+                        title: "Ticket Confirmed!",
+                        description: "Your ticket has been booked. A confirmation has been sent to your email.",
+                    });
+                    router.push("/my-tickets");
+                } catch (dbError: any) {
+                    toast({
+                        title: "Booking Finalization Failed",
+                        description: dbError.message || "Payment was successful but we couldn't save your ticket. Please contact support.",
+                        variant: "destructive"
+                    });
+                } finally {
+                    setIsProcessingPayment(false);
+                }
+            },
+            prefill: {
+                name: values.fullName,
+                email: values.email,
+                contact: values.phone
+            },
+            notes: {
+                eventId: event.id,
+                userId: user.uid,
+            },
+            theme: {
+                color: '#800000'
+            }
+        };
+
+        const paymentObject = new (window as any).Razorpay(razorpayOptions);
+        paymentObject.on('payment.failed', (response: any) => {
+             toast({
+                title: 'Payment Failed',
+                description: response.error.description || 'Something went wrong. Please try again.',
+                variant: 'destructive',
+             });
+             setIsProcessingPayment(false);
+        });
+        paymentObject.open();
+
     } catch (error: any) {
         toast({
             title: "Booking Failed",
-            description: error.message || "There was an error booking your ticket. Please try again.",
+            description: error.message || "There was an error initiating the payment. Please try again.",
             variant: "destructive",
         });
-    } finally {
-        setIsSubmitting(false);
+        setIsProcessingPayment(false);
     }
   }
 
@@ -170,6 +203,11 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   }
 
   return (
+    <>
+    <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+    />
     <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle className="text-2xl">Confirm Your Ticket Purchase</CardTitle>
@@ -228,8 +266,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
                 </FormItem>
               )}
             />
-            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button type="submit" size="lg" className="w-full" disabled={isProcessingPayment}>
+              {isProcessingPayment ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
@@ -243,5 +281,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         </Form>
       </CardContent>
     </Card>
+    </>
   );
 }
