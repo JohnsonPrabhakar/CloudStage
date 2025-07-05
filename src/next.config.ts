@@ -3,6 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Forcing a change to trigger re-evaluation of deployment config.
   typescript: {
     ignoreBuildErrors: false,
   },
