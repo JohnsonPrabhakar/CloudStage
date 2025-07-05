@@ -13,10 +13,10 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validate that the required Firebase config values are present.
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+// Validate that the required Firebase config values are present and not placeholders.
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('XXXX') || !firebaseConfig.projectId) {
   throw new Error(
-    "Missing Firebase configuration. Please make sure all NEXT_PUBLIC_FIREBASE_* variables are set in your .env.local file."
+    "CRITICAL: Missing or invalid Firebase configuration. Please ensure all NEXT_PUBLIC_FIREBASE_* variables are correctly set in your .env.local file. If you just updated it, please restart the development server."
   );
 }
 
