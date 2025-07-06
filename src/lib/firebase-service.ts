@@ -219,11 +219,10 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
-  const q = query(eventsCollection, where('artistId', '==', artistId));
+  const q = query(eventsCollection, where('artistId', '==', artistId), orderBy('date', 'desc'));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-    const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    callback(sortedEvents);
+    callback(events);
   });
 };
 
@@ -239,6 +238,19 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
   await updateDoc(eventDoc, {
     isBoosted: isBoosted,
     boostAmount: amount
+  });
+};
+
+export const goLive = async (eventId: string, streamUrl: string) => {
+  const embedUrl = getYouTubeEmbedUrl(streamUrl);
+  if (!embedUrl) {
+    throw new Error("Invalid YouTube URL provided. Please use a valid watch, live, or youtu.be link.");
+  }
+
+  const eventDoc = doc(db, 'events', eventId);
+  await updateDoc(eventDoc, {
+    streamUrl: embedUrl,
+    status: 'live',
   });
 };
 

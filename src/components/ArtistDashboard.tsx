@@ -41,9 +41,11 @@ import {
   Loader2,
   BadgeCheck,
   ShieldAlert,
+  RadioTower,
 } from "lucide-react";
 import { format } from "date-fns";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { GoLiveModal } from "./GoLiveModal";
 
 export default function ArtistDashboard() {
   const router = useRouter();
@@ -285,40 +287,72 @@ export default function ArtistDashboard() {
                       <Share2 className="mr-2 h-4 w-4" /> Share
                     </Button>
                   </div>
+                  
+                  {(() => {
+                    const isEventTime = new Date(event.date) <= new Date();
+                    const isReallyPast = new Date(event.date) < new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours past
 
-                  {!event.isBoosted ? (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className="w-full">
-                          <TrendingUp className="mr-2 h-4 w-4" /> Boost Event
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Boost Your Event</DialogTitle>
-                          <DialogDescription>
-                            Get your event featured on the homepage for maximum visibility.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-4 py-4">
-                          {[500, 1000, 2000, 3000].map((amount) => (
-                            <DialogClose asChild key={amount}>
-                              <Button
-                                variant="outline"
-                                onClick={() => handleBoost(event.id, amount)}
-                              >
-                                Boost for ₹{amount}
-                              </Button>
-                            </DialogClose>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  ) : (
-                    <Button className="w-full" disabled>
-                      <PartyPopper className="mr-2 h-4 w-4" /> Already Boosted
-                    </Button>
-                  )}
+                    if (isReallyPast) {
+                      return <Button variant="outline" disabled className="w-full">Event Ended</Button>;
+                    }
+
+                    if (event.status === 'live') {
+                      return (
+                        <Badge className="w-full justify-center py-2 bg-green-600 text-white">
+                          <RadioTower className="mr-2 h-4 w-4 animate-pulse" /> Live
+                        </Badge>
+                      );
+                    }
+
+                    if (isEventTime) {
+                      return (
+                        <GoLiveModal eventId={event.id}>
+                          <Button className="w-full" variant="destructive">
+                            <RadioTower className="mr-2 h-4 w-4" /> Go Live Now
+                          </Button>
+                        </GoLiveModal>
+                      );
+                    }
+                    
+                    if (!event.isBoosted) {
+                      return (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button className="w-full">
+                              <TrendingUp className="mr-2 h-4 w-4" /> Boost Event
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Boost Your Event</DialogTitle>
+                              <DialogDescription>
+                                Get your event featured on the homepage for maximum visibility.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-4 py-4">
+                              {[500, 1000, 2000, 3000].map((amount) => (
+                                <DialogClose asChild key={amount}>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => handleBoost(event.id, amount)}
+                                  >
+                                    Boost for ₹{amount}
+                                  </Button>
+                                </DialogClose>
+                              ))}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      )
+                    } else {
+                        return (
+                          <Button className="w-full" disabled>
+                            <PartyPopper className="mr-2 h-4 w-4" /> Already Boosted
+                          </Button>
+                        )
+                    }
+                  })()}
+
                 </CardFooter>
               </Card>
             ))}
