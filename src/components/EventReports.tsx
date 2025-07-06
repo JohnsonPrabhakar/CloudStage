@@ -37,7 +37,8 @@ export default function EventReports() {
                     getAllTickets(),
                     getAllArtists(),
                 ]);
-                setEvents(fetchedEvents);
+                const sortedEvents = fetchedEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setEvents(sortedEvents);
                 setTickets(fetchedTickets);
                 setArtists(fetchedArtists);
             } catch (error) {

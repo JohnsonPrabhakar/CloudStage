@@ -654,8 +654,7 @@ export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const q = query(
         eventsCollection,
         where('moderationStatus', '==', 'approved'),
-        where('date', '<', new Date().toISOString()),
-        orderBy('date', 'desc')
+        where('date', '<', new Date().toISOString())
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => fromFirestore<Event>(doc));
