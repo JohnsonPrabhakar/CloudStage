@@ -1,6 +1,4 @@
 
-"use client";
-
 import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
