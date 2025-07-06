@@ -140,44 +140,35 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 
 // --- EVENT-RELATED FUNCTIONS ---
-// This new function is not exported. It runs in the background.
-const uploadBannerAndUpdateEvent = async (artistId: string, eventId: string, bannerFile: File) => {
-  const bannerPath = `artists/${artistId}/events/${eventId}/banner.jpg`;
-  const eventDocRef = doc(db, 'events', eventId);
-  try {
-    const downloadURL = await uploadFile(bannerFile, bannerPath);
-    await updateDoc(eventDocRef, { bannerUrl: downloadURL });
-  } catch (error) {
-    console.error("Background banner upload failed:", error);
-    // Update the banner to show a failure message
-    await updateDoc(eventDocRef, { bannerUrl: 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed' });
-  }
-};
-
-// This is the main function called by the form. It now returns instantly.
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
   bannerFile: File | null
 ): Promise<{ eventId: string }> => {
-  const bannerPlaceholder = 'https://placehold.co/1280x720/cccccc/ffffff.png?text=Uploading...';
-  
-  const docRef = doc(collection(db, 'events')); // Generate ID upfront
+  const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
+
+  let bannerUrl = 'https://placehold.co/600x400.png';
+  if (bannerFile) {
+    const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
+    try {
+      bannerUrl = await uploadFile(bannerFile, bannerPath);
+    } catch (error) {
+      console.error("Banner upload failed during event creation:", error);
+      // Proceed with a visible error placeholder, but the event will still be created.
+      bannerUrl = 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed';
+      // Re-throw to notify the user via toast in the form
+      throw error; 
+    }
+  }
+
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
 
-  // Create the document immediately with a placeholder
   await setDoc(docRef, {
     ...eventData,
-    bannerUrl: bannerFile ? bannerPlaceholder : 'https://placehold.co/600x400.png',
+    bannerUrl,
     eventCode,
     createdAt: serverTimestamp(),
   });
-
-  // If there's a banner file, start the upload in the background.
-  // We don't await this, so the function returns immediately.
-  if (bannerFile) {
-    uploadBannerAndUpdateEvent(eventData.artistId, eventId, bannerFile);
-  }
 
   return { eventId };
 };
