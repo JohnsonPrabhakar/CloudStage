@@ -304,6 +304,11 @@ export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     return null;
 }
 
+export const getAllArtists = async (): Promise<Artist[]> => {
+    const snapshot = await getDocs(artistsCollection);
+    return snapshot.docs.map(doc => fromFirestore<Artist>(doc));
+};
+
 export const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('isApproved', '==', false));
     return onSnapshot(q, (snapshot) => {
