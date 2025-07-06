@@ -36,7 +36,6 @@ function ConfirmationPageLoader() {
     )
 }
 
-// @ts-ignore
 export default function ConfirmTicketPage({ params }: ConfirmTicketPageProps) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
