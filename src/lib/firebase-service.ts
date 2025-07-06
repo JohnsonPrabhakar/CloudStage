@@ -219,10 +219,12 @@ export const getEventById = async (id: string): Promise<Event | null> => {
 };
 
 export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
-  const q = query(eventsCollection, where('artistId', '==', artistId), orderBy('date', 'desc'));
+  const q = query(eventsCollection, where('artistId', '==', artistId));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-    callback(events);
+    // Sort on the client-side to avoid the composite index requirement
+    const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(sortedEvents);
   });
 };
 
