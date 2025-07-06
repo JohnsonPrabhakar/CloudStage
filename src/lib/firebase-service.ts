@@ -653,11 +653,16 @@ export const rejectVerificationRequest = async (artistId: string, adminId: strin
 export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const q = query(
         eventsCollection,
-        where('moderationStatus', '==', 'approved'),
-        where('date', '<', new Date().toISOString())
+        where('moderationStatus', '==', 'approved')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    const allApprovedEvents = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    
+    // Perform filtering for completed events on the client-side
+    const now = new Date();
+    const completedEvents = allApprovedEvents.filter(event => new Date(event.date) < now);
+        
+    return completedEvents;
 };
 
 export const getAllTickets = async (): Promise<Ticket[]> => {
