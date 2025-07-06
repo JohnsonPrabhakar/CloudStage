@@ -133,12 +133,12 @@ export default function MovieWatchPage() {
     )
   }
 
-  if (!movie || !movie.videoUrl) {
+  if (!movie) {
     return (
       <div className="container mx-auto p-8 text-center">
-        <h1 className="text-4xl font-bold">Video Unavailable</h1>
+        <h1 className="text-4xl font-bold">Movie Not Found</h1>
         <p className="text-muted-foreground mt-4">
-          This movie may not exist or the video link is invalid.
+          The movie you are looking for does not exist.
         </p>
         <Button onClick={() => router.push("/movies")} className="mt-8">
           <ChevronLeft className="mr-2 h-4 w-4" />
@@ -149,12 +149,9 @@ export default function MovieWatchPage() {
   }
   
   const renderVideoPlayer = () => {
-    const isYoutube = movie.videoUrl.includes('youtube.com') || movie.videoUrl.includes('youtu.be');
+    const embedUrl = getYouTubeEmbedUrl(movie.videoUrl);
     
-    if (isYoutube) {
-      const embedUrl = getYouTubeEmbedUrl(movie.videoUrl);
-
-      if (embedUrl) {
+    if (embedUrl) {
         return (
           <iframe
             width="100%"
@@ -164,29 +161,33 @@ export default function MovieWatchPage() {
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            className="absolute top-0 left-0 w-full h-full"
           ></iframe>
         );
-      } else {
-        return (
-           <div className="w-full h-full flex items-center justify-center bg-black text-destructive-foreground p-4">
-             <p>Invalid YouTube URL format. Could not load video.</p>
-           </div>
-        )
-      }
     }
 
+    // Check for other valid, non-YouTube video URLs
+    if (movie.videoUrl && movie.videoUrl.startsWith('http')) {
+      return (
+        <video
+            src={movie.videoUrl}
+            width="100%"
+            height="100%"
+            controls
+            autoPlay
+            className="w-full h-full object-contain"
+        >
+            Your browser does not support the video tag.
+        </video>
+      );
+    }
+    
+    // Fallback if URL is invalid or missing
     return (
-      <video
-          src={movie.videoUrl}
-          width="100%"
-          height="100%"
-          controls
-          autoPlay
-          className="w-full h-full object-contain"
-      >
-          Your browser does not support the video tag.
-      </video>
-    );
+        <div className="w-full h-full flex items-center justify-center bg-black text-destructive-foreground p-4 text-center">
+             <p>Video is unavailable.<br/>The provided link is either invalid or missing.</p>
+        </div>
+    )
   }
 
   return (
