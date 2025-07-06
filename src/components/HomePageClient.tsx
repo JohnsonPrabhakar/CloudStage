@@ -3,39 +3,23 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
 import { getApprovedEvents } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { ArrowRight, Music, Mic, Sprout, WandSparkles, Clapperboard, Radio, Calendar, RadioTower } from "lucide-react";
-import { Card, CardContent } from "./ui/card";
-
-const getEventHint = (category: Event['category']): string => {
-    switch (category) {
-        case 'Music':
-            return 'concert stage';
-        case 'Stand-up Comedy':
-            return 'comedy club';
-        case 'Meditation / Yoga':
-            return 'yoga meditation';
-        case 'Magic Show':
-            return 'magician stage';
-        case 'Talk':
-            return 'panel discussion';
-        case 'Devotional / Bhajan / Satsang':
-            return 'devotional music';
-        case 'Workshop':
-            return 'workshop class';
-        default:
-            return 'live event';
-    }
-};
+import { ArrowRight, Calendar, RadioTower, Search, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function HomePageClient() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -54,8 +38,7 @@ export function HomePageClient() {
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
-    // A more realistic threshold for 'live' might be a few hours.
-    const liveThreshold = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+    const liveThreshold = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours ago
 
     if (!allEvents || allEvents.length === 0) {
       return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
@@ -65,20 +48,14 @@ export function HomePageClient() {
       live: Event[];
       upcoming: Event[];
       past: Event[];
-    } = {
-      live: [],
-      upcoming: [],
-      past: [],
-    };
-    
-    // Initial sort by date ascending to process events chronologically.
+    } = { live: [], upcoming: [], past: [] };
+
     const sortedEvents = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const event of sortedEvents) {
       let finalStatus: Event["status"] = event.status;
       const eventDate = new Date(event.date);
 
-      // This logic re-evaluates the status on the client-side to ensure it's up-to-date
       if (eventDate > now) {
         finalStatus = 'upcoming';
       } else if (eventDate <= now && eventDate >= liveThreshold) {
@@ -98,11 +75,10 @@ export function HomePageClient() {
       }
     }
     
-    // Sort upcoming ascending, past/live descending
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     categorized.live.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
+    
     const boostedUpcoming = categorized.upcoming.filter(e => e.isBoosted);
     const nonBoostedUpcoming = categorized.upcoming.filter(e => !e.isBoosted);
 
@@ -112,78 +88,87 @@ export function HomePageClient() {
         pastEvents: categorized.past,
     };
   }, [allEvents]);
-  
-  const renderMockCategories = () => {
-    const categories = [
-        { name: 'Live Music Concerts', icon: <Music className="h-8 w-8 text-primary"/>, hint: "concert stage", imageUrl: "https://images.unsplash.com/photo-1656283384093-1e227e621fad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8TGl2ZSUyME11c2ljJTIwQ29uY2VydHxlbnwwfHx8fDE3NTE1MTAyMjl8MA&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Stand-up Comedy', icon: <Mic className="h-8 w-8 text-primary"/>, hint: "comedy club", imageUrl: "https://images.unsplash.com/photo-1611956425642-d5a8169abd63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxTdGFuZCUyMHVwJTIwY29tZWR5fGVufDB8fHx8MTc1MTUxMDEyOXww&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Yoga & Meditation', icon: <Sprout className="h-8 w-8 text-primary"/>, hint: "yoga meditation", imageUrl: "https://images.unsplash.com/photo-1588286840104-8957b019727f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx5b2dhfGVufDB8fHx8MTc1MTQ2NTI5OHww&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Magic Shows', icon: <WandSparkles className="h-8 w-8 text-primary"/>, hint: "magician stage", imageUrl: "https://images.unsplash.com/photo-1556195332-95503f664ced?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxNYWdpYyUyMFNob3d8ZW58MHx8fHwxNzUxNTEwNzgwfDA&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Devotional / Satsang', icon: <Radio className="h-8 w-8 text-primary"/>, hint: "devotional music", imageUrl: "https://images.unsplash.com/photo-1542042179-03efeb269b35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxNHx8cHJheWVyfGVufDB8fHx8MTc1MTUxMTA2MHww&ixlib=rb-4.1.0&q=80&w=1080" },
-        { name: 'Talk Shows & Panels', icon: <Clapperboard className="h-8 w-8 text-primary"/>, hint: "panel discussion", imageUrl: "https://images.unsplash.com/photo-1747476263861-c9eec8f97ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMXx8VGFsayUyMHnob3dzJTIwYW5kJTIwZGViYXRlfGVufDB8fHx8MTc1MTUwOTc0NXww&ixlib=rb-4.1.0&q=80&w=1080" },
-    ];
-    return (
-        <div className="space-y-8">
-            <div className="text-center">
-                 <h2 className="text-3xl font-bold tracking-tight">The stage is quiet... for now.</h2>
-                 <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">While there are no scheduled events, here are the kinds of live experiences you can discover on CloudStage.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categories.map(cat => (
-                    <Card key={cat.name} className="overflow-hidden group">
-                        <CardContent className="p-0">
-                            <div className="relative h-48 w-full">
-                                <Image
-                                    src={cat.imageUrl}
-                                    alt={cat.name}
-                                    fill
-                                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                    data-ai-hint={cat.hint}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                                <div className="absolute bottom-4 left-4 text-white flex items-center gap-3">
-                                    {cat.icon}
-                                    <h3 className="text-xl font-bold">{cat.name}</h3>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        </div>
-    )
-  }
 
+  const { uniqueLanguages, uniqueCategories } = useMemo(() => {
+    const languages = new Set(allEvents.map(e => e.language));
+    const categories = new Set(allEvents.map(e => e.category));
+    return {
+      uniqueLanguages: Array.from(languages),
+      uniqueCategories: Array.from(categories),
+    };
+  }, [allEvents]);
+
+  const filterAndSearchEvents = (events: Event[]) => {
+    return events.filter(event => {
+      const matchesSearch = 
+        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.language.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLang = selectedLanguage === 'all' || event.language === selectedLanguage;
+      const matchesCat = selectedCategory === 'all' || event.category === selectedCategory;
+      return matchesSearch && matchesLang && matchesCat;
+    });
+  };
+
+  const filteredLiveEvents = filterAndSearchEvents(liveEvents);
+  const filteredUpcomingEvents = filterAndSearchEvents(upcomingEvents);
+  const filteredPastEvents = filterAndSearchEvents(pastEvents);
+
+  const renderEventSection = (events: Event[], title: string) => {
+    if (events.length === 0) {
+      return (
+        <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
+          <p>No {title.toLowerCase()} match your criteria.</p>
+          <p className="text-sm">Try adjusting your search or filters.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="relative">
+        <div className="flex gap-4 overflow-x-auto pb-4 -ml-4 pl-4">
+          {events.slice(0, 5).map(event => (
+            <div key={event.id} className="w-full sm:w-[280px] shrink-0">
+              <EventCard event={event} />
+            </div>
+          ))}
+          {events.length > 5 && (
+            <div className="w-[280px] shrink-0 flex items-center justify-center">
+              <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 hover:bg-muted transition-colors">
+                <CardContent className="p-6 flex flex-col items-center justify-center">
+                  <h3 className="text-lg font-semibold">Explore More</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    + {events.length - 5} more events
+                  </p>
+                  <Button variant="outline">
+                    View All <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+  
   if (loading) {
     return (
       <div className="container mx-auto p-4 md:p-8 space-y-16">
-        <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
-            <div className="relative z-20 max-w-4xl mx-auto">
-                <Skeleton className="h-16 w-3/4 mx-auto mb-4" />
-                <Skeleton className="h-6 w-1/2 mx-auto mb-8" />
-                <div className="flex justify-center gap-4">
-                    <Skeleton className="h-12 w-40" />
-                    <Skeleton className="h-12 w-40" />
-                </div>
-            </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex flex-col space-y-3">
-              <Skeleton className="h-[200px] w-full rounded-xl" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-            </div>
-          ))}
+        <Skeleton className="w-full h-[50vh] rounded-2xl" />
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-1/3" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-96 w-full rounded-lg" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-8 space-y-16">
+    <div className="container mx-auto p-4 md:p-8 space-y-12">
         <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
             <div className="relative z-20 max-w-4xl mx-auto">
                 <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
@@ -192,9 +177,9 @@ export function HomePageClient() {
                 </p>
                 <div className="mt-8 flex flex-wrap justify-center gap-4">
                   <Button asChild size="lg">
-                      <Link href="#upcoming-events">
+                      <Link href="#events-section">
                           <Calendar className="mr-2 h-5 w-5"/>
-                          Upcoming Events
+                          Explore Events
                       </Link>
                   </Button>
                   <Button asChild size="lg" variant="secondary">
@@ -207,53 +192,71 @@ export function HomePageClient() {
             </div>
         </div>
 
-      {!allEvents || allEvents.length === 0 ? (
-          renderMockCategories()
-      ) : (
-          <div className="space-y-16">
-            <section id="live-events" className="scroll-mt-20">
-              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center flex items-center justify-center gap-3">
-                <RadioTower className="h-8 w-8 text-primary animate-pulse" />
-                Happening Now
-              </h2>
-              {liveEvents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {liveEvents.map((event) => <EventCard key={event.id} event={event} />)}
-                </div>
-              ) : (
-                <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                  <p>No events are live right now. Check out what's coming soon!</p>
-                </div>
-              )}
-            </section>
-          
-            <section id="upcoming-events" className="scroll-mt-20">
-              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Upcoming Events</h2>
-              {upcomingEvents.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {upcomingEvents.map((event) => <EventCard key={event.id} event={event} />)}
-                  </div>
-              ) : (
-                <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                  <p>You're all caught up! Check back soon for new performances.</p>
-                </div>
-              )}
-            </section>
+        <section id="events-section" className="scroll-mt-20 space-y-8">
+           <Tabs defaultValue="upcoming" className="w-full">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
+                <TabsList className="grid w-full grid-cols-3 md:w-auto">
+                    <TabsTrigger value="live">
+                        <RadioTower className="mr-2 h-4 w-4"/> Live
+                    </TabsTrigger>
+                    <TabsTrigger value="upcoming">
+                        <Calendar className="mr-2 h-4 w-4"/> Upcoming
+                    </TabsTrigger>
+                    <TabsTrigger value="past">
+                        <ArrowRight className="mr-2 h-4 w-4"/> Past
+                    </TabsTrigger>
+                </TabsList>
 
-            <section id="past-events" className="scroll-mt-20">
-              <h2 className="text-3xl font-bold tracking-tight mb-8 text-center">Catch Up On Past Shows 🎬</h2>
-              {pastEvents.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {pastEvents.slice(0, 4).map((event) => <EventCard key={event.id} event={event} />)}
-                    </div>
-                ) : (
-                    <div className="text-center py-16 text-muted-foreground bg-card/50 rounded-lg">
-                        <p>Once events are over, their recordings will appear here.</p>
-                    </div>
-                )}
-            </section>
-          </div>
-      )}
+                <div className="w-full relative md:max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
+                    <Input 
+                        placeholder="Search by title, category..."
+                        className="pl-10"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Filter by Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {uniqueCategories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                 <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Filter by Language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Languages</SelectItem>
+                        {uniqueLanguages.map(lang => (
+                            <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            
+            <TabsContent value="live">
+              <h2 className="text-2xl font-bold mb-4">Live Events</h2>
+              {renderEventSection(filteredLiveEvents, "Live Events")}
+            </TabsContent>
+            <TabsContent value="upcoming">
+              <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+              {renderEventSection(filteredUpcomingEvents, "Upcoming Events")}
+            </TabsContent>
+            <TabsContent value="past">
+              <h2 className="text-2xl font-bold mb-4">Past Events</h2>
+              {renderEventSection(filteredPastEvents, "Past Events")}
+            </TabsContent>
+          </Tabs>
+        </section>
     </div>
   );
 }
