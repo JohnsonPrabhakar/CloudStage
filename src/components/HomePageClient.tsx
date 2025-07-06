@@ -14,6 +14,16 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const allPossibleCategories = [
+  "Music",
+  "Devotional / Bhajan / Satsang",
+  "Magic Show",
+  "Meditation / Yoga",
+  "Stand-up Comedy",
+  "Workshop",
+  "Talk"
+];
+
 export function HomePageClient() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +85,7 @@ export function HomePageClient() {
       }
     }
     
-    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime());
     categorized.live.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
@@ -89,13 +99,9 @@ export function HomePageClient() {
     };
   }, [allEvents]);
 
-  const { uniqueLanguages, uniqueCategories } = useMemo(() => {
+  const uniqueLanguages = useMemo(() => {
     const languages = new Set(allEvents.map(e => e.language));
-    const categories = new Set(allEvents.map(e => e.category));
-    return {
-      uniqueLanguages: Array.from(languages),
-      uniqueCategories: Array.from(categories),
-    };
+    return Array.from(languages);
   }, [allEvents]);
 
   const filterAndSearchEvents = (events: Event[]) => {
@@ -225,7 +231,7 @@ export function HomePageClient() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Categories</SelectItem>
-                        {uniqueCategories.map(cat => (
+                        {allPossibleCategories.map(cat => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                     </SelectContent>
