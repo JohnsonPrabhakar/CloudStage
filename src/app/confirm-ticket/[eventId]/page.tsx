@@ -30,9 +30,8 @@ function ConfirmationPageLoader() {
 }
 
 type ConfirmTicketPageProps = {
-  params: {
-    eventId: string;
-  };
+  params: { eventId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default function ConfirmTicketPage({ params }: ConfirmTicketPageProps) {
