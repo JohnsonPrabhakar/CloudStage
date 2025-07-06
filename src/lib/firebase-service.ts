@@ -143,9 +143,10 @@ const getYouTubeVideoId = (url: string): string | null => {
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
   bannerFile: File | null
-): Promise<{ eventId: string }> => {
+): Promise<{ eventId: string; bannerUploaded: boolean }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
+  let bannerUploaded = true;
 
   let bannerUrl = 'https://placehold.co/600x400.png';
   if (bannerFile) {
@@ -156,8 +157,7 @@ export const addEvent = async (
       console.error("Banner upload failed during event creation:", error);
       // Proceed with a visible error placeholder, but the event will still be created.
       bannerUrl = 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed';
-      // Re-throw to notify the user via toast in the form
-      throw error; 
+      bannerUploaded = false;
     }
   }
 
@@ -170,7 +170,7 @@ export const addEvent = async (
     createdAt: serverTimestamp(),
   });
 
-  return { eventId };
+  return { eventId, bannerUploaded };
 };
 
 export const getApprovedEvents = async (): Promise<Event[]> => {

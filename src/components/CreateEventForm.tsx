@@ -233,19 +233,29 @@ export default function CreateEventForm() {
         moderationStatus: 'pending' as const,
       };
 
-      await addEvent(eventData, bannerFile);
+      const { bannerUploaded } = await addEvent(eventData, bannerFile);
 
-      toast({
-        title: "Event Submitted!",
-        description: "Your event is now pending admin approval. Redirecting...",
-      });
+      if (bannerUploaded) {
+         toast({
+          title: "Event Submitted!",
+          description: "Your event is now pending admin approval. Redirecting...",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Event Created with an Error",
+          description: "Your event was submitted, but the banner upload failed. You can edit the event later to re-upload the banner.",
+          duration: 8000,
+        });
+      }
+
       router.push("/artist/dashboard");
 
     } catch (error: any) {
       console.error("Event Submission Error:", error);
       toast({
         title: "Submission Failed",
-        description: `There was an error: ${error.message}. Please check your internet connection and try again.`,
+        description: `A critical error occurred: ${error.message}. Please check your internet connection and try again.`,
         variant: "destructive",
       });
     } finally {
