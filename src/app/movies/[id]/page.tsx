@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Movie } from "@/lib/types";
-import { getMovieById } from "@/lib/firebase-service";
+import { getMovieById, getYouTubeEmbedUrl } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import {
   Share2,
@@ -97,15 +97,6 @@ export default function MovieWatchPage() {
       handleCopyLink();
     }
   };
-  
-  const isValidStreamUrl = (url: string) => {
-    try {
-        new URL(url);
-        return true;
-    } catch (e) {
-        return false;
-    }
-  }
 
   if (loading) {
      return (
@@ -142,7 +133,7 @@ export default function MovieWatchPage() {
     )
   }
 
-  if (!movie || !isValidStreamUrl(movie.videoUrl)) {
+  if (!movie || !movie.videoUrl) {
     return (
       <div className="container mx-auto p-8 text-center">
         <h1 className="text-4xl font-bold">Video Unavailable</h1>
@@ -157,7 +148,46 @@ export default function MovieWatchPage() {
     );
   }
   
-  const isYoutubeVideo = movie.videoUrl.includes('youtube.com');
+  const renderVideoPlayer = () => {
+    const isYoutube = movie.videoUrl.includes('youtube.com') || movie.videoUrl.includes('youtu.be');
+    
+    if (isYoutube) {
+      const embedUrl = getYouTubeEmbedUrl(movie.videoUrl);
+
+      if (embedUrl) {
+        return (
+          <iframe
+            width="100%"
+            height="100%"
+            src={`${embedUrl}?autoplay=1`}
+            title={movie.title}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        );
+      } else {
+        return (
+           <div className="w-full h-full flex items-center justify-center bg-black text-destructive-foreground p-4">
+             <p>Invalid YouTube URL format. Could not load video.</p>
+           </div>
+        )
+      }
+    }
+
+    return (
+      <video
+          src={movie.videoUrl}
+          width="100%"
+          height="100%"
+          controls
+          autoPlay
+          className="w-full h-full object-contain"
+      >
+          Your browser does not support the video tag.
+      </video>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
@@ -174,28 +204,7 @@ export default function MovieWatchPage() {
         {reactions.map(r => (
             <div key={r.id} className="reaction-animation" style={{ left: r.left }}>{r.icon}</div>
         ))}
-        {isYoutubeVideo ? (
-            <iframe
-                width="100%"
-                height="100%"
-                src={`${movie.videoUrl.includes('?') ? movie.videoUrl + '&' : movie.videoUrl + '?'}autoplay=1`}
-                title={movie.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-            ></iframe>
-        ) : (
-             <video
-                src={movie.videoUrl}
-                width="100%"
-                height="100%"
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
-            >
-                Your browser does not support the video tag.
-            </video>
-        )}
+        {renderVideoPlayer()}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
