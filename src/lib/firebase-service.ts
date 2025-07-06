@@ -142,30 +142,37 @@ const getYouTubeVideoId = (url: string): string | null => {
 // --- EVENT-RELATED FUNCTIONS ---
 export const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>,
-  bannerFile: File | null
+  bannerFile: File | null,
+  existingBannerUrl?: string | null
 ): Promise<{ eventId: string; bannerUploaded: boolean }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
   let bannerUploaded = true;
+  let finalBannerUrl = '';
 
-  let bannerUrl = 'https://placehold.co/600x400.png';
   if (bannerFile) {
+    // A new file takes precedence
     const bannerPath = `artists/${eventData.artistId}/events/${eventId}/banner.jpg`;
     try {
-      bannerUrl = await uploadFile(bannerFile, bannerPath);
+      finalBannerUrl = await uploadFile(bannerFile, bannerPath);
     } catch (error) {
       console.error("Banner upload failed during event creation:", error);
-      // Proceed with a visible error placeholder, but the event will still be created.
-      bannerUrl = 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed';
+      finalBannerUrl = 'https://placehold.co/1280x720/ff0000/ffffff.png?text=Upload+Failed';
       bannerUploaded = false;
     }
+  } else if (existingBannerUrl) {
+    // Use the existing URL if no new file is provided (for duplication)
+    finalBannerUrl = existingBannerUrl;
+  } else {
+    // Fallback to a generic placeholder if no file and no existing URL
+    finalBannerUrl = 'https://placehold.co/600x400.png';
   }
 
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
 
   await setDoc(docRef, {
     ...eventData,
-    bannerUrl,
+    bannerUrl: finalBannerUrl,
     eventCode,
     createdAt: serverTimestamp(),
   });
