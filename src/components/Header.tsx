@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -31,12 +30,12 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/60 backdrop-blur-xl">
-      <div className="container flex h-16 items-center">
+      <div className="container flex h-20 items-center">
         {/* Desktop Navigation */}
         <div className="mr-4 hidden md:flex flex-1">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
-            <span className="text-xl font-bold">CloudStage</span>
+          <Link href="/" className="mr-6 flex items-center space-x-3">
+            <Image src="/logo.png" alt="CloudStage Logo" width={40} height={40} />
+            <span className="text-2xl font-bold">CloudStage</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
@@ -70,7 +69,7 @@ export function Header() {
                       className="flex items-center space-x-2"
                       onClick={() => setIsSheetOpen(false)}
                     >
-                      <Image src="/logo.png" alt="CloudStage Logo" width={28} height={28} />
+                      <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
                       <span className="text-xl font-bold">CloudStage</span>
                     </Link>
                   </SheetTitle>
@@ -94,7 +93,7 @@ export function Header() {
 
           <div className="flex-1 md:hidden">
             <Link href="/" className="flex items-center justify-center space-x-2">
-                  <Image src="/logo.png" alt="CloudStage Logo" width={28} height={28} />
+                  <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
                   <span className="text-xl font-bold">CloudStage</span>
             </Link>
           </div>
