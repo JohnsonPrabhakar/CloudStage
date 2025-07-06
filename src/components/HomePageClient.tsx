@@ -28,7 +28,7 @@ export function HomePageClient() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState("all");
+  const [selectedLanguage, setSelectedLanguage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   useEffect(() => {
@@ -99,19 +99,18 @@ export function HomePageClient() {
     };
   }, [allEvents]);
 
-  const uniqueLanguages = useMemo(() => {
-    const languages = new Set(allEvents.map(e => e.language));
-    return Array.from(languages);
-  }, [allEvents]);
-
   const filterAndSearchEvents = (events: Event[]) => {
     return events.filter(event => {
+      const lowerCaseSearch = searchQuery.toLowerCase();
+      const lowerCaseLang = selectedLanguage.toLowerCase();
+      
       const matchesSearch = 
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.language.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLang = selectedLanguage === 'all' || event.language === selectedLanguage;
+        event.title.toLowerCase().includes(lowerCaseSearch) ||
+        event.artist.toLowerCase().includes(lowerCaseSearch);
+
+      const matchesLang = event.language.toLowerCase().includes(lowerCaseLang);
       const matchesCat = selectedCategory === 'all' || event.category === selectedCategory;
+
       return matchesSearch && matchesLang && matchesCat;
     });
   };
@@ -216,7 +215,7 @@ export function HomePageClient() {
                 <div className="w-full relative md:max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
                     <Input 
-                        placeholder="Search by title, category..."
+                        placeholder="Search by title or artist..."
                         className="pl-10"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -236,17 +235,11 @@ export function HomePageClient() {
                         ))}
                     </SelectContent>
                 </Select>
-                 <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Filter by Language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Languages</SelectItem>
-                        {uniqueLanguages.map(lang => (
-                            <SelectItem key={lang} value={lang}>{lang}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                 <Input
+                    placeholder="Filter by language..."
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                  />
             </div>
             
             <TabsContent value="live">
