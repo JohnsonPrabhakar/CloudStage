@@ -31,9 +31,7 @@ export default function NotificationPermissionHandler() {
         if (permission === 'granted') {
           console.log('Notification permission granted.');
           
-          // IMPORTANT: Replace this with your actual VAPID key from the Firebase console.
-          // Go to Project Settings -> Cloud Messaging -> Web configuration -> Web Push certificates
-          const vapidKey = "YOUR_VAPID_KEY_HERE"; 
+          const vapidKey = "BEuYVG34fzDFAqBkFTHJdMlnGjeTkOLeVIePm760_OFTRiBHyAiqj6hTgw9mQUTmuqDWu6oVIsnY5nRYVQT-gLE"; 
           const fcmToken = await getToken(messagingInstance, { vapidKey });
           
           if (fcmToken) {
@@ -56,8 +54,12 @@ export default function NotificationPermissionHandler() {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Only try to request permission if the user is logged in and is an artist.
-        requestPermission(user.uid);
+        // Only try to request permission if the user has an artist profile.
+        getArtistProfile(user.uid).then(profile => {
+          if (profile) {
+            requestPermission(user.uid);
+          }
+        });
       }
     });
 
