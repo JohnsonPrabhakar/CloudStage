@@ -341,6 +341,13 @@ export const updateArtistToPremium = async(uid: string, paymentId: string) => {
     });
 }
 
+export const saveFcmToken = async (artistId: string, token: string) => {
+    const artistDoc = doc(db, 'artists', artistId);
+    await updateDoc(artistDoc, {
+        fcmToken: token,
+    });
+};
+
 // TICKET-RELATED FUNCTIONS
 
 export const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {

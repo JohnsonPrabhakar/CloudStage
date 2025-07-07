@@ -67,6 +67,7 @@ export interface Artist {
   accessLevel: 'basic' | 'verified';
   verificationRequest?: VerificationRequestData;
   premiumPaymentId?: string;
+  fcmToken?: string;
 }
 
 export type MovieGenre = string;

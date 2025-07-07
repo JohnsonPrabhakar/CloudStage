@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/toaster";
 import Script from "next/script";
+import NotificationPermissionHandler from "@/components/NotificationPermissionHandler";
 
 export const metadata: Metadata = {
   title: "CloudStage",
@@ -37,11 +38,12 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
         </div>
         <Toaster />
+        <NotificationPermissionHandler />
         <Script id="service-worker-registration">
           {`
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js');
+                navigator.serviceWorker.register('/firebase-messaging-sw.js');
               });
             }
           `}
