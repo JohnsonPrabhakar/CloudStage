@@ -1,32 +1,62 @@
 'use server';
 
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { getEventById, getArtistProfile, getAppUserProfile } from '@/lib/firebase-service';
-import { fcm } from '@/lib/fcm-admin';
-import { type AppUser } from '@/lib/types';
+import { fcm, adminDb } from '@/lib/fcm-admin';
+import { type AppUser, type Event, type Artist } from '@/lib/types';
+import { Timestamp } from 'firebase-admin/firestore';
+
+// Helper to convert Firestore doc using Admin SDK
+const fromAdminFirestore = <T extends { id: string }>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+   const convertTimestamps = (data: any): any => {
+    if (data === null || data === undefined) return data;
+    if (typeof data !== 'object') return data;
+
+    if (data instanceof Timestamp) {
+      return data.toDate().toISOString();
+    }
+    
+    if (Array.isArray(data)) {
+        return data.map(item => convertTimestamps(item));
+    }
+
+    const convertedData: { [key: string]: any } = {};
+    for (const key in data) {
+      convertedData[key] = convertTimestamps(data[key]);
+    }
+    return convertedData;
+  }
+  
+  return {
+    id: doc.id,
+    ...convertTimestamps(data),
+  } as T;
+};
+
 
 /**
  * Sends a push notification to all followers of an artist when their new event is approved.
  * This Server Action is designed to be called from the admin dashboard after an event
- * is successfully approved.
+ * is successfully approved. It uses the Firebase Admin SDK to bypass security rules
+ * for reading user data.
  */
 export async function sendNewEventNotification(eventId: string) {
   console.log(`[Notification Action] Starting for eventId: ${eventId}`);
   try {
-    const event = await getEventById(eventId);
-    if (!event) {
-      throw new Error(`Event with ID ${eventId} not found.`);
+    // Fetch data using the Admin SDK
+    const eventDoc = await adminDb.collection('events').doc(eventId).get();
+    if (!eventDoc.exists) {
+        throw new Error(`Event with ID ${eventId} not found.`);
     }
+    const event = fromAdminFirestore<Event>(eventDoc);
 
-    const artist = await getArtistProfile(event.artistId);
-    if (!artist) {
+    const artistDoc = await adminDb.collection('artists').doc(event.artistId).get();
+     if (!artistDoc.exists) {
       throw new Error(`Artist with ID ${event.artistId} not found.`);
     }
+    const artist = fromAdminFirestore<Artist>(artistDoc);
 
     // 1. Fetch all followers of the artist
-    const followersRef = collection(db, 'artists', event.artistId, 'followers');
-    const followersSnapshot = await getDocs(followersRef);
+    const followersSnapshot = await adminDb.collection('artists').doc(event.artistId).collection('followers').get();
     const followerIds = followersSnapshot.docs.map(doc => doc.id);
 
     if (followerIds.length === 0) {
@@ -36,12 +66,12 @@ export async function sendNewEventNotification(eventId: string) {
 
     console.log(`[Notification Action] Found ${followerIds.length} followers.`);
 
-    // 2. Fetch the FCM token for each follower
-    const tokenPromises = followerIds.map(userId => getAppUserProfile(userId));
-    const followerProfiles = (await Promise.all(tokenPromises)).filter(p => p !== null) as AppUser[];
+    // 2. Fetch the FCM token for each follower. We now query both /artists and /users collections.
+    const userDocs = await adminDb.getAll(...followerIds.map(id => adminDb.collection('users').doc(id)));
+    const artistDocs = await adminDb.getAll(...followerIds.map(id => adminDb.collection('artists').doc(id)));
     
-    const fcmTokens = followerProfiles
-      .map(profile => profile.fcmToken)
+    const fcmTokens = [...userDocs, ...artistDocs]
+      .map(doc => doc.exists ? (doc.data() as AppUser | Artist).fcmToken : null)
       .filter((token): token is string => !!token);
 
     if (fcmTokens.length === 0) {
@@ -62,7 +92,7 @@ export async function sendNewEventNotification(eventId: string) {
           link: `/events/${eventId}`,
         },
       },
-      tokens: fcmTokens,
+      tokens: [...new Set(fcmTokens)], // Use Set to remove duplicate tokens
     };
 
     const response = await fcm.sendEachForMulticast(message);

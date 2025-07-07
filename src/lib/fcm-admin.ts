@@ -8,3 +8,4 @@ if (!admin.apps.length) {
 }
 
 export const fcm = admin.messaging();
+export const adminDb = admin.firestore();
