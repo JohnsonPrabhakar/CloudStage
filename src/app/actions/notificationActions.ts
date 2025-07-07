@@ -66,13 +66,15 @@ export async function sendNewEventNotification(eventId: string) {
 
     console.log(`[Notification Action] Found ${followerIds.length} followers.`);
 
-    // 2. Fetch the FCM token for each follower. We now query both /artists and /users collections.
-    const userDocs = await adminDb.getAll(...followerIds.map(id => adminDb.collection('users').doc(id)));
-    const artistDocs = await adminDb.getAll(...followerIds.map(id => adminDb.collection('artists').doc(id)));
-    
-    const fcmTokens = [...userDocs, ...artistDocs]
-      .map(doc => doc.exists ? (doc.data() as AppUser | Artist).fcmToken : null)
-      .filter((token): token is string => !!token);
+    // 2. Fetch the FCM token for each follower from the /users collection.
+    // This assumes followers are audience members, not other artists.
+    const userDocRefs = followerIds.map(id => adminDb.collection('users').doc(id));
+    const userDocs = await adminDb.getAll(...userDocRefs);
+
+    const fcmTokens = userDocs
+      .map(doc => doc.exists ? (doc.data() as AppUser).fcmToken : null)
+      .filter((token): token is string => !!token && token.length > 0);
+
 
     if (fcmTokens.length === 0) {
       console.log('[Notification Action] No followers have valid FCM tokens. No notifications to send.');
