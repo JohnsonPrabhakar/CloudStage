@@ -403,6 +403,34 @@ export const getUserTicketsListener = (userId: string, callback: (events: Event[
   });
 };
 
+// --- FOLLOWER FUNCTIONS ---
+
+export const isUserFollowing = async (userId: string, artistId: string): Promise<boolean> => {
+  const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
+  const docSnap = await getDoc(followDocRef);
+  return docSnap.exists();
+};
+
+export const followArtist = async (userId: string, artistId:string): Promise<void> => {
+  const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
+  await setDoc(followDocRef, { followedAt: serverTimestamp() });
+};
+
+export const unfollowArtist = async (userId: string, artistId:string): Promise<void> => {
+  const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
+  await deleteDoc(followDocRef);
+};
+
+export const getFollowersCountListener = (artistId: string, callback: (count: number) => void): (() => void) => {
+  const followersCol = collection(db, 'artists', artistId, 'followers');
+  return onSnapshot(followersCol, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("Follower count listener error:", error);
+    callback(0);
+  });
+};
+
 // --- MOVIE-RELATED FUNCTIONS ---
 type MoviePayload = {
   movieData: Omit<Movie, 'id' | 'posterUrl' | 'videoUrl' | 'createdAt'>;

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getArtistProfile, getArtistEventsListener } from "@/lib/firebase-service";
+import { getArtistProfile, getArtistEventsListener, isUserFollowing, followArtist, unfollowArtist, getFollowersCountListener } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
 import {
   Youtube,
@@ -17,17 +18,36 @@ import {
   Crown,
   User,
   Music,
+  Heart,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function ArtistProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
+
   const [artist, setArtist] = useState<Artist | null>(null);
   const [artistEvents, setArtistEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const artistId = params.id as string;
@@ -38,6 +58,7 @@ export default function ArtistProfilePage() {
     }
 
     let eventsUnsubscribe: (() => void) | undefined;
+    let followersUnsubscribe: (() => void) | undefined;
 
     const fetchData = async () => {
       setLoading(true);
@@ -47,7 +68,7 @@ export default function ArtistProfilePage() {
         setArtist(foundArtist || null);
 
         if (foundArtist) {
-          // Set up the listener for events
+          // Set up listeners
           eventsUnsubscribe = getArtistEventsListener(artistId, (events) => {
             const approvedAndPastEvents = events.filter(
               (e) =>
@@ -55,10 +76,10 @@ export default function ArtistProfilePage() {
                 new Date(e.date) < new Date()
             );
             setArtistEvents(approvedAndPastEvents);
-            setLoading(false); // Set loading to false once we have events
           });
+          followersUnsubscribe = getFollowersCountListener(artistId, setFollowersCount);
+          setLoading(false);
         } else {
-            // Artist not found, stop loading
             setArtist(null);
             setLoading(false);
         }
@@ -71,13 +92,49 @@ export default function ArtistProfilePage() {
 
     fetchData();
 
-    // Cleanup function to unsubscribe from the listener on component unmount
     return () => {
-      if (eventsUnsubscribe) {
-        eventsUnsubscribe();
-      }
+      if (eventsUnsubscribe) eventsUnsubscribe();
+      if (followersUnsubscribe) followersUnsubscribe();
     };
   }, [params.id]);
+  
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+        if(currentUser && artist) {
+            setFollowLoading(true);
+            const following = await isUserFollowing(currentUser.uid, artist.id);
+            setIsFollowing(following);
+            setFollowLoading(false);
+        }
+    }
+    checkFollowStatus();
+  }, [currentUser, artist]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+        toast({ title: "Login Required", description: "Please log in to follow artists." });
+        router.push('/artist/login');
+        return;
+    }
+    if (followLoading || !artist) return;
+
+    setFollowLoading(true);
+    try {
+        if (isFollowing) {
+            await unfollowArtist(currentUser.uid, artist.id);
+            setIsFollowing(false);
+        } else {
+            await followArtist(currentUser.uid, artist.id);
+            setIsFollowing(true);
+        }
+    } catch (error) {
+        console.error("Failed to toggle follow state", error);
+        toast({ variant: 'destructive', title: 'Something went wrong', description: 'Could not update your follow status.' });
+    } finally {
+        setFollowLoading(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -155,8 +212,16 @@ export default function ArtistProfilePage() {
                 <Music className="h-4 w-4" />
                 <span>{artist.genres.join(", ")}</span>
               </div>
+               <div className="flex items-center gap-2">
+                <Heart className="h-4 w-4" />
+                <span>{followersCount} Followers</span>
+              </div>
             </div>
             <div className="flex items-center gap-4 pt-2">
+              <Button onClick={handleFollowToggle} disabled={followLoading}>
+                <Heart className={`mr-2 h-4 w-4 ${isFollowing ? 'fill-red-500 text-red-500' : ''}`}/>
+                {followLoading ? '...' : (isFollowing ? 'Unfollow' : 'Follow')}
+              </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={artist.youtubeUrl} target="_blank">
                   <Youtube className="mr-2 h-4 w-4" /> YouTube
