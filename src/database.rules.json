@@ -6,6 +6,7 @@
         "return": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in';"
       },
       "match /events/{eventId}": {
+        "allow list": "if isAdmin();",
         "allow read": "if resource.data.moderationStatus == 'approved' || (request.auth != null && resource.data.artistId == request.auth.uid) || isAdmin();",
         "allow create": "if request.auth != null && request.resource.data.artistId == request.auth.uid;",
         "allow update": "if (request.auth != null && resource.data.artistId == request.auth.uid && !('moderationStatus' in request.resource.data)) || isAdmin();",
@@ -16,6 +17,7 @@
         }
       },
       "match /artists/{artistId}": {
+        "allow list": "if isAdmin();",
         "allow read": "if true;",
         "allow create": "if request.auth != null && artistId == request.auth.uid;",
         "allow update": "if (request.auth != null && request.auth.uid == artistId) || isAdmin();",
@@ -25,11 +27,13 @@
         }
       },
       "match /tickets/{ticketId}": {
+        "allow list": "if isAdmin();",
         "allow read": "if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();",
         "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;",
         "allow update, delete": "if false;"
       },
       "match /movies/{movieId}": {
+        "allow list": "if isAdmin();",
         "allow read": "if true;",
         "allow write": "if isAdmin();"
       },
@@ -41,6 +45,7 @@
          "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;"
       },
        "match /users/{userId}": {
+        "allow list": "if isAdmin();",
         "allow read": "if request.auth != null && (request.auth.uid == userId || isAdmin());",
         "allow create": "if request.auth != null && request.auth.uid == userId;",
         "allow update": "if request.auth != null && request.auth.uid == userId && request.resource.data.phoneNumber == resource.data.phoneNumber;",
