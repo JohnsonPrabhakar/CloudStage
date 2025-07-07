@@ -4,25 +4,19 @@ import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getToken } from 'firebase/messaging';
 import { auth, messaging } from '@/lib/firebase';
-import { saveFcmToken, getArtistProfile } from '@/lib/firebase-service';
+import { saveFcmToken } from '@/lib/firebase-service';
 import { useToast } from '@/hooks/use-toast';
 
-// This is a non-visual component that handles push notification permissions.
+// This is a non-visual component that handles push notification permissions for any logged-in user.
 export default function NotificationPermissionHandler() {
   const { toast } = useToast();
 
   useEffect(() => {
     const requestPermission = async (uid: string) => {
-      // Check if user has already granted permission or has a token
-      const artistProfile = await getArtistProfile(uid);
-      if (artistProfile?.fcmToken) {
-        return; // Token already exists, no need to ask again.
-      }
-      
       const messagingInstance = await messaging;
       if (!messagingInstance) {
-          console.log("Firebase Messaging is not supported in this browser.");
-          return;
+        console.log("Firebase Messaging is not supported in this browser.");
+        return;
       }
 
       console.log('Requesting permission...');
@@ -31,16 +25,16 @@ export default function NotificationPermissionHandler() {
         if (permission === 'granted') {
           console.log('Notification permission granted.');
           
-          const vapidKey = "BEuYVG34fzDFAqBkFTHJdMlnGjeTkOLeVIePm760_OFTRiBHyAiqj6hTgw9mQUTmuqDWu6oVIsnY5nRYVQT-gLE"; 
+          const vapidKey = "BEuYVG34fzDFAqBkFTHJdMlnGjeTkOLeVIePm760_OFTRiBHyAiqj6hTgw9mQUTmuqDWu6oVIsnY5nRYVQT-gLE";
           const fcmToken = await getToken(messagingInstance, { vapidKey });
           
           if (fcmToken) {
             console.log('FCM Token:', fcmToken);
+            // This function will attempt to save the token for the user if they exist
+            // in either the /artists or /users collection.
             await saveFcmToken(uid, fcmToken);
-            toast({
-              title: "Notifications Enabled",
-              description: "You'll now receive updates from your favorite artists.",
-            });
+            // We only show the toast once to avoid annoying users.
+            // A more robust solution might use localStorage to track if the toast has been shown.
           } else {
             console.log('No registration token available. Request permission to generate one.');
           }
@@ -54,12 +48,8 @@ export default function NotificationPermissionHandler() {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Only try to request permission if the user has an artist profile.
-        getArtistProfile(user.uid).then(profile => {
-          if (profile) {
-            requestPermission(user.uid);
-          }
-        });
+        // Request permission for any logged-in user.
+        requestPermission(user.uid);
       }
     });
 

@@ -37,6 +37,7 @@ import {
   Building,
   BadgeCheck,
   BarChart2,
+  Smartphone,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -51,6 +52,7 @@ import {
     getArtistsCountListener,
     getEventsCountListener,
     getTicketsCountListener,
+    getUsersCountListener,
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
@@ -62,11 +64,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import ManageMovies from "./ManageMovies";
 import ArtistVerificationRequests from "./ArtistVerificationRequests";
 import EventReports from "./EventReports";
+import { sendNewEventNotification } from "@/app/actions/notificationActions";
 
 type Stats = {
   artists: number | null;
   events: number | null;
   tickets: number | null;
+  users: number | null;
 }
 
 export default function AdminDashboard() {
@@ -79,7 +83,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
-  const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
+  const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null, users: null });
 
   useEffect(() => {
     let eventsUnsubscribe: (() => void) | undefined;
@@ -106,7 +110,8 @@ export default function AdminDashboard() {
             const artistsListener = getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count })));
             const eventsListener = getEventsCountListener((count) => setStats(s => ({ ...s, events: count })));
             const ticketsListener = getTicketsCountListener((count) => setStats(s => ({ ...s, tickets: count })));
-            statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener);
+            const usersListener = getUsersCountListener((count) => setStats(s => ({...s, users: count })));
+            statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener, usersListener);
 
         } catch(err) {
             console.error("Admin dashboard listener error:", err);
@@ -134,6 +139,14 @@ export default function AdminDashboard() {
         title: `Event ${newStatus}`,
         description: `The event has been successfully ${newStatus}.`,
       });
+      // If approved, trigger the notification server action
+      if (newStatus === "approved") {
+        // This is a "fire-and-forget" call. We don't need to wait for it.
+        // The server action will handle the logic in the background.
+        sendNewEventNotification(eventId).then(response => {
+          console.log("Notification trigger response:", response);
+        });
+      }
     } catch (error) {
        toast({
         title: "Update failed",
@@ -300,6 +313,16 @@ export default function AdminDashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total App Users</CardTitle>
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.users ?? <Skeleton className="h-8 w-16" />}</div>
+                <p className="text-xs text-muted-foreground">Registered via phone number</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Artists</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
@@ -316,16 +339,6 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{stats.events ?? <Skeleton className="h-8 w-16" />}</div>
                 <p className="text-xs text-muted-foreground">Created across all artists</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Tickets Issued</CardTitle>
-                <Ticket className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                 <div className="text-2xl font-bold">{stats.tickets ?? <Skeleton className="h-8 w-16" />}</div>
-                 <p className="text-xs text-muted-foreground">For all upcoming events</p>
               </CardContent>
             </Card>
             <Card>

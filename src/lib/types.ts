@@ -113,3 +113,10 @@ export interface EventFeedback {
     review: string;
     submittedAt: any;
 }
+
+export interface AppUser {
+  id: string; // Firebase Auth UID
+  phoneNumber: string;
+  createdAt: any;
+  fcmToken?: string;
+}

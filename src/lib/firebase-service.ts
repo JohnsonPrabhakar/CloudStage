@@ -18,14 +18,15 @@ import {
   onSnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory } from './types';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type AppUser } from './types';
+import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
 const ticketsCollection = collection(db, 'tickets');
 const moviesCollection = collection(db, 'movies');
+const usersCollection = collection(db, 'users');
 const eventFeedbackCollection = collection(db, 'eventFeedback');
 
 
@@ -255,6 +256,29 @@ export const goLive = async (eventId: string, streamUrl: string) => {
 };
 
 
+// --- USER-RELATED FUNCTIONS (for mobile app users) ---
+export const createUserProfileForPhoneAuth = async (user: User) => {
+  const userRef = doc(db, 'users', user.uid);
+  const docSnap = await getDoc(userRef);
+
+  if (!docSnap.exists() && user.phoneNumber) {
+    await setDoc(userRef, {
+      phoneNumber: user.phoneNumber,
+      createdAt: serverTimestamp(),
+      fcmToken: '',
+    });
+  }
+};
+
+export const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
+    const userDoc = doc(db, 'users', uid);
+    const snapshot = await getDoc(userDoc);
+    if (snapshot.exists()) {
+        return fromFirestore<AppUser>(snapshot);
+    }
+    return null;
+}
+
 // ARTIST-RELATED FUNCTIONS
 
 const buildArtistProfileObject = (data: any, profilePictureUrl?: string): Omit<Artist, 'id'> => {
@@ -341,11 +365,20 @@ export const updateArtistToPremium = async(uid: string, paymentId: string) => {
     });
 }
 
-export const saveFcmToken = async (artistId: string, token: string) => {
-    const artistDoc = doc(db, 'artists', artistId);
-    await updateDoc(artistDoc, {
-        fcmToken: token,
-    });
+export const saveFcmToken = async (userId: string, token: string) => {
+    // This function attempts to save the token for both artists and general users.
+    // It will not throw an error if one of the profiles does not exist.
+    const artistDocRef = doc(db, 'artists', userId);
+    const artistSnap = await getDoc(artistDocRef);
+    if (artistSnap.exists()) {
+        await setDoc(artistDocRef, { fcmToken: token }, { merge: true });
+    }
+
+    const userDocRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userDocRef);
+    if (userSnap.exists()) {
+        await setDoc(userDocRef, { fcmToken: token }, { merge: true });
+    }
 };
 
 // TICKET-RELATED FUNCTIONS
@@ -604,6 +637,14 @@ export const getTicketsCountListener = (callback: (count: number) => void): (() 
     callback(snapshot.size);
   }, (error) => {
     console.error("Ticket count listener failed:", error);
+  });
+};
+
+export const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
+  return onSnapshot(usersCollection, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("User count listener failed:", error);
   });
 };
 
