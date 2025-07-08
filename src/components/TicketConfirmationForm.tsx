@@ -35,6 +35,14 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+
+// [START] TEMPORARY BYPASS FOR TESTING
+// This flag enables booking without real payment when Razorpay keys are not provided.
+// It should be removed once the payment gateway is fully operational.
+const IS_TEST_MODE = !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+// [END] TEMPORARY BYPASS FOR TESTING
+
+
 export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -99,6 +107,37 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
     
     setIsProcessingPayment(true);
 
+    // [START] TEMPORARY BYPASS FOR TESTING
+    // This block handles ticket creation in test mode, bypassing the payment gateway.
+    if (IS_TEST_MODE) {
+        console.log("Running in Test Mode: Bypassing Razorpay.");
+        const ticketData = {
+            buyerName: values.fullName,
+            buyerEmail: values.email,
+            buyerPhone: values.phone,
+        };
+        try {
+            // The `isTest: true` flag will mark the ticket appropriately in Firestore.
+            await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { paymentId: null, isTest: true });
+            toast({
+                title: "Ticket Confirmed (Test Mode)",
+                description: "Your ticket has been booked successfully without payment.",
+            });
+            router.push("/my-tickets");
+        } catch (dbError: any) {
+            toast({
+                title: "Test Booking Failed",
+                description: dbError.message || "Could not save your test ticket.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsProcessingPayment(false);
+        }
+        return; // Exit the function after handling test mode.
+    }
+    // [END] TEMPORARY BYPASS FOR TESTING
+
+    // This is the original, live payment flow. It will only run if IS_TEST_MODE is false.
     try {
         const orderResponse = await createRazorpayOrder({
             amount: event.ticketPrice,
@@ -125,7 +164,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
                     buyerPhone: values.phone,
                 };
                 try {
-                    await createTicket(user.uid, event.id, event.ticketPrice, ticketData, response.razorpay_payment_id);
+                    await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { paymentId: response.razorpay_payment_id });
                     toast({
                         title: "Ticket Confirmed!",
                         description: "Your ticket has been booked. A confirmation has been sent to your email.",

@@ -95,6 +95,8 @@ export interface Ticket {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  testMode?: boolean;
+  paymentStatus?: string;
 }
 
 export interface ChatMessage {

@@ -190,7 +190,7 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
   return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime())
     .slice(0, 50);
 };
 
@@ -399,7 +399,7 @@ export const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentId: string
+    paymentDetails: { paymentId: string | null; isTest?: boolean }
 ): Promise<{ success: boolean; message: string; ticketId?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -410,15 +410,29 @@ export const createTicket = async (
         const eventData = await getEventById(eventId);
         if (!eventData) throw new Error("Event not found");
 
-        const ticketRef = await addDoc(ticketsCollection, {
+        const newTicketData: any = {
             userId,
             eventId,
             pricePaid: price,
             createdAt: serverTimestamp(),
-            isPaid: true,
-            paymentId,
-            ...contactDetails
-        });
+            isPaid: true, // Considered paid in both test and real mode
+            ...contactDetails,
+        };
+
+        // Handle test mode booking
+        if (paymentDetails.isTest) {
+            newTicketData.paymentId = `TEST_${Date.now()}`;
+            newTicketData.testMode = true;
+            newTicketData.paymentStatus = "TEST_SUCCESS";
+        } else if (paymentDetails.paymentId) {
+            newTicketData.paymentId = paymentDetails.paymentId;
+            newTicketData.testMode = false;
+        } else {
+            // This should not happen if the UI logic is correct
+            throw new Error("A valid payment ID is required for non-test bookings.");
+        }
+
+        const ticketRef = await addDoc(ticketsCollection, newTicketData);
         
         return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
     } catch (error: any) {
