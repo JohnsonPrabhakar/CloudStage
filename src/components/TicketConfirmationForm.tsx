@@ -36,13 +36,6 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 
-// [START] TEMPORARY BYPASS FOR TESTING
-// This flag enables booking without real payment when Razorpay keys are not provided.
-// It should be removed once the payment gateway is fully operational.
-const IS_TEST_MODE = !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-// [END] TEMPORARY BYPASS FOR TESTING
-
-
 export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -107,35 +100,40 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
     
     setIsProcessingPayment(true);
 
-    // [START] TEMPORARY BYPASS FOR TESTING
-    if (IS_TEST_MODE) {
-        console.log("Running in Test Mode: Bypassing Razorpay.");
+    // This flag determines if we should bypass the payment gateway.
+    // It's true if the Razorpay key is not set in the environment variables.
+    const isTestMode = !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+    // --- TEMPORARY TEST MODE BYPASS ---
+    // This block will execute ONLY if the payment gateway is not configured.
+    if (isTestMode) {
+      console.log("Running in Test Mode: Bypassing Razorpay payment.");
+      try {
         const ticketData = {
             buyerName: values.fullName,
             buyerEmail: values.email,
             buyerPhone: values.phone,
         };
-        try {
-            await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { paymentId: null, isTest: true });
-            toast({
-                title: "Ticket Confirmed (Test Mode)",
-                description: "Your ticket has been booked successfully without payment.",
-            });
-            router.push("/my-tickets");
-        } catch (dbError: any) {
-            toast({
-                title: "Booking Failed",
-                description: dbError.message || "Could not save your ticket.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsProcessingPayment(false);
-        }
-        return; 
+        await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { isTest: true, paymentId: null });
+        toast({
+          title: "Ticket Confirmed (Test Mode)",
+          description: "Your ticket has been booked successfully without payment.",
+        });
+        router.push("/my-tickets");
+      } catch (dbError: any) {
+        toast({
+          title: "Booking Failed",
+          description: dbError.message || "Could not save your ticket in test mode.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsProcessingPayment(false);
+      }
+      return; // IMPORTANT: Stop execution to prevent falling through to live payment logic.
     }
-    // [END] TEMPORARY BYPASS FOR TESTING
 
-    // This is the original, live payment flow. It will only run if IS_TEST_MODE is false.
+    // --- LIVE PAYMENT FLOW ---
+    // This code will only run if Razorpay keys are configured.
     try {
         const orderResponse = await createRazorpayOrder({
             amount: event.ticketPrice,
@@ -174,8 +172,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
                         description: dbError.message || "Payment was successful but we couldn't save your ticket. Please contact support.",
                         variant: "destructive"
                     });
-                } finally {
-                    setIsProcessingPayment(false);
                 }
             },
             prefill: {
