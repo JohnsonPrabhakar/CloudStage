@@ -232,6 +232,22 @@ export const getArtistEventsListener = (artistId: string, callback: (events: Eve
     // Sort on the client-side to avoid the composite index requirement
     const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(sortedEvents);
+  }, (error) => {
+    console.error(`Artist events listener for artistId ${artistId} failed:`, error);
+  });
+};
+
+export const getPublicArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+  const q = query(
+    eventsCollection,
+    where('artistId', '==', artistId),
+    where('moderationStatus', '==', 'approved')
+  );
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    callback(events);
+  }, (error) => {
+    console.error(`Public artist events listener for artistId ${artistId} failed:`, error);
   });
 };
 

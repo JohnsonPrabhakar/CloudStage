@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Event, type Artist } from "@/lib/types";
-import { getArtistProfile, getArtistEventsListener, isUserFollowing, followArtist, unfollowArtist, getFollowersCountListener } from "@/lib/firebase-service";
+import { getArtistProfile, getPublicArtistEventsListener, isUserFollowing, followArtist, unfollowArtist, getFollowersCountListener } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
 import {
   Youtube,
@@ -69,13 +69,11 @@ export default function ArtistProfilePage() {
 
         if (foundArtist) {
           // Set up listeners
-          eventsUnsubscribe = getArtistEventsListener(artistId, (events) => {
-            const approvedAndPastEvents = events.filter(
-              (e) =>
-                e.moderationStatus === "approved" &&
-                new Date(e.date) < new Date()
+          eventsUnsubscribe = getPublicArtistEventsListener(artistId, (events) => {
+            const pastEvents = events.filter(
+              (e) => new Date(e.date) < new Date()
             );
-            setArtistEvents(approvedAndPastEvents);
+            setArtistEvents(pastEvents);
           });
           followersUnsubscribe = getFollowersCountListener(artistId, setFollowersCount);
           setLoading(false);
