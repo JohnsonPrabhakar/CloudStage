@@ -97,7 +97,7 @@ export interface Ticket {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
-  testMode?: boolean;
+  testMode: boolean;
   paymentStatus?: string;
   bookingStatus?: 'confirmed' | 'pending' | 'failed';
 }

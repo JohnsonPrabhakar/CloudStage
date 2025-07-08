@@ -407,7 +407,7 @@ export const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string | null; isTest?: boolean }
+    paymentDetails: { paymentId: string | null }
 ): Promise<string> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -418,29 +418,23 @@ export const createTicket = async (
     if (!eventData) {
       throw new Error("Event not found, cannot create ticket.");
     }
+
+    if (!paymentDetails.paymentId) {
+        throw new Error("A valid payment ID is required for bookings.");
+    }
     
-    const newTicketData: any = {
+    const newTicketData: Omit<Ticket, 'id'> = {
         userId,
         eventId,
         pricePaid: price,
         createdAt: serverTimestamp(),
-        isPaid: true, // Considered paid in both test and real mode
+        isPaid: true,
         ...contactDetails,
+        paymentId: paymentDetails.paymentId,
+        testMode: false,
+        paymentStatus: "SUCCESS",
+        bookingStatus: "confirmed",
     };
-
-    if (paymentDetails.isTest) {
-        newTicketData.paymentId = `TEST_${Date.now()}`;
-        newTicketData.testMode = true;
-        newTicketData.paymentStatus = "TEST_SUCCESS";
-        newTicketData.bookingStatus = "confirmed";
-    } else if (paymentDetails.paymentId) {
-        newTicketData.paymentId = paymentDetails.paymentId;
-        newTicketData.testMode = false;
-        newTicketData.paymentStatus = "SUCCESS";
-        newTicketData.bookingStatus = "confirmed";
-    } else {
-        throw new Error("A valid payment ID is required for non-test bookings.");
-    }
 
     try {
       const ticketRef = await addDoc(ticketsCollection, newTicketData);

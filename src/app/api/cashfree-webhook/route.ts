@@ -51,7 +51,7 @@ export async function POST(request: Request) {
                 order_meta.eventId,
                 order.order_amount,
                 ticketData,
-                { paymentId: payment.cf_payment_id, isTest: false }
+                { paymentId: payment.cf_payment_id }
             );
             console.log(`Cashfree Webhook: Successfully created ticket for event ${order_meta.eventId} for user ${customer_details.customer_id}.`);
         } else {
