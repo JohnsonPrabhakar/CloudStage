@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { createTicket as createTicketInDb } from '@/lib/firebase-service';
+import { createTicket } from '@/lib/firebase-service';
 
 const CreateOrderSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
@@ -127,12 +127,15 @@ export async function createTestTicket(input: z.infer<typeof CreateTestTicketSch
     }
 
     try {
-        await createTicketInDb(
+        await createTicket(
             validation.data.userId,
             validation.data.eventId,
             validation.data.price,
             validation.data.contactDetails,
-            { paymentId: `TEST_MODE_${Date.now()}` } // Dummy payment ID for test mode
+            { 
+              paymentId: `TEST_MODE_${Date.now()}`,
+              isTest: true // Mark this as a test ticket
+            }
         );
         return { success: true };
     } catch (error: any) {
