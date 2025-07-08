@@ -19,12 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
-import { getEventById, createTicket } from "@/lib/firebase-service";
+import { getEventById } from "@/lib/firebase-service";
 import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
 import Script from "next/script";
+import { createCashfreeOrder } from "@/lib/actions";
 
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
@@ -34,6 +35,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+declare global {
+  interface Window {
+    Cashfree: any;
+  }
+}
 
 export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
   const { toast } = useToast();
@@ -91,11 +97,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   async function onSubmit(values: FormValues) {
     setIsProcessingPayment(true);
     try {
-      // Determine the user ID to use for the ticket.
-      // If a user is already logged in, use their UID.
-      // Otherwise, create an anonymous user session and use that UID.
       let userIdForTicket: string;
-
       if (user) {
         userIdForTicket = user.uid;
       } else {
@@ -107,22 +109,50 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
           throw new Error("Event data is not available.");
       }
 
-      console.log("Running in Test Mode: Bypassing Razorpay payment.");
-      
-      const ticketData = {
-        buyerName: values.fullName,
-        buyerEmail: values.email,
-        buyerPhone: values.phone,
-      };
-
-      await createTicket(userIdForTicket, event.id, event.ticketPrice, ticketData, { isTest: true, paymentId: null });
-      
-      toast({
-        title: "Ticket Confirmed (Test Mode)",
-        description: "Your ticket has been booked successfully without payment.",
+      const orderResponse = await createCashfreeOrder({
+        amount: event.ticketPrice,
+        receiptId: `TICKET_${event.eventCode}_${Date.now()}`,
+        customer_name: values.fullName,
+        customer_email: values.email,
+        customer_phone: values.phone,
+        userId: userIdForTicket,
+        eventId: event.id,
       });
 
-      router.push("/my-tickets");
+      if (!orderResponse.success || !orderResponse.order) {
+        throw new Error(orderResponse.error || 'Failed to create payment order.');
+      }
+
+      const { order } = orderResponse;
+      const cashfree = new window.Cashfree(order.payment_session_id);
+
+      cashfree.checkout({
+        paymentMethod: "card",
+        onSuccess: (data: any) => {
+          console.log("Cashfree payment success (client-side):", data);
+          toast({
+            title: "Payment Successful!",
+            description: "Your ticket has been booked. You will be redirected shortly.",
+          });
+          // The webhook will handle creating the ticket in the database.
+          setTimeout(() => {
+            router.push("/my-tickets");
+          }, 3000);
+        },
+        onFailure: (data: any) => {
+          console.error("Cashfree payment failure (client-side):", data);
+          toast({
+              title: 'Payment Failed',
+              description: 'Something went wrong. Please try again.',
+              variant: 'destructive',
+          });
+          setIsProcessingPayment(false);
+        },
+        onClose: () => {
+           console.log("Payment form closed by user.");
+           setIsProcessingPayment(false);
+        }
+      });
 
     } catch (error: any) {
       console.error("Booking failed:", error);
@@ -131,7 +161,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsProcessingPayment(false);
     }
   }
@@ -165,8 +194,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   return (
     <>
     <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
+        id="cashfree-checkout-js"
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
     />
     <Card className="w-full max-w-2xl">
       <CardHeader>

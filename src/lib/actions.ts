@@ -1,14 +1,20 @@
 'use server';
 
-import Razorpay from 'razorpay';
 import { z } from 'zod';
 
 const CreateOrderSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   receiptId: z.string().min(1, 'Receipt ID is required'),
+  customer_name: z.string().min(1),
+  customer_email: z.string().email(),
+  customer_phone: z.string().min(10),
+  // Metadata for the webhook
+  userId: z.string().min(1),
+  eventId: z.string().optional(), // Required for tickets
+  planName: z.string().optional(), // For premium subscription
 });
 
-export async function createRazorpayOrder(
+export async function createCashfreeOrder(
   input: z.infer<typeof CreateOrderSchema>
 ) {
   const validation = CreateOrderSchema.safeParse(input);
@@ -16,38 +22,75 @@ export async function createRazorpayOrder(
     return { success: false, error: 'Invalid input.' };
   }
 
-  const { amount, receiptId } = validation.data;
+  const {
+    amount,
+    receiptId,
+    customer_name,
+    customer_email,
+    customer_phone,
+    userId,
+    eventId,
+    planName,
+  } = validation.data;
 
-  if (
-    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-    !process.env.RAZORPAY_KEY_SECRET
-  ) {
-    console.error('Razorpay keys are not configured in .env');
+  if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+    console.error('Cashfree keys are not configured in .env');
     return {
       success: false,
       error: 'Payment system is not configured. Please contact support.',
     };
   }
 
-  const razorpay = new Razorpay({
-    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+  const order_meta = {
+    // The return URL is where the user is sent after payment. The webhook handles the actual confirmation.
+    return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/my-tickets?order_id={order_id}`,
+    ...(eventId && { eventId: eventId }),
+    ...(userId && { userId: userId }),
+    ...(planName && { planName: planName }),
+  };
 
-  const options = {
-    amount: amount * 100, // Amount in paise
-    currency: 'INR',
-    receipt: receiptId,
+  const orderData = {
+    order_id: receiptId,
+    order_amount: amount,
+    order_currency: 'INR',
+    customer_details: {
+      customer_id: userId,
+      customer_name: customer_name,
+      customer_email: customer_email,
+      customer_phone: customer_phone,
+    },
+    order_meta: order_meta,
+    order_note: `Order for ${receiptId}`,
+  };
+
+  const headers = {
+    accept: 'application/json',
+    'x-api-version': '2023-08-01',
+    'x-client-id': process.env.CASHFREE_APP_ID,
+    'x-client-secret': process.env.CASHFREE_SECRET_KEY,
+    'content-type': 'application/json',
   };
 
   try {
-    const order = await razorpay.orders.create(options);
+    const response = await fetch('https://api.cashfree.com/pg/orders', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(orderData),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error('Cashfree API Error:', errorBody);
+        throw new Error(errorBody.message || 'Failed to create Cashfree order');
+    }
+
+    const order = await response.json();
     return { success: true, order };
-  } catch (error) {
-    console.error('Razorpay order creation failed:', error);
+  } catch (error: any) {
+    console.error('Cashfree order creation failed:', error);
     return {
       success: false,
-      error: 'Could not initiate payment. Please try again.',
+      error: error.message || 'Could not initiate payment. Please try again.',
     };
   }
 }

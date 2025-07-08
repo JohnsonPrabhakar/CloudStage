@@ -16,17 +16,22 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Crown, ChevronLeft, Loader2 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getArtistProfile, updateArtistToPremium } from "@/lib/firebase-service";
+import { getArtistProfile } from "@/lib/firebase-service";
 import { Skeleton } from "./ui/skeleton";
-import { createRazorpayOrder } from "@/lib/actions";
+import { createCashfreeOrder } from "@/lib/actions";
 import Script from "next/script";
+
+declare global {
+  interface Window {
+    Cashfree: any;
+  }
+}
 
 export default function PremiumSubscription() {
   const router = useRouter();
   const { toast } = useToast();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
-  const [artistId, setArtistId] = useState<string | null>(null);
-  const [artistEmail, setArtistEmail] = useState<string | null>(null);
+  const [artist, setArtist] = useState<{id: string, email: string | null, name: string} | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
@@ -34,8 +39,7 @@ export default function PremiumSubscription() {
         if (user) {
             const profile = await getArtistProfile(user.uid);
             if (profile?.isApproved) {
-                setArtistId(user.uid);
-                setArtistEmail(user.email);
+                setArtist({ id: user.uid, email: user.email, name: profile.name });
             } else {
                  router.push(profile ? '/artist/pending' : '/artist/login');
             }
@@ -49,13 +53,18 @@ export default function PremiumSubscription() {
 
 
   const handleSubscribe = async (planName: string, price: number) => {
-    if (!artistId || !artistEmail) return;
+    if (!artist || !artist.email || !artist.name) return;
     setProcessingPlan(planName);
 
     try {
-        const orderResponse = await createRazorpayOrder({
+        const orderResponse = await createCashfreeOrder({
             amount: price,
-            receiptId: `PREMIUM_${planName.toUpperCase()}_${Date.now()}`
+            receiptId: `PREMIUM_${planName.toUpperCase()}_${Date.now()}`,
+            customer_name: artist.name,
+            customer_email: artist.email,
+            customer_phone: '9999999999', // Placeholder phone number
+            userId: artist.id,
+            planName: planName,
         });
 
         if (!orderResponse.success || !orderResponse.order) {
@@ -64,53 +73,36 @@ export default function PremiumSubscription() {
 
         const { order } = orderResponse;
         
-        const razorpayOptions = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: 'INR',
-            name: 'CloudStage Premium',
-            description: `${planName} Plan Subscription`,
-            order_id: order.id,
-            handler: async (response: any) => {
-                try {
-                    await updateArtistToPremium(artistId, response.razorpay_payment_id);
-                     toast({
-                        title: "Subscription Successful!",
-                        description: `You've subscribed to the ${planName} plan for ₹${price}/month.`,
-                    });
-                    router.push("/artist/dashboard");
-                } catch (dbError: any) {
-                     toast({
-                        title: "Subscription Finalization Failed",
-                        description: "Payment was successful but we couldn't update your account. Please contact support.",
-                        variant: "destructive"
-                    });
-                } finally {
-                    setProcessingPlan(null);
-                }
-            },
-            prefill: {
-                email: artistEmail
-            },
-            notes: {
-                artistId: artistId,
-                plan: planName,
-            },
-            theme: {
-                color: '#800000'
-            }
-        };
-
-        const paymentObject = new (window as any).Razorpay(razorpayOptions);
-        paymentObject.on('payment.failed', (response: any) => {
-             toast({
+        const cashfree = new window.Cashfree(order.payment_session_id);
+        
+        cashfree.checkout({
+          paymentMethod: "card",
+          onSuccess: (data: any) => {
+            console.log("Cashfree payment success (client-side):", data);
+            toast({
+              title: "Payment Successful!",
+              description: `Your subscription is being processed. You will be redirected shortly.`,
+            });
+            // The webhook will handle the database update.
+            // Redirect after a short delay to allow webhook processing.
+            setTimeout(() => {
+              router.push("/artist/dashboard");
+            }, 3000);
+          },
+          onFailure: (data: any) => {
+            console.error("Cashfree payment failure (client-side):", data);
+            toast({
                 title: 'Payment Failed',
-                description: response.error.description || 'Something went wrong. Please try again.',
+                description: 'Something went wrong. Please try again.',
                 variant: 'destructive',
-             });
+            });
+            setProcessingPlan(null);
+          },
+          onClose: () => {
+             console.log("Payment form closed by user.");
              setProcessingPlan(null);
+          }
         });
-        paymentObject.open();
 
     } catch (error: any) {
         toast({
@@ -164,8 +156,8 @@ export default function PremiumSubscription() {
   return (
     <>
     <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
+        id="cashfree-checkout-js"
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
     />
     <div className="container mx-auto p-4 md:p-8 space-y-8">
        <Button variant="ghost" onClick={() => router.back()} className="mb-4">
