@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -73,8 +72,6 @@ export default function CreateEventForm() {
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -124,12 +121,11 @@ export default function CreateEventForm() {
             genre: eventToDuplicate.genre,
             language: eventToDuplicate.language,
             date: '', // User must set a new date
-            streamUrl: eventToDuplicate.streamUrl.includes('youtube.com/embed') ? eventToDuplicate.streamUrl : '',
+            streamUrl: eventToDuplicate.streamUrl,
             ticketPrice: eventToDuplicate.ticketPrice,
             description: eventToDuplicate.description,
             boost: false,
           });
-          setBannerPreview(eventToDuplicate.bannerUrl); // Show old banner as preview
           toast({
             title: "Event Duplicated",
             description: "Event details have been pre-filled. Please set a new date and time.",
@@ -142,25 +138,8 @@ export default function CreateEventForm() {
   
   const handleStreamUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const originalUrl = e.target.value;
-    const embedUrl = getYouTubeEmbedUrl(originalUrl);
-    form.setValue("streamUrl", embedUrl || originalUrl, { shouldValidate: true, shouldDirty: true });
+    form.setValue("streamUrl", originalUrl, { shouldValidate: true, shouldDirty: true });
   };
-  
-  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            toast({ variant: 'destructive', title: 'File too large', description: 'Banner image must be less than 5MB.' });
-            return;
-        }
-        if (!['image/jpeg', 'image/png'].includes(file.type)) {
-            toast({ variant: 'destructive', title: 'Invalid file type', description: 'Please upload a JPG or PNG image.' });
-            return;
-        }
-        setBannerFile(file);
-        setBannerPreview(URL.createObjectURL(file));
-    }
-  }
 
   async function handleGenerateDescription() {
     setIsGenerating(true);
@@ -228,22 +207,12 @@ export default function CreateEventForm() {
         moderationStatus: 'pending' as const,
       };
 
-      const existingBannerUrl = searchParams.get('duplicate') ? bannerPreview : null;
-      const { bannerUploaded } = await addEvent(eventData, bannerFile, existingBannerUrl);
+      await addEvent(eventData);
 
-      if (bannerUploaded) {
-         toast({
-          title: "Event Submitted!",
-          description: "Your event is now pending admin approval. Redirecting...",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Event Created with an Error",
-          description: "Your event was submitted, but the banner upload failed. You can edit the event later to re-upload the banner.",
-          duration: 8000,
-        });
-      }
+      toast({
+        title: "Event Submitted!",
+        description: "Your event is now pending admin approval. Redirecting...",
+      });
 
       router.push("/artist/dashboard");
 
@@ -391,23 +360,6 @@ export default function CreateEventForm() {
                   )}
                 />
               </div>
-
-               <FormItem>
-                  <FormLabel>Upload Event Banner (JPG/PNG, Max 5MB)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="file" 
-                      accept="image/jpeg, image/png"
-                      onChange={handleBannerChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  {bannerPreview && (
-                    <div className="mt-4">
-                        <Image src={bannerPreview} alt="Banner preview" width={200} height={100} className="rounded-md border object-cover" />
-                    </div>
-                  )}
-                </FormItem>
 
               <FormField
                 control={form.control}
