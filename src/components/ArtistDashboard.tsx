@@ -105,6 +105,11 @@ export default function ArtistDashboard() {
   }, [user, router]);
   
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
+    // Guard clause to prevent crashes if myEvents is not yet populated or invalid
+    if (!myEvents || !Array.isArray(myEvents)) {
+        return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
+    }
+
     const now = new Date();
     const categorized: { live: Event[], upcoming: Event[], past: Event[] } = {
       live: [],
@@ -132,7 +137,14 @@ export default function ArtistDashboard() {
     categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    return categorized;
+    const boostedUpcoming = categorized.upcoming.filter(e => e.isBoosted);
+    const nonBoostedUpcoming = categorized.upcoming.filter(e => !e.isBoosted);
+
+    return {
+        liveEvents: categorized.live,
+        upcomingEvents: [...boostedUpcoming, ...nonBoostedUpcoming],
+        pastEvents: categorized.past,
+    };
   }, [myEvents]);
 
   const handleBoost = async (eventId: string, amount: number) => {
