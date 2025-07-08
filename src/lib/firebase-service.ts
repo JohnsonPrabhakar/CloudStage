@@ -424,9 +424,12 @@ export const createTicket = async (
         newTicketData.paymentId = `TEST_${Date.now()}`;
         newTicketData.testMode = true;
         newTicketData.paymentStatus = "TEST_SUCCESS";
+        newTicketData.bookingStatus = "confirmed";
     } else if (paymentDetails.paymentId) {
         newTicketData.paymentId = paymentDetails.paymentId;
         newTicketData.testMode = false;
+        newTicketData.paymentStatus = "SUCCESS";
+        newTicketData.bookingStatus = "confirmed";
     } else {
         throw new Error("A valid payment ID is required for non-test bookings.");
     }

@@ -100,20 +100,17 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
     
     setIsProcessingPayment(true);
 
-    // This flag determines if we should bypass the payment gateway.
-    // It's true if the Razorpay key is not set in the environment variables.
-    const isTestMode = !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
     // --- TEMPORARY TEST MODE BYPASS ---
-    // This block will execute ONLY if the payment gateway is not configured.
-    if (isTestMode) {
-      console.log("Running in Test Mode: Bypassing Razorpay payment.");
-      try {
+    // This logic completely bypasses the payment gateway for testing purposes.
+    // The live payment logic has been temporarily removed to guarantee successful test bookings.
+    console.log("Running in Test Mode: Bypassing Razorpay payment.");
+    try {
         const ticketData = {
             buyerName: values.fullName,
             buyerEmail: values.email,
             buyerPhone: values.phone,
         };
+        // The createTicket function is now called with a specific flag for test mode.
         await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { isTest: true, paymentId: null });
         toast({
           title: "Ticket Confirmed (Test Mode)",
@@ -129,84 +126,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
       } finally {
         setIsProcessingPayment(false);
       }
-      return; // IMPORTANT: Stop execution to prevent falling through to live payment logic.
-    }
-
-    // --- LIVE PAYMENT FLOW ---
-    // This code will only run if Razorpay keys are configured.
-    try {
-        const orderResponse = await createRazorpayOrder({
-            amount: event.ticketPrice,
-            receiptId: `TICKET_${eventId}_${Date.now()}`
-        });
-
-        if (!orderResponse.success || !orderResponse.order) {
-            throw new Error(orderResponse.error || 'Failed to create payment order.');
-        }
-
-        const { order } = orderResponse;
-        
-        const razorpayOptions = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: 'INR',
-            name: 'CloudStage',
-            description: `Ticket for ${event.title}`,
-            order_id: order.id,
-            handler: async (response: any) => {
-                const ticketData = {
-                    buyerName: values.fullName,
-                    buyerEmail: values.email,
-                    buyerPhone: values.phone,
-                };
-                try {
-                    await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { paymentId: response.razorpay_payment_id });
-                    toast({
-                        title: "Ticket Confirmed!",
-                        description: "Your ticket has been booked. A confirmation has been sent to your email.",
-                    });
-                    router.push("/my-tickets");
-                } catch (dbError: any) {
-                    toast({
-                        title: "Booking Finalization Failed",
-                        description: dbError.message || "Payment was successful but we couldn't save your ticket. Please contact support.",
-                        variant: "destructive"
-                    });
-                }
-            },
-            prefill: {
-                name: values.fullName,
-                email: values.email,
-                contact: values.phone
-            },
-            notes: {
-                eventId: event.id,
-                userId: user.uid,
-            },
-            theme: {
-                color: '#800000'
-            }
-        };
-
-        const paymentObject = new (window as any).Razorpay(razorpayOptions);
-        paymentObject.on('payment.failed', (response: any) => {
-             toast({
-                title: 'Payment Failed',
-                description: response.error.description || 'Something went wrong. Please try again.',
-                variant: 'destructive',
-             });
-             setIsProcessingPayment(false);
-        });
-        paymentObject.open();
-
-    } catch (error: any) {
-        toast({
-            title: "Booking Failed",
-            description: error.message || "There was an error initiating the payment. Please try again.",
-            variant: "destructive",
-        });
-        setIsProcessingPayment(false);
-    }
   }
 
   if (loading || !event) {

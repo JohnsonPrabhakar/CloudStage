@@ -97,6 +97,7 @@ export interface Ticket {
   buyerPhone: string;
   testMode?: boolean;
   paymentStatus?: string;
+  bookingStatus?: 'confirmed' | 'pending' | 'failed';
 }
 
 export interface ChatMessage {
