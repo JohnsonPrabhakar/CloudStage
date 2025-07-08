@@ -20,11 +20,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
 import { getEventById, createTicket } from "@/lib/firebase-service";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
-import { createRazorpayOrder } from "@/lib/actions";
 import Script from "next/script";
 
 const formSchema = z.object({
@@ -56,16 +55,13 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser); // Set user to the logged-in user or null for guests
         if (currentUser) {
-            setUser(currentUser);
             // Pre-fill form if user is logged in
             form.setValue('email', currentUser.email || '');
             if (currentUser.displayName) {
                 form.setValue('fullName', currentUser.displayName);
             }
-        } else {
-            toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please log in to purchase a ticket.' });
-            router.push('/artist/login');
         }
     });
 
@@ -93,39 +89,51 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   }, [eventId, router, toast, form]);
 
   async function onSubmit(values: FormValues) {
-    if (!user || !event) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User or event data is missing.' });
-        return;
-    }
-    
     setIsProcessingPayment(true);
-
-    // --- TEMPORARY TEST MODE BYPASS ---
-    // This logic completely bypasses the payment gateway for testing purposes.
-    // The live payment logic has been temporarily removed to guarantee successful test bookings.
-    console.log("Running in Test Mode: Bypassing Razorpay payment.");
     try {
-        const ticketData = {
-            buyerName: values.fullName,
-            buyerEmail: values.email,
-            buyerPhone: values.phone,
-        };
-        // The createTicket function is now called with a specific flag for test mode.
-        await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { isTest: true, paymentId: null });
-        toast({
-          title: "Ticket Confirmed (Test Mode)",
-          description: "Your ticket has been booked successfully without payment.",
-        });
-        router.push("/my-tickets");
-      } catch (dbError: any) {
-        toast({
-          title: "Booking Failed",
-          description: dbError.message || "Could not save your ticket in test mode.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsProcessingPayment(false);
+      // Determine the user ID to use for the ticket.
+      // If a user is already logged in, use their UID.
+      // Otherwise, create an anonymous user session and use that UID.
+      let userIdForTicket: string;
+
+      if (user) {
+        userIdForTicket = user.uid;
+      } else {
+        const userCredential = await signInAnonymously(auth);
+        userIdForTicket = userCredential.user.uid;
       }
+      
+      if (!event) {
+          throw new Error("Event data is not available.");
+      }
+
+      console.log("Running in Test Mode: Bypassing Razorpay payment.");
+      
+      const ticketData = {
+        buyerName: values.fullName,
+        buyerEmail: values.email,
+        buyerPhone: values.phone,
+      };
+
+      await createTicket(userIdForTicket, event.id, event.ticketPrice, ticketData, { isTest: true, paymentId: null });
+      
+      toast({
+        title: "Ticket Confirmed (Test Mode)",
+        description: "Your ticket has been booked successfully without payment.",
+      });
+
+      router.push("/my-tickets");
+
+    } catch (error: any) {
+      console.error("Booking failed:", error);
+      toast({
+        title: "Booking Failed",
+        description: error.message || "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   }
 
   if (loading || !event) {
