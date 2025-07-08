@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, DollarSign, Ticket as TicketIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRange } from 'react-day-picker';
+import { type DateRange } from 'react-day-picker';
 import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { Bar, BarChart as RechartsBarChart, Line, LineChart as RechartsLineChart, Pie, PieChart as RechartsPieChart, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, Cell } from "recharts";
 
@@ -188,14 +188,14 @@ const useAnalytics = (
         const finalFilteredTickets = filteredByDateTickets.filter(t => eventsInCategoryIds.has(t.eventId));
 
         const totalTicketsSold = finalFilteredTickets.length;
-        const totalRevenue = finalFilteredTickets.reduce((acc, ticket) => acc + ticket.pricePaid, 0);
+        const totalRevenue = finalFilteredTickets.reduce((acc, ticket) => acc + (ticket.pricePaid || 0), 0);
 
         const monthlySales: { [key: string]: { tickets: number, revenue: number } } = {};
         finalFilteredTickets.forEach(ticket => {
             const month = format(new Date(ticket.createdAt), 'MMM yyyy');
             if (!monthlySales[month]) monthlySales[month] = { tickets: 0, revenue: 0 };
             monthlySales[month].tickets++;
-            monthlySales[month].revenue += ticket.pricePaid;
+            monthlySales[month].revenue += (ticket.pricePaid || 0);
         });
         const monthlyData = Object.entries(monthlySales)
             .map(([month, data]) => ({ month, ...data }))
@@ -231,7 +231,7 @@ const useAnalytics = (
                 title: event.title,
                 artist: event.artist,
                 ticketsSold,
-                totalRevenue: ticketsSold * event.ticketPrice
+                totalRevenue: ticketsSold * (event.ticketPrice || 0)
             };
         });
 
