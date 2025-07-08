@@ -40,10 +40,19 @@ export async function createCashfreeOrder(
       error: 'Payment system is not configured. Please contact support.',
     };
   }
+  
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl || !appUrl.startsWith('https')) {
+    console.error('NEXT_PUBLIC_APP_URL is not set or is not a HTTPS URL in .env');
+    return {
+      success: false,
+      error: 'Application URL is not configured correctly. Please contact support.',
+    };
+  }
 
   const order_meta = {
     // The return URL is where the user is sent after payment. The webhook handles the actual confirmation.
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/my-tickets?order_id={order_id}`,
+    return_url: `${appUrl}/my-tickets?order_id={order_id}`,
     ...(eventId && { eventId: eventId }),
     ...(userId && { userId: userId }),
     ...(planName && { planName: planName }),
@@ -72,7 +81,7 @@ export async function createCashfreeOrder(
   };
 
   try {
-    const response = await fetch('https://api.cashfree.com/pg/orders', {
+    const response = await fetch(`${process.env.CASHFREE_BASE_URL}/orders`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(orderData),
