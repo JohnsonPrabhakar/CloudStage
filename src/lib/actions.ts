@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { createTicket as createTicketInDb } from '@/lib/firebase-service';
 
 const CreateOrderSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
@@ -104,4 +105,38 @@ export async function createCashfreeOrder(
       error: error.message || 'Could not initiate payment. Please try again.',
     };
   }
+}
+
+
+const CreateTestTicketSchema = z.object({
+    eventId: z.string(),
+    userId: z.string(),
+    price: z.number(),
+    contactDetails: z.object({
+        buyerName: z.string(),
+        buyerEmail: z.string(),
+        buyerPhone: z.string(),
+    }),
+});
+
+// This is a new server action specifically for creating a test ticket, bypassing the payment gateway.
+export async function createTestTicket(input: z.infer<typeof CreateTestTicketSchema>) {
+    const validation = CreateTestTicketSchema.safeParse(input);
+    if (!validation.success) {
+        return { success: false, error: 'Invalid input for test ticket creation.' };
+    }
+
+    try {
+        await createTicketInDb(
+            validation.data.userId,
+            validation.data.eventId,
+            validation.data.price,
+            validation.data.contactDetails,
+            { paymentId: `TEST_MODE_${Date.now()}` } // Dummy payment ID for test mode
+        );
+        return { success: true };
+    } catch (error: any) {
+        console.error("Test Ticket Creation Failed:", error);
+        return { success: false, error: error.message || "Failed to create test ticket." };
+    }
 }
