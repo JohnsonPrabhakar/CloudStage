@@ -129,7 +129,7 @@ export default function ArtistDashboard() {
     
     // Sort events in each category
     categorized.live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime());
+    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return categorized;
