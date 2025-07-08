@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -78,6 +79,7 @@ export async function saveTicketAfterPayment(
   }
 
   try {
+    const isTest = validation.data.razorpayPaymentId.startsWith('test_demo_payment_');
     await createTicket(
       validation.data.userId,
       validation.data.eventId,
@@ -85,6 +87,7 @@ export async function saveTicketAfterPayment(
       validation.data.contactDetails,
       {
         paymentId: validation.data.razorpayPaymentId,
+        isTest: isTest,
       }
     );
     return { success: true };
