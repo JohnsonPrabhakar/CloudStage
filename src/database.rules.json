@@ -5,57 +5,54 @@
         "return": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in';"
       },
 
+      // Global Admin Access Rule
+      "match /{document=**}": {
+        "allow read, write": "if isAdmin();"
+      },
+
+      // User and Public Access Rules
       "match /events/{eventId}": {
-        "allow read": "if isAdmin() || resource.data.moderationStatus == 'approved' || (request.auth != null && resource.data.artistId == request.auth.uid);",
-        "allow create": "if isAdmin() || (request.auth != null && request.resource.data.artistId == request.auth.uid);",
-        "allow update": "if isAdmin() || (request.auth != null && resource.data.artistId == request.auth.uid && !('moderationStatus' in request.resource.data));",
-        "allow delete": "if isAdmin();",
+        "allow read": "if resource.data.moderationStatus == 'approved' || (request.auth != null && resource.data.artistId == request.auth.uid);",
+        "allow create": "if request.auth != null && request.resource.data.artistId == request.auth.uid;",
+        "allow update": "if request.auth != null && resource.data.artistId == request.auth.uid && !('moderationStatus' in request.resource.data);",
 
         "match /messages/{messageId}": {
           "allow read": "if true;",
-          "allow create": "if isAdmin() || request.auth != null;",
-          "allow update, delete": "if isAdmin();"
+          "allow create": "if request.auth != null;"
         }
       },
 
       "match /artists/{artistId}": {
         "allow read": "if true;",
-        "allow create": "if isAdmin() || (request.auth != null && artistId == request.auth.uid);",
-        "allow update": "if isAdmin() || (request.auth != null && request.auth.uid == artistId);",
-        "allow delete": "if isAdmin();",
+        "allow create": "if request.auth != null && artistId == request.auth.uid;",
+        "allow update": "if request.auth != null && request.auth.uid == artistId;",
 
         "match /followers/{userId}": {
           "allow read": "if true;",
-          "allow write": "if isAdmin() || (request.auth != null && request.auth.uid == userId);"
+          "allow write": "if request.auth != null && request.auth.uid == userId;"
         }
       },
 
       "match /tickets/{ticketId}": {
-        "allow read": "if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);",
-        "allow create": "if isAdmin() || (request.auth != null && request.resource.data.userId == request.auth.uid);",
-        "allow update, delete": "if isAdmin();"
+        "allow read": "if request.auth != null && resource.data.userId == request.auth.uid;",
+        "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;"
       },
 
       "match /movies/{movieId}": {
-        "allow read": "if true;",
-        "allow write": "if isAdmin();"
+        "allow read": "if true;"
       },
 
       "match /config/{docId}": {
-        "allow read": "if true;",
-        "allow write": "if isAdmin();"
+        "allow read": "if true;"
       },
 
       "match /eventFeedback/{feedbackId}": {
-        "allow read": "if isAdmin();",
-        "allow create": "if isAdmin() || (request.auth != null && request.resource.data.userId == request.auth.uid);",
-        "allow write": "if isAdmin();"
+        "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;"
       },
 
       "match /users/{userId}": {
-        "allow read": "if isAdmin() || (request.auth != null && request.auth.uid == userId);",
-        "allow create, update": "if isAdmin() || (request.auth != null && request.auth.uid == userId);",
-        "allow delete": "if isAdmin();"
+        "allow read": "if request.auth != null && request.auth.uid == userId;",
+        "allow create, update": "if request.auth != null && request.auth.uid == userId;"
       }
     }
   }
