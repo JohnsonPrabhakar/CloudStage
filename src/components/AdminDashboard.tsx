@@ -38,6 +38,7 @@ import {
   BadgeCheck,
   BarChart2,
   Smartphone,
+  LineChart,
 } from "lucide-react";
 import { type Event, type Artist } from "@/lib/types";
 import { format } from "date-fns";
@@ -65,6 +66,7 @@ import ManageMovies from "./ManageMovies";
 import ArtistVerificationRequests from "./ArtistVerificationRequests";
 import EventReports from "./EventReports";
 import { sendNewEventNotification } from "@/app/actions/notificationActions";
+import EventAnalyticsDashboard from "./EventAnalyticsDashboard";
 
 type Stats = {
   artists: number | null;
@@ -109,7 +111,7 @@ export default function AdminDashboard() {
             // Set up stats listeners
             const artistsListener = getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count })));
             const eventsListener = getEventsCountListener((count) => setStats(s => ({ ...s, events: count })));
-            const ticketsListener = getTicketsCountListener((count) => setStats(s => ({ ...s, tickets: count })));
+            const ticketsListener = getTicketsCountListener((count) => setStats(s => ({...s, tickets: count })));
             const usersListener = getUsersCountListener((count) => setStats(s => ({...s, users: count })));
             statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener, usersListener);
 
@@ -297,8 +299,9 @@ export default function AdminDashboard() {
           setHasPendingArtistNotification(false);
         }
       }}>
-        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics"><LineChart className="mr-2 h-4 w-4"/>Analytics</TabsTrigger>
           <TabsTrigger value="event-approvals">Event Approvals</TabsTrigger>
           <TabsTrigger value="artist-approvals" className="relative">
             Pending Artists
@@ -352,6 +355,10 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        
+        <TabsContent value="analytics">
+          <EventAnalyticsDashboard />
         </TabsContent>
 
         <TabsContent value="event-approvals">

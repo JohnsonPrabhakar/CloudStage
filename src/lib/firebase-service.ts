@@ -192,6 +192,16 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
     .slice(0, 50);
 };
 
+export const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
+  const q = query(
+    eventsCollection,
+    where('moderationStatus', '==', 'approved')
+  );
+  const snapshot = await getDocs(q);
+  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+  return events;
+};
+
 export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'pending'));
   return onSnapshot(q, (snapshot) => {
