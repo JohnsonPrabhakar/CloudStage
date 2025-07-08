@@ -1,105 +1,49 @@
 'use server';
 
 import { z } from 'zod';
-import { createTicket } from '@/lib/firebase-service';
+import Razorpay from 'razorpay';
+import { createTicket, updateArtistToPremium } from '@/lib/firebase-service';
 
-const CreateOrderSchema = z.object({
+const CreateRazorpayOrderSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   receiptId: z.string().min(1, 'Receipt ID is required'),
-  customer_name: z.string().min(1),
-  customer_email: z.string().email(),
-  customer_phone: z.string().min(10),
-  // Metadata for the webhook
-  userId: z.string().min(1),
-  eventId: z.string().optional(), // Required for tickets
-  planName: z.string().optional(), // For premium subscription
 });
 
-export async function createCashfreeOrder(
-  input: z.infer<typeof CreateOrderSchema>
+export async function createRazorpayOrder(
+  input: z.infer<typeof CreateRazorpayOrderSchema>
 ) {
-  const validation = CreateOrderSchema.safeParse(input);
+  const validation = CreateRazorpayOrderSchema.safeParse(input);
   if (!validation.success) {
     return { success: false, error: 'Invalid input.' };
   }
 
-  const {
-    amount,
-    receiptId,
-    customer_name,
-    customer_email,
-    customer_phone,
-    userId,
-    eventId,
-    planName,
-  } = validation.data;
-
-  if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
-    console.error('Cashfree keys are not configured in .env');
+  if (
+    !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+    !process.env.RAZORPAY_KEY_SECRET
+  ) {
+    console.error('Razorpay keys are not configured in .env');
     return {
       success: false,
       error: 'Payment system is not configured. Please contact support.',
     };
   }
-  
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl || !appUrl.startsWith('https')) {
-    console.error('NEXT_PUBLIC_APP_URL is not set or is not a HTTPS URL in .env');
-    return {
-      success: false,
-      error: 'Application URL is not configured correctly. Please contact support.',
-    };
-  }
 
-  const order_meta = {
-    // The return URL is where the user is sent after payment.
-    return_url: `${appUrl}/my-tickets?order_id={order_id}`,
-    // The webhook URL is where Cashfree sends server-to-server notifications.
-    notify_url: `${appUrl}/api/cashfree-webhook`,
-    ...(eventId && { eventId: eventId }),
-    ...(userId && { userId: userId }),
-    ...(planName && { planName: planName }),
-  };
+  const razorpay = new Razorpay({
+    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
 
-  const orderData = {
-    order_id: receiptId,
-    order_amount: amount,
-    order_currency: 'INR',
-    customer_details: {
-      customer_id: userId,
-      customer_name: customer_name,
-      customer_email: customer_email,
-      customer_phone: customer_phone,
-    },
-    order_meta: order_meta,
-    order_note: `Order for ${receiptId}`,
-  };
-
-  const headers = {
-    accept: 'application/json',
-    'x-api-version': '2023-08-01',
-    'x-client-id': process.env.CASHFREE_APP_ID,
-    'x-client-secret': process.env.CASHFREE_SECRET_KEY,
-    'content-type': 'application/json',
+  const options = {
+    amount: input.amount * 100, // amount in the smallest currency unit
+    currency: 'INR',
+    receipt: input.receiptId,
   };
 
   try {
-    const response = await fetch(`${process.env.CASHFREE_BASE_URL}/orders`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(orderData),
-    });
-
-    if (!response.ok) {
-        const errorBody = await response.json();
-        console.error('Cashfree API Error:', errorBody);
-        throw new Error(errorBody.message || 'Failed to create Cashfree order');
-    }
-
-    const order = await response.json();
+    const order = await razorpay.orders.create(options);
     return { success: true, order };
   } catch (error: any) {
-    console.error('Cashfree order creation failed:', error);
+    console.error('Razorpay order creation failed:', error);
     return {
       success: false,
       error: error.message || 'Could not initiate payment. Please try again.',
@@ -107,39 +51,67 @@ export async function createCashfreeOrder(
   }
 }
 
-
-const CreateTestTicketSchema = z.object({
-    eventId: z.string(),
-    userId: z.string(),
-    price: z.number(),
-    contactDetails: z.object({
-        buyerName: z.string(),
-        buyerEmail: z.string(),
-        buyerPhone: z.string(),
-    }),
+// Action to save ticket after Razorpay success
+const SaveTicketSchema = z.object({
+  eventId: z.string(),
+  userId: z.string(),
+  price: z.number(),
+  contactDetails: z.object({
+    buyerName: z.string(),
+    buyerEmail: z.string(),
+    buyerPhone: z.string(),
+  }),
+  razorpayPaymentId: z.string(),
 });
 
-// This is a new server action specifically for creating a test ticket, bypassing the payment gateway.
-export async function createTestTicket(input: z.infer<typeof CreateTestTicketSchema>) {
-    const validation = CreateTestTicketSchema.safeParse(input);
-    if (!validation.success) {
-        return { success: false, error: 'Invalid input for test ticket creation.' };
-    }
+export async function saveTicketAfterPayment(
+  input: z.infer<typeof SaveTicketSchema>
+) {
+  const validation = SaveTicketSchema.safeParse(input);
+  if (!validation.success) {
+    return { success: false, error: 'Invalid ticket data.' };
+  }
 
-    try {
-        await createTicket(
-            validation.data.userId,
-            validation.data.eventId,
-            validation.data.price,
-            validation.data.contactDetails,
-            { 
-              paymentId: `TEST_MODE_${Date.now()}`,
-              isTest: true // Mark this as a test ticket
-            }
-        );
-        return { success: true };
-    } catch (error: any) {
-        console.error("Test Ticket Creation Failed:", error);
-        return { success: false, error: error.message || "Failed to create test ticket." };
-    }
+  try {
+    await createTicket(
+      validation.data.userId,
+      validation.data.eventId,
+      validation.data.price,
+      validation.data.contactDetails,
+      {
+        paymentId: validation.data.razorpayPaymentId,
+        isTest: true, // Mark as test as requested for demo mode
+      }
+    );
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to save ticket after payment:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Action to handle premium subscription after Razorpay success
+const SavePremiumSubscriptionSchema = z.object({
+  userId: z.string(),
+  razorpayPaymentId: z.string(),
+});
+
+export async function savePremiumAfterPayment(
+  input: z.infer<typeof SavePremiumSubscriptionSchema>
+) {
+  const validation = SavePremiumSubscriptionSchema.safeParse(input);
+  if (!validation.success) {
+    return { success: false, error: 'Invalid subscription data.' };
+  }
+
+  try {
+    await updateArtistToPremium(
+      validation.data.userId,
+      validation.data.razorpayPaymentId
+    );
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to save premium subscription after payment:', error);
+    return { success: false, error: error.message };
+  }
 }

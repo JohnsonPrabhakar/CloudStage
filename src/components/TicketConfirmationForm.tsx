@@ -24,7 +24,7 @@ import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
 import Script from "next/script";
-import { createTestTicket } from "@/lib/actions";
+import { createRazorpayOrder, saveTicketAfterPayment } from "@/lib/actions";
 
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
@@ -33,6 +33,12 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
   const { toast } = useToast();
@@ -102,39 +108,80 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
           throw new Error("Event data is not available.");
       }
 
-      // --- TEST MODE LOGIC ---
-      // This section bypasses the payment gateway for demo purposes.
-      const result = await createTestTicket({
-        userId: userIdForTicket,
-        eventId: event.id,
-        price: event.ticketPrice,
-        contactDetails: {
-          buyerName: values.fullName,
-          buyerEmail: values.email,
-          buyerPhone: values.phone,
-        },
+      const orderResponse = await createRazorpayOrder({
+        amount: event.ticketPrice,
+        receiptId: `TICKET_${event.id}_${Date.now()}`
       });
 
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create test ticket.");
+      if (!orderResponse.success || !orderResponse.order) {
+        throw new Error(orderResponse.error || 'Failed to create payment order.');
       }
 
-      toast({
-        title: "🎟️ Ticket booked successfully (Test Mode).",
-        description: "Your ticket has been booked for this demo.",
-      });
+      const { order } = orderResponse;
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: "INR",
+        name: "CloudStage",
+        description: `Ticket for ${event.title}`,
+        order_id: order.id,
+        handler: async function (response: any) {
+          const result = await saveTicketAfterPayment({
+            userId: userIdForTicket,
+            eventId: event.id,
+            price: event.ticketPrice,
+            contactDetails: {
+              buyerName: values.fullName,
+              buyerEmail: values.email,
+              buyerPhone: values.phone,
+            },
+            razorpayPaymentId: response.razorpay_payment_id,
+          });
+
+          if (result.success) {
+            toast({
+              title: "🎟️ Ticket booked successfully (Test Mode).",
+              description: "Your ticket has been booked for this demo.",
+            });
+            router.push("/my-tickets");
+          } else {
+            toast({
+              title: "Booking Failed",
+              description: result.error || "Could not save your ticket after payment.",
+              variant: "destructive"
+            });
+            setIsProcessingPayment(false);
+          }
+        },
+        prefill: {
+          name: values.fullName,
+          email: values.email,
+          contact: values.phone,
+        },
+        theme: {
+          color: "#800000" // Maroon
+        }
+      };
       
-      router.push("/my-tickets");
-      // --- END OF TEST MODE LOGIC ---
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      rzp.on('payment.failed', function (response: any){
+            toast({
+                title: 'Payment Failed',
+                description: response.error.description,
+                variant: 'destructive',
+            });
+            setIsProcessingPayment(false);
+      });
 
     } catch (error: any) {
       console.error("Booking failed:", error);
       toast({
-        title: "Booking Failed (Test Mode)",
+        title: "Booking Failed",
         description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsProcessingPayment(false);
     }
   }
@@ -168,8 +215,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   return (
     <>
     <Script
-        id="cashfree-checkout-js"
-        src="https://sdk.cashfree.com/js/v3/cashfree.js"
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="lazyOnload"
     />
     <Card className="w-full max-w-2xl">
