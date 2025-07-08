@@ -108,7 +108,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
     setIsProcessingPayment(true);
 
     // [START] TEMPORARY BYPASS FOR TESTING
-    // This block handles ticket creation in test mode, bypassing the payment gateway.
     if (IS_TEST_MODE) {
         console.log("Running in Test Mode: Bypassing Razorpay.");
         const ticketData = {
@@ -117,7 +116,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
             buyerPhone: values.phone,
         };
         try {
-            // The `isTest: true` flag will mark the ticket appropriately in Firestore.
             await createTicket(user.uid, event.id, event.ticketPrice, ticketData, { paymentId: null, isTest: true });
             toast({
                 title: "Ticket Confirmed (Test Mode)",
@@ -126,14 +124,14 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
             router.push("/my-tickets");
         } catch (dbError: any) {
             toast({
-                title: "Test Booking Failed",
-                description: dbError.message || "Could not save your test ticket.",
+                title: "Booking Failed",
+                description: dbError.message || "Could not save your ticket.",
                 variant: "destructive"
             });
         } finally {
             setIsProcessingPayment(false);
         }
-        return; // Exit the function after handling test mode.
+        return; 
     }
     // [END] TEMPORARY BYPASS FOR TESTING
 

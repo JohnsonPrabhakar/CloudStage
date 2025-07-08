@@ -400,44 +400,43 @@ export const createTicket = async (
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
     paymentDetails: { paymentId: string | null; isTest?: boolean }
-): Promise<{ success: boolean; message: string; ticketId?: string }> => {
+): Promise<string> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
-        return { success: false, message: 'You already have a ticket for this event.' };
+        throw new Error('You already have a ticket for this event.');
+    }
+
+    const eventData = await getEventById(eventId);
+    if (!eventData) {
+      throw new Error("Event not found, cannot create ticket.");
+    }
+    
+    const newTicketData: any = {
+        userId,
+        eventId,
+        pricePaid: price,
+        createdAt: serverTimestamp(),
+        isPaid: true, // Considered paid in both test and real mode
+        ...contactDetails,
+    };
+
+    if (paymentDetails.isTest) {
+        newTicketData.paymentId = `TEST_${Date.now()}`;
+        newTicketData.testMode = true;
+        newTicketData.paymentStatus = "TEST_SUCCESS";
+    } else if (paymentDetails.paymentId) {
+        newTicketData.paymentId = paymentDetails.paymentId;
+        newTicketData.testMode = false;
+    } else {
+        throw new Error("A valid payment ID is required for non-test bookings.");
     }
 
     try {
-        const eventData = await getEventById(eventId);
-        if (!eventData) throw new Error("Event not found");
-
-        const newTicketData: any = {
-            userId,
-            eventId,
-            pricePaid: price,
-            createdAt: serverTimestamp(),
-            isPaid: true, // Considered paid in both test and real mode
-            ...contactDetails,
-        };
-
-        // Handle test mode booking
-        if (paymentDetails.isTest) {
-            newTicketData.paymentId = `TEST_${Date.now()}`;
-            newTicketData.testMode = true;
-            newTicketData.paymentStatus = "TEST_SUCCESS";
-        } else if (paymentDetails.paymentId) {
-            newTicketData.paymentId = paymentDetails.paymentId;
-            newTicketData.testMode = false;
-        } else {
-            // This should not happen if the UI logic is correct
-            throw new Error("A valid payment ID is required for non-test bookings.");
-        }
-
-        const ticketRef = await addDoc(ticketsCollection, newTicketData);
-        
-        return { success: true, message: 'Ticket successfully acquired!', ticketId: ticketRef.id };
+      const ticketRef = await addDoc(ticketsCollection, newTicketData);
+      return ticketRef.id;
     } catch (error: any) {
-        console.error("Error creating ticket: ", error);
-        return { success: false, message: error.message || 'Could not acquire ticket. Please try again.' };
+      console.error("Error writing ticket to Firestore: ", error);
+      throw new Error('Could not save your ticket to the database. Please try again.');
     }
 };
 
