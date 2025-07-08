@@ -19,12 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
-import { getEventById } from "@/lib/firebase-service";
+import { getEventById, createTicket } from "@/lib/firebase-service";
 import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
-import { saveTicketAfterPayment } from "@/lib/actions";
 
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
@@ -102,22 +101,21 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
           throw new Error("Event data is not available.");
       }
 
-      // Bypass Razorpay and directly create the ticket for demo purposes
-      const result = await saveTicketAfterPayment({
-        userId: userIdForTicket,
-        eventId: event.id,
-        price: event.ticketPrice,
-        contactDetails: {
+      // Bypass server action and call createTicket directly from the client
+      await createTicket(
+        userIdForTicket,
+        event.id,
+        event.ticketPrice,
+        {
           buyerName: values.fullName,
           buyerEmail: values.email,
           buyerPhone: values.phone,
         },
-        razorpayPaymentId: `test_demo_payment_${Date.now()}`, // Placeholder ID
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to create test ticket.");
-      }
+        {
+          paymentId: `test_demo_payment_${Date.now()}`,
+          isTest: true, // This flag is crucial for the security rule
+        }
+      );
 
       toast({
         title: "🎟️ Ticket Booked Successfully (Test Mode)",
