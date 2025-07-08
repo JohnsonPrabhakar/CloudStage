@@ -265,12 +265,21 @@ export default function ArtistDashboard() {
         <h2 className="text-2xl font-bold mb-4">My Approved Events</h2>
         {approvedEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {approvedEvents.map((event) => (
+            {approvedEvents.map((event) => {
+               const now = new Date();
+               const eventStartDate = new Date(event.date);
+               // Use a fallback for old events without an endTime
+               const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
+               
+               const isEventOver = now >= eventEndDate;
+               const isLiveWindow = now >= eventStartDate && now < eventEndDate;
+
+              return (
               <Card key={event.id} className="flex flex-col">
                 <CardHeader>
                   <CardTitle>{event.title}</CardTitle>
                   <CardDescription>
-                    {format(new Date(event.date), "PPP")}
+                    {format(eventStartDate, "PPP")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -289,10 +298,7 @@ export default function ArtistDashboard() {
                   </div>
                   
                   {(() => {
-                    const isEventTime = new Date(event.date) <= new Date();
-                    const isReallyPast = new Date(event.date) < new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours past
-
-                    if (isReallyPast) {
+                    if (isEventOver) {
                       return <Button variant="outline" disabled className="w-full">Event Ended</Button>;
                     }
 
@@ -303,8 +309,8 @@ export default function ArtistDashboard() {
                         </Badge>
                       );
                     }
-
-                    if (isEventTime) {
+                    
+                    if (isLiveWindow) {
                       return (
                         <GoLiveModal eventId={event.id}>
                           <Button className="w-full" variant="destructive">
@@ -314,6 +320,7 @@ export default function ArtistDashboard() {
                       );
                     }
                     
+                    // If it's upcoming, show the boost logic
                     if (!event.isBoosted) {
                       return (
                         <Dialog>
@@ -355,7 +362,7 @@ export default function ArtistDashboard() {
 
                 </CardFooter>
               </Card>
-            ))}
+            )})}
           </div>
         ) : (
           <p className="text-muted-foreground">No approved events yet. Create one to get started!</p>

@@ -170,6 +170,11 @@ export const addEvent = async (
     eventCode,
     createdAt: serverTimestamp(),
   });
+  
+  // TODO: Set up a Cloud Function or scheduled job triggered by `endTime`.
+  // This job should check for events where `endTime` has passed and `status` is still "live",
+  // and update their status to "past". This ensures the platform accurately reflects
+  // event states without requiring manual intervention from the artist.
 
   return { eventId };
 };

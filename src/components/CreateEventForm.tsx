@@ -47,12 +47,24 @@ const eventCategories: EventCategory[] = [
   "Talk"
 ];
 
+const durationOptions = [
+  { label: '30 minutes', value: 30 },
+  { label: '1 hour', value: 60 },
+  { label: '1.5 hours', value: 90 },
+  { label: '2 hours', value: 120 },
+  { label: '3 hours', value: 180 },
+  { label: '4 hours', value: 240 },
+  { label: '5 hours', value: 300 },
+  { label: '6 hours', value: 360 },
+];
+
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
   category: z.string().min(1, "Event category is required."),
   genre: z.string().min(1, "Genre is required."),
   language: z.string().min(1, "Language is required."),
   date: z.string().min(1, "Date and time are required."),
+  duration: z.coerce.number().min(30, "Duration is required."),
   streamUrl: z.string().url("Must be a valid URL.").refine(
     (url) => getYouTubeEmbedUrl(url) !== null,
     "Please provide a valid YouTube URL (e.g., watch, live, or youtu.be link)."
@@ -81,6 +93,7 @@ export default function CreateEventForm() {
       genre: "",
       language: "",
       date: "",
+      duration: 60,
       streamUrl: "",
       ticketPrice: 0,
       description: "",
@@ -121,6 +134,7 @@ export default function CreateEventForm() {
             genre: eventToDuplicate.genre,
             language: eventToDuplicate.language,
             date: '', // User must set a new date
+            duration: eventToDuplicate.duration || 60,
             streamUrl: eventToDuplicate.streamUrl,
             ticketPrice: eventToDuplicate.ticketPrice,
             description: eventToDuplicate.description,
@@ -190,6 +204,9 @@ export default function CreateEventForm() {
     setIsSubmitting(true);
     
     try {
+      const startDate = new Date(values.date);
+      const endDate = new Date(startDate.getTime() + values.duration * 60000);
+
       const eventData = {
         title: values.title,
         artist: artist.name,
@@ -198,8 +215,10 @@ export default function CreateEventForm() {
         category: values.category as EventCategory,
         genre: values.genre,
         language: values.language,
-        date: new Date(values.date).toISOString(),
-        status: new Date(values.date) > new Date() ? 'upcoming' : 'past',
+        date: startDate.toISOString(),
+        duration: values.duration,
+        endTime: endDate.toISOString(),
+        status: startDate > new Date() ? 'upcoming' : 'past',
         streamUrl: values.streamUrl,
         ticketPrice: values.ticketPrice,
         isBoosted: values.boost ?? false,
@@ -207,7 +226,7 @@ export default function CreateEventForm() {
         moderationStatus: 'pending' as const,
       };
 
-      await addEvent(eventData);
+      await addEvent(eventData as any);
 
       toast({
         title: "Event Submitted!",
@@ -290,10 +309,32 @@ export default function CreateEventForm() {
                   name="date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date and Time</FormLabel>
+                      <FormLabel>Start Date and Time</FormLabel>
                       <FormControl>
                         <Input type="datetime-local" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Event Duration</FormLabel>
+                       <Select onValueChange={field.onChange} value={String(field.value)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a duration" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {durationOptions.map(opt => (
+                            <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

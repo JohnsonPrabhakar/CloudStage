@@ -48,8 +48,7 @@ export function HomePageClient() {
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
-    const liveThreshold = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours ago
-
+    
     if (!allEvents || allEvents.length === 0) {
       return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
     }
@@ -63,15 +62,26 @@ export function HomePageClient() {
     const sortedEvents = [...allEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const event of sortedEvents) {
-      let finalStatus: Event["status"] = event.status;
-      const eventDate = new Date(event.date);
-
-      if (eventDate > now) {
+      const eventStartDate = new Date(event.date);
+      // For backward compatibility, old events might not have endTime.
+      // We can assume a default duration (e.g., 3 hours) for them.
+      const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
+      
+      let finalStatus: Event["status"];
+      
+      if (now < eventStartDate) {
         finalStatus = 'upcoming';
-      } else if (eventDate <= now && eventDate >= liveThreshold) {
+      } else if (now >= eventStartDate && now < eventEndDate) {
+        // It's within the event window. The status can be 'live' if the artist started it.
+        // We will treat it as live for display purposes on the homepage.
         finalStatus = 'live';
-      } else {
+      } else { // now >= eventEndDate
         finalStatus = 'past';
+      }
+
+      // However, respect the 'live' status from DB if it's set and the event isn't over.
+      if (event.status === 'live' && now < eventEndDate) {
+        finalStatus = 'live';
       }
       
       const updatedEvent = { ...event, status: finalStatus };

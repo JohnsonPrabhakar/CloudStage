@@ -18,7 +18,9 @@ export interface Event {
   category: EventCategory;
   genre: string;
   language: string;
-  date: string;
+  date: string; // Start time in ISO format
+  duration: number; // in minutes
+  endTime: string; // End time in ISO format
   createdAt?: any;
   status: "live" | "upcoming" | "past";
   moderationStatus: "pending" | "approved" | "rejected";
