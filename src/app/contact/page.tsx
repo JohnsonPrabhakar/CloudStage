@@ -15,7 +15,7 @@ export default function ContactPage() {
             <strong>Email:</strong> support@cloudstage.in
           </p>
           <p>
-            <strong>Phone:</strong> +91 123 456 7890
+            <strong>Phone:</strong> +91 8217659321
           </p>
           <p>
             Our support team is available from 9 AM to 6 PM IST, Monday to Friday.
