@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -127,7 +126,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
       const cashfree = new window.Cashfree(order.payment_session_id);
 
       cashfree.checkout({
-        paymentMethod: "card",
         onSuccess: (data: any) => {
           console.log("Cashfree payment success (client-side):", data);
           toast({
