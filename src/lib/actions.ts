@@ -51,8 +51,10 @@ export async function createCashfreeOrder(
   }
 
   const order_meta = {
-    // The return URL is where the user is sent after payment. The webhook handles the actual confirmation.
+    // The return URL is where the user is sent after payment.
     return_url: `${appUrl}/my-tickets?order_id={order_id}`,
+    // The webhook URL is where Cashfree sends server-to-server notifications.
+    notify_url: `${appUrl}/api/cashfree-webhook`,
     ...(eventId && { eventId: eventId }),
     ...(userId && { userId: userId }),
     ...(planName && { planName: planName }),
