@@ -5,7 +5,7 @@ import Razorpay from 'razorpay';
 import { createTicket, updateArtistToPremium } from '@/lib/firebase-service';
 
 const CreateRazorpayOrderSchema = z.object({
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.number().min(1, 'Amount must be at least ₹1'),
   receiptId: z.string().min(1, 'Receipt ID is required'),
 });
 
@@ -14,7 +14,8 @@ export async function createRazorpayOrder(
 ) {
   const validation = CreateRazorpayOrderSchema.safeParse(input);
   if (!validation.success) {
-    return { success: false, error: 'Invalid input.' };
+    const errorMessage = validation.error.issues[0]?.message || 'Invalid input.';
+    return { success: false, error: errorMessage };
   }
 
   if (
@@ -34,7 +35,7 @@ export async function createRazorpayOrder(
   });
 
   const options = {
-    amount: input.amount * 100, // amount in the smallest currency unit
+    amount: Math.round(input.amount * 100), // amount in the smallest currency unit
     currency: 'INR',
     receipt: input.receiptId,
   };
@@ -44,17 +45,21 @@ export async function createRazorpayOrder(
     return { success: true, order };
   } catch (error: any) {
     console.error('Razorpay order creation failed:', error);
+    const errorMessage =
+      error?.error?.description ||
+      error.message ||
+      'Could not initiate payment. Please try again.';
     return {
       success: false,
-      error: error.message || 'Could not initiate payment. Please try again.',
+      error: errorMessage,
     };
   }
 }
 
 // Action to save ticket after Razorpay success
 const SaveTicketSchema = z.object({
-  eventId: z.string(),
   userId: z.string(),
+  eventId: z.string(),
   price: z.number(),
   contactDetails: z.object({
     buyerName: z.string(),
@@ -80,7 +85,6 @@ export async function saveTicketAfterPayment(
       validation.data.contactDetails,
       {
         paymentId: validation.data.razorpayPaymentId,
-        isTest: true, // Mark as test as requested for demo mode
       }
     );
     return { success: true };
@@ -110,7 +114,8 @@ export async function savePremiumAfterPayment(
       validation.data.razorpayPaymentId
     );
     return { success: true };
-  } catch (error: any) {
+  } catch (error: any)
+  {
     console.error('Failed to save premium subscription after payment:', error);
     return { success: false, error: error.message };
   }
