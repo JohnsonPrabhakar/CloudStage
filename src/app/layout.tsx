@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Toaster } from "@/components/ui/toaster";
 import Script from "next/script";
 import NotificationPermissionHandler from "@/components/NotificationPermissionHandler";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "CloudStage",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <div className="relative flex min-h-screen flex-col">
           <Header />
           <main className="flex-1">{children}</main>
+          <Footer />
         </div>
         <Toaster />
         <NotificationPermissionHandler />
