@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -46,6 +46,7 @@ import {
 import { format } from "date-fns";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { GoLiveModal } from "@/components/GoLiveModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ArtistDashboard() {
   const router = useRouter();
@@ -102,7 +103,37 @@ export default function ArtistDashboard() {
       if (eventsUnsubscribe) eventsUnsubscribe();
     };
   }, [user, router]);
+  
+  const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
+    const now = new Date();
+    const categorized: { live: Event[], upcoming: Event[], past: Event[] } = {
+      live: [],
+      upcoming: [],
+      past: [],
+    };
 
+    const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
+
+    for (const event of approvedEvents) {
+      const eventStartDate = new Date(event.date);
+      const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000); // 3-hour fallback
+
+      if (now >= eventEndDate) {
+        categorized.past.push(event);
+      } else if (now >= eventStartDate && now < eventEndDate) {
+        categorized.live.push(event);
+      } else {
+        categorized.upcoming.push(event);
+      }
+    }
+    
+    // Sort events in each category
+    categorized.live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime());
+    categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return categorized;
+  }, [myEvents]);
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
@@ -179,6 +210,117 @@ export default function ArtistDashboard() {
       )
   }
 
+  const renderEventGrid = (events: Event[], emptyMessage: string) => {
+    if (events.length === 0) {
+      return (
+        <div className="text-center py-16 text-muted-foreground bg-muted/20 rounded-lg mt-6">
+          <p>{emptyMessage}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+        {events.map((event) => {
+          const now = new Date();
+          const eventStartDate = new Date(event.date);
+          const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
+          
+          const isEventOver = now >= eventEndDate;
+          const isLiveWindow = now >= eventStartDate && now < eventEndDate;
+
+          return (
+            <Card key={event.id} className="flex flex-col">
+              <CardHeader>
+                <CardTitle>{event.title}</CardTitle>
+                <CardDescription>
+                  {format(eventStartDate, "PPP p")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <Badge variant={event.isBoosted ? "default" : "outline"} className={event.isBoosted ? "bg-green-600" : ""}>
+                  {event.isBoosted ? "Boosted" : "Not Boosted"}
+                </Badge>
+              </CardContent>
+              <CardFooter className="flex-col items-stretch gap-2">
+                <div className="flex gap-2 w-full">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopyLink(event.id)}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy Link
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleShare(event)}>
+                    <Share2 className="mr-2 h-4 w-4" /> Share
+                  </Button>
+                </div>
+                
+                {(() => {
+                  if (isEventOver) {
+                    return <Button variant="outline" disabled className="w-full">Event Ended</Button>;
+                  }
+
+                  if (event.status === 'live') {
+                    return (
+                      <Badge className="w-full justify-center py-2 bg-green-600 text-white">
+                        <RadioTower className="mr-2 h-4 w-4 animate-pulse" /> Live
+                      </Badge>
+                    );
+                  }
+                  
+                  if (isLiveWindow) {
+                    return (
+                      <GoLiveModal eventId={event.id}>
+                        <Button className="w-full" variant="destructive">
+                          <RadioTower className="mr-2 h-4 w-4" /> Go Live Now
+                        </Button>
+                      </GoLiveModal>
+                    );
+                  }
+                  
+                  if (!event.isBoosted) {
+                    return (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="w-full">
+                            <TrendingUp className="mr-2 h-4 w-4" /> Boost Event
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Boost Your Event</DialogTitle>
+                            <DialogDescription>
+                              Get your event featured on the homepage for maximum visibility.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="grid grid-cols-2 gap-4 py-4">
+                            {[500, 1000, 2000, 3000].map((amount) => (
+                              <DialogClose asChild key={amount}>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleBoost(event.id, amount)}
+                                >
+                                  Boost for ₹{amount}
+                                </Button>
+                              </DialogClose>
+                            ))}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    );
+                  } else {
+                      return (
+                        <Button className="w-full" disabled>
+                          <PartyPopper className="mr-2 h-4 w-4" /> Already Boosted
+                        </Button>
+                      );
+                  }
+                })()}
+              </CardFooter>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
@@ -210,8 +352,6 @@ export default function ArtistDashboard() {
       </div>
     );
   }
-
-  const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
 
   return (
     <div className="container mx-auto p-4 md:p-8 space-y-8">
@@ -262,111 +402,23 @@ export default function ArtistDashboard() {
       </div>
 
       <section>
-        <h2 className="text-2xl font-bold mb-4">My Approved Events</h2>
-        {approvedEvents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {approvedEvents.map((event) => {
-               const now = new Date();
-               const eventStartDate = new Date(event.date);
-               // Use a fallback for old events without an endTime
-               const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
-               
-               const isEventOver = now >= eventEndDate;
-               const isLiveWindow = now >= eventStartDate && now < eventEndDate;
-
-              return (
-              <Card key={event.id} className="flex flex-col">
-                <CardHeader>
-                  <CardTitle>{event.title}</CardTitle>
-                  <CardDescription>
-                    {format(eventStartDate, "PPP")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <Badge variant={event.isBoosted ? "default" : "outline"} className={event.isBoosted ? "bg-green-600" : ""}>
-                    {event.isBoosted ? "Boosted" : "Not Boosted"}
-                  </Badge>
-                </CardContent>
-                <CardFooter className="flex-col items-stretch gap-2">
-                  <div className="flex gap-2 w-full">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopyLink(event.id)}>
-                      <Copy className="mr-2 h-4 w-4" /> Copy Link
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleShare(event)}>
-                      <Share2 className="mr-2 h-4 w-4" /> Share
-                    </Button>
-                  </div>
-                  
-                  {(() => {
-                    if (isEventOver) {
-                      return <Button variant="outline" disabled className="w-full">Event Ended</Button>;
-                    }
-
-                    if (event.status === 'live') {
-                      return (
-                        <Badge className="w-full justify-center py-2 bg-green-600 text-white">
-                          <RadioTower className="mr-2 h-4 w-4 animate-pulse" /> Live
-                        </Badge>
-                      );
-                    }
-                    
-                    if (isLiveWindow) {
-                      return (
-                        <GoLiveModal eventId={event.id}>
-                          <Button className="w-full" variant="destructive">
-                            <RadioTower className="mr-2 h-4 w-4" /> Go Live Now
-                          </Button>
-                        </GoLiveModal>
-                      );
-                    }
-                    
-                    // If it's upcoming, show the boost logic
-                    if (!event.isBoosted) {
-                      return (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button className="w-full">
-                              <TrendingUp className="mr-2 h-4 w-4" /> Boost Event
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Boost Your Event</DialogTitle>
-                              <DialogDescription>
-                                Get your event featured on the homepage for maximum visibility.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid grid-cols-2 gap-4 py-4">
-                              {[500, 1000, 2000, 3000].map((amount) => (
-                                <DialogClose asChild key={amount}>
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => handleBoost(event.id, amount)}
-                                  >
-                                    Boost for ₹{amount}
-                                  </Button>
-                                </DialogClose>
-                              ))}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      )
-                    } else {
-                        return (
-                          <Button className="w-full" disabled>
-                            <PartyPopper className="mr-2 h-4 w-4" /> Already Boosted
-                          </Button>
-                        )
-                    }
-                  })()}
-
-                </CardFooter>
-              </Card>
-            )})}
-          </div>
-        ) : (
-          <p className="text-muted-foreground">No approved events yet. Create one to get started!</p>
-        )}
+        <h2 className="text-2xl font-bold mb-4">My Events</h2>
+        <Tabs defaultValue="upcoming" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="upcoming">Upcoming ({upcomingEvents.length})</TabsTrigger>
+            <TabsTrigger value="live">Live ({liveEvents.length})</TabsTrigger>
+            <TabsTrigger value="past">Past ({pastEvents.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="upcoming">
+            {renderEventGrid(upcomingEvents, "You have no upcoming events.")}
+          </TabsContent>
+          <TabsContent value="live">
+            {renderEventGrid(liveEvents, "You have no events live right now.")}
+          </TabsContent>
+          <TabsContent value="past">
+            {renderEventGrid(pastEvents, "You have no past events.")}
+          </TabsContent>
+        </Tabs>
       </section>
     </div>
   );
