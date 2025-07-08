@@ -17,7 +17,7 @@ import { CheckCircle, Crown, ChevronLeft, Loader2 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getArtistProfile } from "@/lib/firebase-service";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createCashfreeOrder } from "@/lib/actions";
 import Script from "next/script";
 

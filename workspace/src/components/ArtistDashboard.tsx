@@ -44,8 +44,8 @@ import {
   RadioTower,
 } from "lucide-react";
 import { format } from "date-fns";
-import { VerifiedBadge } from "./VerifiedBadge";
-import { GoLiveModal } from "./GoLiveModal";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { GoLiveModal } from "@/components/GoLiveModal";
 
 export default function ArtistDashboard() {
   const router = useRouter();
