@@ -1,12 +1,18 @@
-
 {
   "rules": {
     "match /databases/{database}/documents": {
       "function isAdmin()": {
         "return": "request.auth != null && request.auth.token.email == 'admin@cloudstage.in';"
       },
+
+      // Global Admin Access Rule: Admins can read and write all data.
+      "match /{document=**}": {
+        "allow read, write": "if isAdmin();"
+      },
+
+      // --- User-Specific Rules ---
+
       "match /events/{eventId}": {
-        "allow read, write: if isAdmin();",
         "allow read": "if resource.data.moderationStatus == 'approved' || (request.auth != null && resource.data.artistId == request.auth.uid);",
         "allow create": "if request.auth != null && request.resource.data.artistId == request.auth.uid;",
         "allow update": "if (request.auth != null && resource.data.artistId == request.auth.uid && !('moderationStatus' in request.resource.data));",
@@ -17,7 +23,6 @@
         }
       },
       "match /artists/{artistId}": {
-        "allow read, write: if isAdmin();",
         "allow read": "if true;",
         "allow create": "if request.auth != null && artistId == request.auth.uid;",
         "allow update": "if (request.auth != null && request.auth.uid == artistId);",
@@ -27,24 +32,20 @@
         }
       },
       "match /tickets/{ticketId}": {
-        "allow read, write: if isAdmin();",
         "allow read": "if (request.auth != null && resource.data.userId == request.auth.uid);",
         "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;",
         "allow update, delete": "if false;"
       },
       "match /movies/{movieId}": {
-        "allow read, write: if isAdmin();",
         "allow read": "if true;"
       },
       "match /config/{docId}": {
-        "allow read": "if true;",
-        "allow write": "if isAdmin();"
+        "allow read": "if true;"
       },
       "match /eventFeedback/{feedbackId}": {
          "allow create": "if request.auth != null && request.resource.data.userId == request.auth.uid;"
       },
        "match /users/{userId}": {
-        "allow read, write: if isAdmin();",
         "allow read": "if request.auth != null && request.auth.uid == userId;",
         "allow create": "if request.auth != null && request.auth.uid == userId;",
         "allow update": "if request.auth != null && request.auth.uid == userId;"
