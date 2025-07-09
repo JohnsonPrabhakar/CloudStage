@@ -1,5 +1,3 @@
-
-
 import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,11 +28,9 @@ function ConfirmationPageLoader() {
     )
 }
 
-type ConfirmTicketPageProps = {
-  params: { eventId: string };
-};
-
-export default function ConfirmTicketPage({ params }: ConfirmTicketPageProps) {
+// Correcting the type definition to be explicit and avoid any inference issues.
+// This is the primary fix for the build-halting type error.
+export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
         <Suspense fallback={<ConfirmationPageLoader />}>
