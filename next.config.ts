@@ -31,11 +31,15 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https://firebasestorage.googleapis.com',
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
         port: '',
         pathname: '/**',
       },
     ],
+  },
+  experimental: {
+    serverComponentsExternalPackages: ['@opentelemetry/exporter-jaeger', 'handlebars'],
   },
 };
 

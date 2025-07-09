@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 type ConfirmTicketPageProps = {
   params: { eventId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 function ConfirmationPageLoader() {
