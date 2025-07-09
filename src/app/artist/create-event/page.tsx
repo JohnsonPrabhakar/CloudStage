@@ -42,7 +42,7 @@ function CreateEventPageLoader() {
 export default function CreateEventPage() {
   return (
     <Suspense fallback={<CreateEventPageLoader />}>
-      <CreateEventForm />
+      <CreateEventForm mode="create" />
     </Suspense>
   );
 }

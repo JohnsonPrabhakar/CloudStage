@@ -28,14 +28,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type EventCategory, type Artist } from "@/lib/types";
+import { type EventCategory, type Artist, type Event } from "@/lib/types";
 import { Sparkles, ChevronLeft, Info, Loader2 } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { getArtistProfile, getEventById, getYouTubeEmbedUrl, addEvent } from "@/lib/firebase-service";
+import { getArtistProfile, getEventById, getYouTubeEmbedUrl, addEvent, updateEvent } from "@/lib/firebase-service";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "./ui/skeleton";
+import { format } from "date-fns";
 
 const eventCategories: EventCategory[] = [
   "Music",
@@ -76,7 +77,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function CreateEventForm() {
+type EventFormProps = {
+  mode: 'create' | 'edit';
+  initialData?: Event;
+};
+
+export default function CreateEventForm({ mode, initialData }: EventFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -124,7 +130,24 @@ export default function CreateEventForm() {
 
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
-    if (duplicateEventId) {
+    const dataToLoad = mode === 'edit' ? initialData : undefined;
+
+    if (dataToLoad) {
+      // Edit mode
+      form.reset({
+        title: dataToLoad.title,
+        category: dataToLoad.category,
+        genre: dataToLoad.genre,
+        language: dataToLoad.language,
+        date: dataToLoad.date ? format(new Date(dataToLoad.date), "yyyy-MM-dd'T'HH:mm") : '',
+        duration: dataToLoad.duration || 60,
+        streamUrl: dataToLoad.streamUrl,
+        ticketPrice: dataToLoad.ticketPrice,
+        description: dataToLoad.description,
+        boost: dataToLoad.isBoosted,
+      });
+    } else if (duplicateEventId && mode === 'create') {
+      // Duplicate mode
       const fetchAndSetEvent = async () => {
         const eventToDuplicate = await getEventById(duplicateEventId);
         if (eventToDuplicate) {
@@ -148,7 +171,7 @@ export default function CreateEventForm() {
       }
       fetchAndSetEvent();
     }
-  }, [searchParams, form, toast]);
+  }, [searchParams, form, toast, mode, initialData]);
   
   const handleStreamUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const originalUrl = e.target.value;
@@ -207,10 +230,8 @@ export default function CreateEventForm() {
       const startDate = new Date(values.date);
       const endDate = new Date(startDate.getTime() + values.duration * 60000);
 
-      const eventData = {
+      const eventPayload = {
         title: values.title,
-        artist: artist.name,
-        artistId: artist.id,
         description: values.description,
         category: values.category as EventCategory,
         genre: values.genre,
@@ -218,21 +239,33 @@ export default function CreateEventForm() {
         date: startDate.toISOString(),
         duration: values.duration,
         endTime: endDate.toISOString(),
-        status: startDate > new Date() ? 'upcoming' : 'past',
+        status: startDate > new Date() ? 'upcoming' as const : 'past' as const,
         streamUrl: values.streamUrl,
         ticketPrice: values.ticketPrice,
         isBoosted: values.boost ?? false,
         boostAmount: values.boost ? 100 : 0,
-        moderationStatus: 'pending' as const,
       };
 
-      await addEvent(eventData as any);
-
-      toast({
-        title: "Event Submitted!",
-        description: "Your event is now pending admin approval. Redirecting...",
-      });
-
+      if (mode === 'edit' && initialData) {
+        await updateEvent(initialData.id, eventPayload);
+        toast({
+            title: "Event Updated!",
+            description: "Your event has been submitted for re-approval.",
+        });
+      } else {
+        const payloadWithArtist = {
+            ...eventPayload,
+            artist: artist.name,
+            artistId: artist.id,
+            moderationStatus: 'pending' as const,
+        };
+        await addEvent(payloadWithArtist);
+        toast({
+            title: "Event Submitted!",
+            description: "Your event is now pending admin approval. Redirecting...",
+        });
+      }
+      
       router.push("/artist/dashboard");
 
     } catch (error: any) {
@@ -247,6 +280,9 @@ export default function CreateEventForm() {
     }
   }
 
+  const pageTitle = mode === 'edit' ? 'Edit Event' : 'Create a New Event';
+  const pageDescription = mode === 'edit' ? 'Update the details below and resubmit for approval.' : 'Fill out the details below to put your event on stage.';
+  const buttonText = mode === 'edit' ? 'Save Changes & Resubmit' : 'Submit for Approval';
 
   if (loading) {
     return (
@@ -284,8 +320,8 @@ export default function CreateEventForm() {
       </Button>
       <Card className="max-w-4xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-3xl">Create a New Event</CardTitle>
-          <CardDescription>Fill out the details below to put your event on stage.</CardDescription>
+          <CardTitle className="text-3xl">{pageTitle}</CardTitle>
+          <CardDescription>{pageDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -495,7 +531,7 @@ export default function CreateEventForm() {
                     Submitting...
                   </>
                 ) : (
-                  "Submit for Approval"
+                  buttonText
                 )}
               </Button>
             </form>

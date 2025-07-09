@@ -179,6 +179,25 @@ export const addEvent = async (
   return { eventId };
 };
 
+export const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' | 'artist' | 'artistId'>>) => {
+    const eventDoc = doc(db, 'events', eventId);
+
+    const dataToUpdate: Partial<Event> = {
+        ...eventData,
+        moderationStatus: 'pending' as const,
+    };
+
+    if (eventData.streamUrl) {
+        const videoId = getYouTubeVideoId(eventData.streamUrl);
+        dataToUpdate.bannerUrl = videoId
+            ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+            : 'https://placehold.co/600x400.png';
+        dataToUpdate.streamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
+    }
+    
+    await updateDoc(eventDoc, dataToUpdate);
+}
+
 export const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(
     eventsCollection,
@@ -423,20 +442,20 @@ export const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string }
-): Promise<string> => {
+    paymentDetails: { paymentId: string, testMode: boolean }
+): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
-        throw new Error('You already have a ticket for this event.');
+        return { success: false, error: 'You already have a ticket for this event.' };
     }
 
     const eventData = await getEventById(eventId);
     if (!eventData) {
-      throw new Error("Event not found, cannot create ticket.");
+      return { success: false, error: 'Event not found, cannot create ticket.'};
     }
     
     if (!paymentDetails.paymentId) {
-        throw new Error("A valid payment ID is required for bookings.");
+        return { success: false, error: 'A valid payment ID is required for bookings.'};
     }
 
     const newTicketData: Omit<Ticket, 'id'> = {
@@ -447,17 +466,17 @@ export const createTicket = async (
         isPaid: true,
         ...contactDetails,
         paymentId: paymentDetails.paymentId,
-        testMode: false, // All programmatically created tickets are real
+        testMode: paymentDetails.testMode,
         paymentStatus: "SUCCESS",
         bookingStatus: "confirmed",
     };
 
     try {
       const ticketRef = await addDoc(ticketsCollection, newTicketData);
-      return ticketRef.id;
+      return { success: true, ticketId: ticketRef.id };
     } catch (error: any) {
       console.error("Error writing ticket to Firestore: ", error);
-      throw new Error('Could not save your ticket to the database. Please try again.');
+      return { success: false, error: 'Could not save your ticket to the database. Please try again.' };
     }
 };
 

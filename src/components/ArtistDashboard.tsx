@@ -42,6 +42,7 @@ import {
   BadgeCheck,
   ShieldAlert,
   RadioTower,
+  Edit,
 } from "lucide-react";
 import { format } from "date-fns";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
@@ -110,6 +111,7 @@ export default function ArtistDashboard() {
   }, [myEvents]);
 
   const liveEvents = useMemo(() => {
+    if (!approvedEvents) return [];
     const now = new Date();
     return approvedEvents
       .filter(event => {
@@ -121,6 +123,7 @@ export default function ArtistDashboard() {
   }, [approvedEvents]);
 
   const upcomingEvents = useMemo(() => {
+    if (!approvedEvents) return [];
     const now = new Date();
     const allUpcoming = approvedEvents
       .filter(event => new Date(event.date) > now && event.status !== 'live')
@@ -132,6 +135,7 @@ export default function ArtistDashboard() {
   }, [approvedEvents]);
   
   const pastEvents = useMemo(() => {
+    if (!approvedEvents) return [];
     const now = new Date();
     return approvedEvents
       .filter(event => {
@@ -218,7 +222,7 @@ export default function ArtistDashboard() {
   }
 
   const renderEventGrid = (events: Event[], emptyMessage: string) => {
-    if (events.length === 0) {
+    if (!events || events.length === 0) {
       return (
         <div className="text-center py-16 text-muted-foreground bg-muted/20 rounded-lg mt-6">
           <p>{emptyMessage}</p>
@@ -251,8 +255,10 @@ export default function ArtistDashboard() {
               </CardContent>
               <CardFooter className="flex-col items-stretch gap-2">
                 <div className="flex gap-2 w-full">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopyLink(event.id)}>
-                    <Copy className="mr-2 h-4 w-4" /> Copy Link
+                  <Button asChild variant="outline" size="sm" className="flex-1">
+                    <Link href={`/artist/edit-event/${event.id}`}>
+                      <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Link>
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => handleShare(event)}>
                     <Share2 className="mr-2 h-4 w-4" /> Share
