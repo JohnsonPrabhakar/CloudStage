@@ -321,8 +321,6 @@ function TicketConfirmationForm({ eventId }: { eventId: string }) {
   );
 }
 
-// Correcting the type definition to be explicit and avoid any inference issues.
-// This is the primary fix for the build-halting type error.
 export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
