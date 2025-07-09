@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +18,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getArtistProfile } from "@/lib/firebase-service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createRazorpayOrder, savePremiumAfterPayment } from "@/lib/actions";
+import { createRazorpayOrder } from "@/lib/actions";
 import Script from "next/script";
 
 declare global {
@@ -62,6 +63,11 @@ export default function PremiumSubscription() {
         const orderResponse = await createRazorpayOrder({
             amount: price,
             receiptId: `PREMIUM_${planName.toUpperCase()}_${Date.now()}`,
+            notes: {
+                type: 'premium',
+                userId: artist.id,
+                planName: planName
+            }
         });
 
         if (!orderResponse.success || !orderResponse.order) {
@@ -70,36 +76,22 @@ export default function PremiumSubscription() {
 
         const { order } = orderResponse;
         
-        const options = {
+        const rzpOptions = {
             key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
             amount: order.amount,
             currency: "INR",
             name: "CloudStage Premium",
             description: `Subscription for ${planName} plan`,
             order_id: order.id,
-            handler: async (response: any) => {
-                const result = await savePremiumAfterPayment({
-                    userId: artist.id,
-                    razorpayPaymentId: response.razorpay_payment_id
+            handler: (response: any) => {
+                toast({
+                    title: "Payment Successful!",
+                    description: `Your subscription is being processed. You'll be redirected shortly.`,
                 });
-                
-                if (result.success) {
-                    toast({
-                        title: "Payment Successful!",
-                        description: `Your subscription is being processed. You will be redirected shortly.`,
-                    });
-                    setTimeout(() => {
-                        router.push("/artist/dashboard");
-                        router.refresh();
-                    }, 3000);
-                } else {
-                     toast({
-                        title: 'Subscription Failed',
-                        description: result.error || 'Could not update your subscription status.',
-                        variant: 'destructive',
-                    });
-                    setProcessingPlan(null);
-                }
+                 setTimeout(() => {
+                    router.push("/artist/dashboard");
+                    router.refresh();
+                }, 3000);
             },
             prefill: {
                 name: artist.name,
@@ -111,7 +103,7 @@ export default function PremiumSubscription() {
             }
         };
         
-        const rzp = new window.Razorpay(options);
+        const rzp = new window.Razorpay(rzpOptions);
         rzp.open();
         rzp.on('payment.failed', function (response: any){
             toast({

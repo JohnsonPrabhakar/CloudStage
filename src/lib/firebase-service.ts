@@ -423,7 +423,7 @@ export const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string | null; isTest?: boolean }
+    paymentDetails: { paymentId: string }
 ): Promise<string> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -447,7 +447,7 @@ export const createTicket = async (
         isPaid: true,
         ...contactDetails,
         paymentId: paymentDetails.paymentId,
-        testMode: paymentDetails.isTest ?? false,
+        testMode: false, // All programmatically created tickets are real
         paymentStatus: "SUCCESS",
         bookingStatus: "confirmed",
     };
