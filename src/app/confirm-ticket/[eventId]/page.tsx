@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,7 +26,6 @@ import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-reac
 import { format } from 'date-fns';
 import { createRazorpayOrder } from "@/lib/actions";
 import Script from "next/script";
-import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({

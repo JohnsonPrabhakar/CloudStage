@@ -61,7 +61,7 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 };
 
 // --- STORAGE HELPER FUNCTIONS ---
-export const uploadFile = async (file: File, path: string): Promise<string> => {
+const uploadFile = async (file: File, path: string): Promise<string> => {
   const storageRef = ref(storage, path);
   try {
     const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
@@ -92,7 +92,7 @@ const deleteFileByUrl = async (url: string) => {
 }
 
 // --- YOUTUBE HELPER ---
-export const getYouTubeEmbedUrl = (url: string): string | null => {
+const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
   let videoId: string | null = null;
@@ -149,7 +149,7 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 
 // --- EVENT-RELATED FUNCTIONS ---
-export const addEvent = async (
+const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>
 ): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
@@ -180,7 +180,7 @@ export const addEvent = async (
   return { eventId };
 };
 
-export const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' | 'artist' | 'artistId'>>) => {
+const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' | 'artist' | 'artistId'>>) => {
     const eventDoc = doc(db, 'events', eventId);
 
     const dataToUpdate: Partial<Event> = {
@@ -199,7 +199,7 @@ export const updateEvent = async (eventId: string, eventData: Partial<Omit<Event
     await updateDoc(eventDoc, dataToUpdate);
 }
 
-export const getApprovedEvents = async (): Promise<Event[]> => {
+const getApprovedEvents = async (): Promise<Event[]> => {
   const q = query(
     eventsCollection,
     where('moderationStatus', '==', 'approved')
@@ -212,7 +212,7 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
     .slice(0, 50);
 };
 
-export const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
+const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
   const q = query(
     eventsCollection,
     where('moderationStatus', '==', 'approved')
@@ -222,7 +222,7 @@ export const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
   return events;
 };
 
-export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
+const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'pending'));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
@@ -230,13 +230,13 @@ export const getPendingEventsListener = (callback: (events: Event[]) => void): (
   });
 };
 
-export const getBoostedEvents = async (): Promise<Event[]> => {
+const getBoostedEvents = async (): Promise<Event[]> => {
     const q = query(eventsCollection, where('isBoosted', '==', true), where('moderationStatus', '==', 'approved'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 }
 
-export const getEventById = async (id: string): Promise<Event | null> => {
+const getEventById = async (id: string): Promise<Event | null> => {
   const eventDoc = doc(db, 'events', id);
   const snapshot = await getDoc(eventDoc);
   if (snapshot.exists()) {
@@ -245,7 +245,7 @@ export const getEventById = async (id: string): Promise<Event | null> => {
   return null;
 };
 
-export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('artistId', '==', artistId));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
@@ -257,7 +257,7 @@ export const getArtistEventsListener = (artistId: string, callback: (events: Eve
   });
 };
 
-export const getPublicArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+const getPublicArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(
     eventsCollection,
     where('artistId', '==', artistId),
@@ -271,7 +271,7 @@ export const getPublicArtistEventsListener = (artistId: string, callback: (event
   });
 };
 
-export const updateEventStatus = async (id: string, status: 'approved' | 'rejected', category?: 'verified' | 'premium') => {
+const updateEventStatus = async (id: string, status: 'approved' | 'rejected', category?: 'verified' | 'premium') => {
   const eventDoc = doc(db, 'events', id);
   const dataToUpdate: { moderationStatus: 'approved' | 'rejected', eventCategory?: 'verified' | 'premium' } = {
     moderationStatus: status,
@@ -282,7 +282,7 @@ export const updateEventStatus = async (id: string, status: 'approved' | 'reject
   await updateDoc(eventDoc, dataToUpdate);
 };
 
-export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: number) => {
+const toggleEventBoost = async (id: string, isBoosted: boolean, amount: number) => {
   const eventDoc = doc(db, 'events', id);
   await updateDoc(eventDoc, {
     isBoosted: isBoosted,
@@ -290,7 +290,7 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
   });
 };
 
-export const goLive = async (eventId: string, streamUrl: string) => {
+const goLive = async (eventId: string, streamUrl: string) => {
   const embedUrl = getYouTubeEmbedUrl(streamUrl);
   if (!embedUrl) {
     throw new Error("Invalid YouTube URL provided. Please use a valid watch, live, or youtu.be link.");
@@ -305,7 +305,7 @@ export const goLive = async (eventId: string, streamUrl: string) => {
 
 
 // --- USER-RELATED FUNCTIONS (for mobile app users) ---
-export const createUserProfileForPhoneAuth = async (user: User) => {
+const createUserProfileForPhoneAuth = async (user: User) => {
   const userRef = doc(db, 'users', user.uid);
   const docSnap = await getDoc(userRef);
 
@@ -318,7 +318,7 @@ export const createUserProfileForPhoneAuth = async (user: User) => {
   }
 };
 
-export const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
+const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
     const userDoc = doc(db, 'users', uid);
     const snapshot = await getDoc(userDoc);
     if (snapshot.exists()) {
@@ -352,7 +352,7 @@ const buildArtistProfileObject = (data: any, profilePictureUrl?: string): Omit<A
   };
 };
 
-export const createArtistProfileForUser = async (uid: string, data: any, profilePictureFile?: File) => {
+const createArtistProfileForUser = async (uid: string, data: any, profilePictureFile?: File) => {
     let profilePictureUrl;
     if (profilePictureFile) {
         profilePictureUrl = await uploadFile(profilePictureFile, `artists/${uid}/profile.jpg`);
@@ -361,13 +361,13 @@ export const createArtistProfileForUser = async (uid: string, data: any, profile
     await setDoc(doc(db, "artists", uid), artistProfile);
 };
 
-export const registerArtist = async (data: any, profilePictureFile?: File) => {
+const registerArtist = async (data: any, profilePictureFile?: File) => {
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
     await createArtistProfileForUser(user.uid, data, profilePictureFile);
 }
 
-export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
+const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     const artistDoc = doc(db, 'artists', uid);
     const snapshot = await getDoc(artistDoc);
     if (snapshot.exists()) {
@@ -376,12 +376,12 @@ export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     return null;
 }
 
-export const getAllArtists = async (): Promise<Artist[]> => {
+const getAllArtists = async (): Promise<Artist[]> => {
     const snapshot = await getDocs(artistsCollection);
     return snapshot.docs.map(doc => fromFirestore<Artist>(doc));
 };
 
-export const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
+const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('isApproved', '==', false));
     return onSnapshot(q, (snapshot) => {
         const artists = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
@@ -389,14 +389,14 @@ export const getPendingArtistsListener = (callback: (artists: Artist[]) => void)
     });
 }
 
-export const approveArtist = async (uid: string) => {
+const approveArtist = async (uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isApproved: true,
     });
 }
 
-export const rejectArtist = async (uid: string) => {
+const rejectArtist = async (uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     const artistProfile = await getArtistProfile(uid);
     if (artistProfile?.profilePictureUrl) {
@@ -405,7 +405,7 @@ export const rejectArtist = async (uid: string) => {
     await deleteDoc(artistDoc);
 }
 
-export const updateArtistToPremium = async(uid: string, paymentId: string) => {
+const updateArtistToPremium = async(uid: string, paymentId: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isPremium: true,
@@ -413,7 +413,7 @@ export const updateArtistToPremium = async(uid: string, paymentId: string) => {
     });
 }
 
-export const saveFcmToken = async (userId: string, token: string) => {
+const saveFcmToken = async (userId: string, token: string) => {
     // This function attempts to save the token for both artists and general users.
     // It will not throw an error if one of the profiles does not exist.
     const artistDocRef = doc(db, 'artists', userId);
@@ -431,7 +431,7 @@ export const saveFcmToken = async (userId: string, token: string) => {
 
 // TICKET-RELATED FUNCTIONS
 
-export const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
+const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
   const q = query(
     ticketsCollection,
     where('userId', '==', userId),
@@ -442,7 +442,7 @@ export const checkForExistingTicket = async (userId: string, eventId: string): P
   return !snapshot.empty;
 };
 
-export const createTicket = async (
+const createTicket = async (
     userId: string,
     eventId: string,
     price: number,
@@ -485,7 +485,7 @@ export const createTicket = async (
     }
 };
 
-export const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {
+const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(ticketsCollection, where('userId', '==', userId));
   
   return onSnapshot(q, async (snapshot) => {
@@ -503,23 +503,23 @@ export const getUserTicketsListener = (userId: string, callback: (events: Event[
 
 // --- FOLLOWER FUNCTIONS ---
 
-export const isUserFollowing = async (userId: string, artistId: string): Promise<boolean> => {
+const isUserFollowing = async (userId: string, artistId: string): Promise<boolean> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   const docSnap = await getDoc(followDocRef);
   return docSnap.exists();
 };
 
-export const followArtist = async (userId: string, artistId:string): Promise<void> => {
+const followArtist = async (userId: string, artistId:string): Promise<void> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   await setDoc(followDocRef, { followedAt: serverTimestamp() });
 };
 
-export const unfollowArtist = async (userId: string, artistId:string): Promise<void> => {
+const unfollowArtist = async (userId: string, artistId:string): Promise<void> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   await deleteDoc(followDocRef);
 };
 
-export const getFollowersCountListener = (artistId: string, callback: (count: number) => void): (() => void) => {
+const getFollowersCountListener = (artistId: string, callback: (count: number) => void): (() => void) => {
   const followersCol = collection(db, 'artists', artistId, 'followers');
   return onSnapshot(followersCol, (snapshot) => {
     callback(snapshot.size);
@@ -536,7 +536,7 @@ type MoviePayload = {
   youtubeUrl?: string;
 };
 
-export const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
+const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
   const movieRef = doc(collection(db, 'movies'));
   const movieId = movieRef.id;
 
@@ -567,7 +567,7 @@ export const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): 
   });
 };
 
-export const updateMovie = async (movieId: string, { movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
+const updateMovie = async (movieId: string, { movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
     const movieRef = doc(db, "movies", movieId);
     const movieSnap = await getDoc(movieRef);
 
@@ -612,7 +612,7 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
 };
 
 
-export const deleteMovie = async (movie: Movie): Promise<void> => {
+const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteFileByUrl(movie.posterUrl);
     if (movie.videoUrl && !movie.videoUrl.includes('youtube')) {
         await deleteFileByUrl(movie.videoUrl);
@@ -620,7 +620,7 @@ export const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteDoc(doc(db, 'movies', movie.id));
 }
 
-export const getAllMovies = async (): Promise<Movie[]> => {
+const getAllMovies = async (): Promise<Movie[]> => {
   try {
     const q = query(moviesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -630,7 +630,7 @@ export const getAllMovies = async (): Promise<Movie[]> => {
   }
 };
 
-export const getMovieById = async (id: string): Promise<Movie | null> => {
+const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
     const movieDoc = doc(db, 'movies', id);
     const snapshot = await getDoc(movieDoc);
@@ -646,7 +646,7 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 
 // --- CHAT FUNCTIONS ---
 
-export const getChatMessagesListener = (
+const getChatMessagesListener = (
   eventId: string,
   callback: (messages: ChatMessage[]) => void
 ): (() => void) => {
@@ -659,7 +659,7 @@ export const getChatMessagesListener = (
   });
 };
 
-export const sendChatMessage = async (eventId: string, name: string, message: string): Promise<void> => {
+const sendChatMessage = async (eventId: string, name: string, message: string): Promise<void> => {
     if (!name.trim() || !message.trim()) {
         throw new Error("Name and message cannot be empty.");
     }
@@ -673,7 +673,7 @@ export const sendChatMessage = async (eventId: string, name: string, message: st
 
 
 // --- DASHBOARD COUNT LISTENER FUNCTIONS ---
-export const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {
+const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {
   const q = query(artistsCollection, where('isApproved', '==', true));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.size);
@@ -682,7 +682,7 @@ export const getArtistsCountListener = (callback: (count: number) => void): (() 
   });
 };
 
-export const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
+const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
   return onSnapshot(eventsCollection, (snapshot) => {
     callback(snapshot.size);
   }, (error) => {
@@ -690,7 +690,7 @@ export const getEventsCountListener = (callback: (count: number) => void): (() =
   });
 };
 
-export const getTicketsCountListener = (callback: (count: number) => void): (() => void) => {
+const getTicketsCountListener = (callback: (count: number) => void): (() => void) => {
   return onSnapshot(ticketsCollection, (snapshot) => {
     callback(snapshot.size);
   }, (error) => {
@@ -698,7 +698,7 @@ export const getTicketsCountListener = (callback: (count: number) => void): (() 
   });
 };
 
-export const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
+const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
   return onSnapshot(usersCollection, (snapshot) => {
     callback(snapshot.size);
   }, (error) => {
@@ -708,7 +708,7 @@ export const getUsersCountListener = (callback: (count: number) => void): (() =>
 
 
 // CONFIG/SITE STATUS FUNCTIONS
-export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
+const getSiteStatus = async (): Promise<'online' | 'offline'> => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   try {
     const snapshot = await getDoc(statusDoc);
@@ -721,14 +721,14 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
   return 'online';
 };
 
-export const updateSiteStatus = async (status: 'online' | 'offline') => {
+const updateSiteStatus = async (status: 'online' | 'offline') => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   await setDoc(statusDoc, { status }, { merge: true });
 };
 
 // --- ARTIST VERIFICATION FUNCTIONS ---
 
-export const submitVerificationRequest = async (
+const submitVerificationRequest = async (
     artistId: string,
     requestData: Omit<VerificationRequestData, 'status' | 'submittedAt' | 'reviewedByAdmin' | 'reviewedAt'>,
     sampleVideoFile?: File
@@ -753,7 +753,7 @@ export const submitVerificationRequest = async (
     });
 };
 
-export const getPendingVerificationRequestsListener = (callback: (artists: Artist[]) => void): (() => void) => {
+const getPendingVerificationRequestsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('verificationRequest.status', '==', 'pending'));
     return onSnapshot(q, (snapshot) => {
         const artistsWithPendingRequests = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
@@ -763,7 +763,7 @@ export const getPendingVerificationRequestsListener = (callback: (artists: Artis
     });
 };
 
-export const approveVerificationRequest = async (artistId: string, adminId: string) => {
+const approveVerificationRequest = async (artistId: string, adminId: string) => {
     const artistDoc = doc(db, 'artists', artistId);
     await updateDoc(artistDoc, {
         accessLevel: 'verified',
@@ -773,7 +773,7 @@ export const approveVerificationRequest = async (artistId: string, adminId: stri
     });
 };
 
-export const rejectVerificationRequest = async (artistId: string, adminId: string) => {
+const rejectVerificationRequest = async (artistId: string, adminId: string) => {
     const artistDoc = doc(db, 'artists', artistId);
     await updateDoc(artistDoc, {
         'verificationRequest.status': 'rejected',
@@ -784,7 +784,7 @@ export const rejectVerificationRequest = async (artistId: string, adminId: strin
 
 // --- REPORTING FUNCTIONS ---
 
-export const getCompletedEventsForReport = async (): Promise<Event[]> => {
+const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const q = query(
         eventsCollection,
         where('moderationStatus', '==', 'approved')
@@ -799,16 +799,71 @@ export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     return completedEvents;
 };
 
-export const getAllTickets = async (): Promise<Ticket[]> => {
+const getAllTickets = async (): Promise<Ticket[]> => {
     const snapshot = await getDocs(ticketsCollection);
     return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
 };
 
 // --- EVENT FEEDBACK FUNCTIONS ---
 
-export const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id' | 'submittedAt'>) => {
+const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id' | 'submittedAt'>) => {
     await addDoc(eventFeedbackCollection, {
         ...feedbackData,
         submittedAt: serverTimestamp(),
     });
+};
+
+export {
+    uploadFile,
+    getYouTubeEmbedUrl,
+    addEvent,
+    updateEvent,
+    getApprovedEvents,
+    getAllApprovedEventsForAnalytics,
+    getPendingEventsListener,
+    getBoostedEvents,
+    getEventById,
+    getArtistEventsListener,
+    getPublicArtistEventsListener,
+    updateEventStatus,
+    toggleEventBoost,
+    goLive,
+    createUserProfileForPhoneAuth,
+    getAppUserProfile,
+    createArtistProfileForUser,
+    registerArtist,
+    getArtistProfile,
+    getAllArtists,
+    getPendingArtistsListener,
+    approveArtist,
+    rejectArtist,
+    updateArtistToPremium,
+    saveFcmToken,
+    checkForExistingTicket,
+    createTicket,
+    getUserTicketsListener,
+    isUserFollowing,
+    followArtist,
+    unfollowArtist,
+    getFollowersCountListener,
+    addMovie,
+    updateMovie,
+    deleteMovie,
+    getAllMovies,
+    getMovieById,
+    getChatMessagesListener,
+    sendChatMessage,
+    getArtistsCountListener,
+    getEventsCountListener,
+    getTicketsCountListener,
+    getUsersCountListener,
+    getSiteStatus,
+    updateSiteStatus,
+    submitVerificationRequest,
+    getPendingVerificationRequestsListener,
+    approveVerificationRequest,
+    rejectVerificationRequest,
+    getCompletedEventsForReport,
+    getAllTickets,
+    submitEventFeedback,
 };
