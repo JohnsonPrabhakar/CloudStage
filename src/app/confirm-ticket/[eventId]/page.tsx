@@ -263,11 +263,11 @@ function TicketConfirmationForm({ eventId }: { eventId: string }) {
   );
 }
 
-interface ConfirmTicketPageProps {
+type ConfirmTicketPageProps = {
   params: {
     eventId: string;
   };
-}
+};
 
 const ConfirmTicketPage = ({ params }: ConfirmTicketPageProps) => {
   return (
