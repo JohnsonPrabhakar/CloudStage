@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,11 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { getEventById } from "@/lib/firebase-service";
 import { type Event } from "@/lib/types";
-import { CreateEventForm } from "@/components/CreateEventForm";
+import CreateEventForm from "@/components/CreateEventForm";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
-import { Card, CardHeader, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function EditEventPageLoader() {
