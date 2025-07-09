@@ -16,16 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Crown, ChevronLeft, Loader2 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getArtistProfile } from "@/lib/firebase-service";
+import { getArtistProfile, updateArtistToPremium } from "@/lib/firebase-service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createRazorpayOrder } from "@/lib/actions";
-import Script from "next/script";
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
 
 export default function PremiumSubscription() {
   const router = useRouter();
@@ -60,66 +52,27 @@ export default function PremiumSubscription() {
     setProcessingPlan(planName);
 
     try {
-        const orderResponse = await createRazorpayOrder({
-            amount: price,
-            receiptId: `PREMIUM_${planName.toUpperCase()}_${Date.now()}`,
-            notes: {
-                type: 'premium',
-                userId: artist.id,
-                planName: planName
-            }
-        });
+        // Mock payment logic
+        const mockPaymentId = `MOCK_PREMIUM_${Date.now()}`;
+        await updateArtistToPremium(artist.id, mockPaymentId);
 
-        if (!orderResponse.success || !orderResponse.order) {
-            throw new Error(orderResponse.error || 'Failed to create payment order.');
-        }
-
-        const { order } = orderResponse;
-        
-        const rzpOptions = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: "INR",
-            name: "CloudStage Premium",
-            description: `Subscription for ${planName} plan`,
-            order_id: order.id,
-            handler: (response: any) => {
-                toast({
-                    title: "Payment Successful!",
-                    description: `Your subscription is being processed. You'll be redirected shortly.`,
-                });
-                 setTimeout(() => {
-                    router.push("/artist/dashboard");
-                    router.refresh();
-                }, 3000);
-            },
-            prefill: {
-                name: artist.name,
-                email: artist.email,
-                contact: artist.phone
-            },
-            theme: {
-                color: "#800000"
-            }
-        };
-        
-        const rzp = new window.Razorpay(rzpOptions);
-        rzp.open();
-        rzp.on('payment.failed', function (response: any){
-            toast({
-                title: 'Payment Failed',
-                description: response.error.description,
-                variant: 'destructive',
-            });
-            setProcessingPlan(null);
+        toast({
+            title: "Subscription Activated!",
+            description: `Your premium plan is now active. You'll be redirected shortly.`,
         });
+        
+        setTimeout(() => {
+            router.push("/artist/dashboard");
+            router.refresh();
+        }, 3000);
 
     } catch (error: any) {
         toast({
             title: "Subscription Failed",
-            description: error.message || "There was an error initiating the payment. Please try again.",
+            description: error.message || "There was an error processing your subscription. Please try again.",
             variant: "destructive",
         });
+    } finally {
         setProcessingPlan(null);
     }
   };
@@ -164,11 +117,6 @@ export default function PremiumSubscription() {
   }
 
   return (
-    <>
-    <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
-    />
     <div className="container mx-auto p-4 md:p-8 space-y-8">
        <Button variant="ghost" onClick={() => router.back()} className="mb-4">
         <ChevronLeft className="mr-2 h-4 w-4" />
@@ -230,6 +178,5 @@ export default function PremiumSubscription() {
         ))}
       </div>
     </div>
-    </>
   );
 }
