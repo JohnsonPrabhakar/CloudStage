@@ -320,7 +320,13 @@ function TicketConfirmationForm({ eventId }: { eventId: string }) {
   );
 }
 
-export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
+interface ConfirmTicketPageProps {
+  params: {
+    eventId: string;
+  };
+}
+
+const ConfirmTicketPage = ({ params }: ConfirmTicketPageProps) => {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
         <Suspense fallback={<ConfirmationPageLoader />}>
@@ -329,3 +335,5 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
     </div>
   );
 }
+
+export default ConfirmTicketPage;

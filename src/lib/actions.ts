@@ -10,7 +10,7 @@ const CreateRazorpayOrderSchema = z.object({
   notes: z.record(z.string()).optional(), // For metadata like eventId, userId, planName
 });
 
-export async function createRazorpayOrder(
+async function createRazorpayOrder(
   input: z.infer<typeof CreateRazorpayOrderSchema>
 ) {
   const validation = CreateRazorpayOrderSchema.safeParse(input);
@@ -57,3 +57,5 @@ export async function createRazorpayOrder(
     };
   }
 }
+
+export { createRazorpayOrder };
