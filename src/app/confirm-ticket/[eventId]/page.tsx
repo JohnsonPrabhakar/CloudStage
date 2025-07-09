@@ -30,11 +30,7 @@ function ConfirmationPageLoader() {
     )
 }
 
-type ConfirmTicketPageProps = {
-  params: { eventId: string };
-};
-
-export default function ConfirmTicketPage({ params }: ConfirmTicketPageProps) {
+export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
         <Suspense fallback={<ConfirmationPageLoader />}>

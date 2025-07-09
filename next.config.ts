@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Forcing a fresh build on publish: 2024-07-28T15:00:00Z
+  // Forcing a fresh build on publish: 2024-07-29T11:00:00Z
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -39,7 +39,6 @@ const nextConfig: NextConfig = {
     ],
   },
   serverExternalPackages: ['@opentelemetry/exporter-jaeger', 'handlebars'],
-  experimental: {},
 };
 
 export default nextConfig;
