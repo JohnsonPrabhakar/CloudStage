@@ -207,7 +207,7 @@ export const getApprovedEvents = async (): Promise<Event[]> => {
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
   return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime())
     .slice(0, 50);
 };
 
