@@ -21,6 +21,7 @@ import {
 import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type AppUser } from '@/lib/types';
 import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { format } from "date-fns";
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -171,11 +172,6 @@ const addEvent = async (
     createdAt: serverTimestamp(),
   });
   
-  // TODO: Set up a Cloud Function or scheduled job triggered by `endTime`.
-  // This job should check for events where `endTime` has passed and `status` is still "live",
-  // and update their status to "past". This ensures the platform accurately reflects
-  // event states without requiring manual intervention from the artist.
-
   return { eventId };
 };
 
@@ -413,8 +409,6 @@ const updateArtistToPremium = async(uid: string, paymentId: string) => {
 }
 
 const saveFcmToken = async (userId: string, token: string) => {
-    // This function attempts to save the token for both artists and general users.
-    // It will not throw an error if one of the profiles does not exist.
     const artistDocRef = doc(db, 'artists', userId);
     const artistSnap = await getDoc(artistDocRef);
     if (artistSnap.exists()) {
@@ -470,7 +464,7 @@ const createTicket = async (
         isPaid: true,
         ...contactDetails,
         paymentId: paymentDetails.paymentId,
-        testMode: false, // Hardcode to false for production-ready flow
+        testMode: false,
         paymentStatus: "SUCCESS",
         bookingStatus: "confirmed",
     };
@@ -791,7 +785,6 @@ const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const snapshot = await getDocs(q);
     const allApprovedEvents = snapshot.docs.map(doc => fromFirestore<Event>(doc));
     
-    // Perform filtering for completed events on the client-side
     const now = new Date();
     const completedEvents = allApprovedEvents.filter(event => new Date(event.date) < now);
         
