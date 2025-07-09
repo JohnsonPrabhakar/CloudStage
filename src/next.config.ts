@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Forcing a fresh build on publish: 2024-07-26T23:00:00Z
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,
@@ -38,6 +38,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['@opentelemetry/exporter-jaeger', 'handlebars'],
 };
 
 export default nextConfig;
