@@ -263,13 +263,7 @@ function TicketConfirmationForm({ eventId }: { eventId: string }) {
   );
 }
 
-type ConfirmTicketPageProps = {
-  params: {
-    eventId: string;
-  };
-};
-
-const ConfirmTicketPage = ({ params }: ConfirmTicketPageProps) => {
+const ConfirmTicketPage = ({ params }: { params: { eventId: string } }) => {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
         <Suspense fallback={<ConfirmationPageLoader />}>
