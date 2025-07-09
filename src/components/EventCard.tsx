@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Calendar, Ticket, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Calendar, Ticket, Play, Sparkles, CheckCircle, Star } from "lucide-react";
 import { format } from "date-fns";
 
 type EventCardProps = {
@@ -83,6 +83,16 @@ export function EventCard({ event }: EventCardProps) {
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
            <div className="absolute top-2 right-2 flex gap-2">
+            {event.eventCategory === 'premium' && (
+              <Badge className="bg-purple-600 text-white shadow-md">
+                <Star className="mr-1 h-3 w-3" /> Premium
+              </Badge>
+            )}
+            {event.eventCategory === 'verified' && (
+              <Badge className="bg-blue-600 text-white shadow-md">
+                <CheckCircle className="mr-1 h-3 w-3" /> Verified
+              </Badge>
+            )}
             {event.isBoosted && (
                 <Badge className="bg-amber-500 text-white shadow-md">
                     <Sparkles className="mr-1 h-3 w-3" />

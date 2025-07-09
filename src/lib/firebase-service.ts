@@ -270,11 +270,15 @@ export const getPublicArtistEventsListener = (artistId: string, callback: (event
   });
 };
 
-export const updateEventStatus = async (id: string, status: 'approved' | 'rejected') => {
+export const updateEventStatus = async (id: string, status: 'approved' | 'rejected', category?: 'verified' | 'premium') => {
   const eventDoc = doc(db, 'events', id);
-  await updateDoc(eventDoc, {
+  const dataToUpdate: { moderationStatus: 'approved' | 'rejected', eventCategory?: 'verified' | 'premium' } = {
     moderationStatus: status,
-  });
+  };
+  if (status === 'approved' && category) {
+    dataToUpdate.eventCategory = category;
+  }
+  await updateDoc(eventDoc, dataToUpdate);
 };
 
 export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: number) => {
@@ -442,7 +446,7 @@ export const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string, testMode: boolean }
+    paymentDetails: { paymentId: string }
 ): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -466,7 +470,7 @@ export const createTicket = async (
         isPaid: true,
         ...contactDetails,
         paymentId: paymentDetails.paymentId,
-        testMode: paymentDetails.testMode,
+        testMode: false, // Hardcode to false for production-ready flow
         paymentStatus: "SUCCESS",
         bookingStatus: "confirmed",
     };

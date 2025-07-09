@@ -33,6 +33,7 @@ export interface Event {
   watchTime?: number;
   ticketsSold?: number;
   eventCode: string;
+  eventCategory?: 'verified' | 'premium';
 }
 
 export type ArtistCategory = 'Music' | 'Stand-up Comedy' | 'Yoga' | 'Magic' | 'Devotional';

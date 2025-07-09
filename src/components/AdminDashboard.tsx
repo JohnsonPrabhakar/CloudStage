@@ -67,6 +67,7 @@ import ArtistVerificationRequests from "./ArtistVerificationRequests";
 import EventReports from "./EventReports";
 import { sendNewEventNotification } from "@/app/actions/notificationActions";
 import EventAnalyticsDashboard from "./EventAnalyticsDashboard";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 type Stats = {
   artists: number | null;
@@ -86,6 +87,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
   const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null, users: null });
+  const [eventCategories, setEventCategories] = useState<Record<string, "verified" | "premium">>({});
 
   useEffect(() => {
     let eventsUnsubscribe: (() => void) | undefined;
@@ -110,7 +112,7 @@ export default function AdminDashboard() {
 
             // Set up stats listeners
             const artistsListener = getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count })));
-            const eventsListener = getEventsCountListener((count) => setStats(s => ({ ...s, events: count })));
+            const eventsListener = getEventsCountListener((count) => setStats(s => ({...s, events: count })));
             const ticketsListener = getTicketsCountListener((count) => setStats(s => ({...s, tickets: count })));
             const usersListener = getUsersCountListener((count) => setStats(s => ({...s, users: count })));
             statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener, usersListener);
@@ -136,7 +138,8 @@ export default function AdminDashboard() {
 
   const handleModeration = async (eventId: string, newStatus: "approved" | "rejected") => {
     try {
-      await updateEventStatus(eventId, newStatus);
+      const category = eventCategories[eventId] || 'verified';
+      await updateEventStatus(eventId, newStatus, newStatus === 'approved' ? category : undefined);
       toast({
         title: `Event ${newStatus}`,
         description: `The event has been successfully ${newStatus}.`,
@@ -372,6 +375,7 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead>Event</TableHead>
                       <TableHead>Metrics</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -387,6 +391,22 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2"><Ticket className="h-4 w-4"/><span>{event.ticketsSold || 0} sold</span></div>
                           <div className="flex items-center gap-2"><Eye className="h-4 w-4"/><span>{event.views || 0} views</span></div>
                           <div className="flex items-center gap-2"><Clock className="h-4 w-4"/><span>{event.watchTime || 0} min watch time</span></div>
+                        </TableCell>
+                        <TableCell>
+                          <RadioGroup
+                            defaultValue="verified"
+                            onValueChange={(value) => setEventCategories(prev => ({...prev, [event.id]: value as 'verified' | 'premium'}))}
+                            value={eventCategories[event.id] || 'verified'}
+                          >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="verified" id={`verified-${event.id}`} />
+                                <Label htmlFor={`verified-${event.id}`}>Verified</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="premium" id={`premium-${event.id}`} />
+                                <Label htmlFor={`premium-${event.id}`}>Premium</Label>
+                            </div>
+                          </RadioGroup>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="ghost" className="text-green-500 hover:text-green-600" onClick={() => handleModeration(event.id, "approved")}>
