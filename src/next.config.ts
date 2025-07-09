@@ -38,10 +38,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Webpack config change to force cache invalidation. This is non-functional.
-  // webpack: (config) => {
-  //   return config;
-  // },
 };
 
 export default nextConfig;
