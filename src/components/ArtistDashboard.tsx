@@ -104,48 +104,43 @@ export default function ArtistDashboard() {
     };
   }, [user, router]);
   
-  const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
-    // Guard clause to prevent crashes if myEvents is not yet populated or invalid
-    if (!myEvents || !Array.isArray(myEvents)) {
-        return { liveEvents: [], upcomingEvents: [], pastEvents: [] };
-    }
-
-    const now = new Date();
-    const categorized: { live: Event[], upcoming: Event[], past: Event[] } = {
-      live: [],
-      upcoming: [],
-      past: [],
-    };
-
-    const approvedEvents = myEvents.filter(e => e.moderationStatus === 'approved');
-
-    for (const event of approvedEvents) {
-      const eventStartDate = new Date(event.date);
-      const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000); // 3-hour fallback
-
-      if (now >= eventEndDate) {
-        categorized.past.push(event);
-      } else if (now >= eventStartDate && now < eventEndDate) {
-        categorized.live.push(event);
-      } else {
-        categorized.upcoming.push(event);
-      }
-    }
-    
-    // Sort events in each category
-    categorized.live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    categorized.upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    categorized.past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const boostedUpcoming = categorized.upcoming.filter(e => e.isBoosted);
-    const nonBoostedUpcoming = categorized.upcoming.filter(e => !e.isBoosted);
-
-    return {
-        liveEvents: categorized.live,
-        upcomingEvents: [...boostedUpcoming, ...nonBoostedUpcoming],
-        pastEvents: categorized.past,
-    };
+  const approvedEvents = useMemo(() => {
+    if (!myEvents || !Array.isArray(myEvents)) return [];
+    return myEvents.filter(e => e.moderationStatus === 'approved');
   }, [myEvents]);
+
+  const liveEvents = useMemo(() => {
+    const now = new Date();
+    return approvedEvents
+      .filter(event => {
+        const eventStartDate = new Date(event.date);
+        const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
+        return (now >= eventStartDate && now < eventEndDate) || event.status === 'live';
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [approvedEvents]);
+
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    const allUpcoming = approvedEvents
+      .filter(event => new Date(event.date) > now && event.status !== 'live')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+    const boosted = allUpcoming.filter(e => e.isBoosted);
+    const nonBoosted = allUpcoming.filter(e => !e.isBoosted);
+    return [...boosted, ...nonBoosted];
+  }, [approvedEvents]);
+  
+  const pastEvents = useMemo(() => {
+    const now = new Date();
+    return approvedEvents
+      .filter(event => {
+         const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000);
+         return now >= eventEndDate;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [approvedEvents]);
+
 
   const handleBoost = async (eventId: string, amount: number) => {
     await toggleEventBoost(eventId, true, amount);
