@@ -1,9 +1,14 @@
 
 
+
 import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+type ConfirmTicketPageProps = {
+  params: { eventId: string };
+};
 
 function ConfirmationPageLoader() {
     return (
@@ -30,7 +35,7 @@ function ConfirmationPageLoader() {
     )
 }
 
-export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
+export default function ConfirmTicketPage({ params }: ConfirmTicketPageProps) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-background flex items-center justify-center p-4">
         <Suspense fallback={<ConfirmationPageLoader />}>
