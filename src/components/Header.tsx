@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -36,6 +37,7 @@ export function Header() {
           <Link href="/" className="mr-6 flex items-center space-x-3">
             <Image src="/logo.png" alt="CloudStage Logo" width={40} height={40} />
             <span className="text-2xl font-bold">CloudStage</span>
+            <span className="text-xs font-mono text-muted-foreground/50 self-end pb-1">v1.2</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {navItems.map((item) => (
@@ -71,6 +73,7 @@ export function Header() {
                     >
                       <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
                       <span className="text-xl font-bold">CloudStage</span>
+                      <span className="text-xs font-mono text-muted-foreground/50 self-end pb-1">v1.2</span>
                     </Link>
                   </SheetTitle>
                 </SheetHeader>
@@ -95,6 +98,7 @@ export function Header() {
             <Link href="/" className="flex items-center justify-center space-x-2">
                   <Image src="/logo.png" alt="CloudStage Logo" width={32} height={32} />
                   <span className="text-xl font-bold">CloudStage</span>
+                  <span className="text-xs font-mono text-muted-foreground/50 self-end pb-1">v1.2</span>
             </Link>
           </div>
 

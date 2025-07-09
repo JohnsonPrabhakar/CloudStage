@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Forcing a fresh build on publish: 2024-07-26T12:00:00Z
+  // Forcing a fresh build on publish: 2024-07-26T19:00:00Z - V4
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Webpack config change to force cache invalidation. This is non-functional.
+  // webpack: (config) => {
+  //   return config;
+  // },
 };
 
 export default nextConfig;
