@@ -809,14 +809,12 @@ export {
     uploadFile,
     getYouTubeEmbedUrl,
     addEvent,
-    updateEvent,
     getApprovedEvents,
     getAllApprovedEventsForAnalytics,
     getPendingEventsListener,
     getBoostedEvents,
     getEventById,
     getArtistEventsListener,
-    getPublicArtistEventsListener,
     updateEventStatus,
     toggleEventBoost,
     goLive,
@@ -858,4 +856,6 @@ export {
     getCompletedEventsForReport,
     getAllTickets,
     submitEventFeedback,
+    getPublicArtistEventsListener, 
+    updateEvent
 };
