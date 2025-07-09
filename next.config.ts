@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Forcing a fresh build on publish: 2024-07-28T14:00:00Z
+  // Forcing a fresh build on publish: 2024-07-28T15:00:00Z
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -31,8 +31,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
+        protocol: 'https://firebasestorage.googleapis.com',
         port: '',
         pathname: '/**',
       },
