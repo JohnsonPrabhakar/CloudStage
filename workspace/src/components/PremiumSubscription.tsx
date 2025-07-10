@@ -16,16 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle, Crown, ChevronLeft, Loader2 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getArtistProfile } from "@/lib/firebase-service";
+import { getArtistProfile, updateArtistToPremium } from "@/lib/firebase-service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createCashfreeOrder } from "@/lib/actions";
-import Script from "next/script";
-
-declare global {
-  interface Window {
-    Cashfree: any;
-  }
-}
 
 export default function PremiumSubscription() {
   const router = useRouter();
@@ -53,64 +45,34 @@ export default function PremiumSubscription() {
 
 
   const handleSubscribe = async (planName: string, price: number) => {
-    if (!artist || !artist.email || !artist.name) return;
+    if (!artist || !artist.email || !artist.name || !artist.phone) {
+        toast({ title: 'Profile Incomplete', description: 'Please ensure your profile has a name, email, and phone number.'})
+        return;
+    };
     setProcessingPlan(planName);
 
     try {
-        const orderResponse = await createCashfreeOrder({
-            amount: price,
-            receiptId: `PREMIUM_${planName.toUpperCase()}_${Date.now()}`,
-            customer_name: artist.name,
-            customer_email: artist.email,
-            customer_phone: artist.phone,
-            userId: artist.id,
-            planName: planName,
-        });
+        // Mock payment logic
+        const mockPaymentId = `MOCK_PREMIUM_${Date.now()}`;
+        await updateArtistToPremium(artist.id, mockPaymentId);
 
-        if (!orderResponse.success || !orderResponse.order) {
-            throw new Error(orderResponse.error || 'Failed to create payment order.');
-        }
-
-        const { order } = orderResponse;
-        
-        const cashfree = new window.Cashfree(order.payment_session_id);
-        
-        cashfree.checkout({
-          paymentMethod: "card",
-          onSuccess: (data: any) => {
-            console.log("Cashfree payment success (client-side):", data);
-            toast({
-              title: "Payment Successful!",
-              description: `Your subscription is being processed. You will be redirected shortly.`,
-            });
-            // The webhook will handle the database update.
-            // Redirect after a short delay to allow webhook processing.
-            setTimeout(() => {
-              router.push("/artist/dashboard");
-              router.refresh();
-            }, 3000);
-          },
-          onFailure: (data: any) => {
-            console.error("Cashfree payment failure (client-side):", data);
-            toast({
-                title: 'Payment Failed',
-                description: 'Something went wrong. Please try again.',
-                variant: 'destructive',
-            });
-            setProcessingPlan(null);
-          },
-          onClose: () => {
-             console.log("Payment form closed by user.");
-             setProcessingPlan(null);
-          }
+        toast({
+            title: "Subscription Activated!",
+            description: `Your premium plan is now active. You'll be redirected shortly.`,
         });
+        
+        setTimeout(() => {
+            router.push("/artist/dashboard");
+            router.refresh();
+        }, 3000);
 
     } catch (error: any) {
         toast({
             title: "Subscription Failed",
-            description: error.message || "There was an error initiating the payment. Please try again.",
+            description: error.message || "There was an error processing your subscription. Please try again.",
             variant: "destructive",
         });
+    } finally {
         setProcessingPlan(null);
     }
   };
@@ -155,11 +117,6 @@ export default function PremiumSubscription() {
   }
 
   return (
-    <>
-    <Script
-        id="cashfree-checkout-js"
-        src="https://sdk.cashfree.com/js/v3/cashfree.js"
-    />
     <div className="container mx-auto p-4 md:p-8 space-y-8">
        <Button variant="ghost" onClick={() => router.back()} className="mb-4">
         <ChevronLeft className="mr-2 h-4 w-4" />
@@ -221,6 +178,5 @@ export default function PremiumSubscription() {
         ))}
       </div>
     </div>
-    </>
   );
 }
