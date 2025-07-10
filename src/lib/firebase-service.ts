@@ -400,11 +400,10 @@ const rejectArtist = async (uid: string) => {
     await deleteDoc(artistDoc);
 }
 
-const updateArtistToPremium = async(uid: string, paymentId: string) => {
+const updateArtistToPremium = async(uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isPremium: true,
-        premiumPaymentId: paymentId
     });
 }
 
@@ -422,7 +421,7 @@ const saveFcmToken = async (userId: string, token: string) => {
     }
 };
 
-// TICKET-RELATED FUNCTIONS
+// --- TICKET-RELATED FUNCTIONS ---
 
 const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
   const q = query(
@@ -439,8 +438,7 @@ const createTicket = async (
     userId: string,
     eventId: string,
     price: number,
-    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string | null }
+    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string }
 ): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -451,22 +449,14 @@ const createTicket = async (
     if (!eventData) {
       return { success: false, error: 'Event not found, cannot create ticket.'};
     }
-    
-    if (!paymentDetails.paymentId) {
-        return { success: false, error: 'A valid payment ID is required for bookings.'};
-    }
 
     const newTicketData: Omit<Ticket, 'id'> = {
         userId,
         eventId,
         pricePaid: price,
         createdAt: serverTimestamp(),
-        isPaid: true,
         ...contactDetails,
-        paymentId: paymentDetails.paymentId,
-        testMode: false,
-        paymentStatus: "SUCCESS",
-        bookingStatus: "confirmed",
+        testMode: true, // All tickets are now in test mode
     };
 
     try {

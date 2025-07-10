@@ -1,6 +1,8 @@
 
 
 
+
+
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
@@ -70,7 +72,6 @@ export interface Artist {
   genres: string[];
   accessLevel: 'basic' | 'verified';
   verificationRequest?: VerificationRequestData;
-  premiumPaymentId?: string;
   fcmToken?: string;
 }
 
@@ -93,15 +94,11 @@ export interface Ticket {
   userId: string;
   eventId: string;
   createdAt: any;
-  isPaid: boolean;
-  paymentId: string | null;
   pricePaid: number;
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
   testMode: boolean;
-  paymentStatus?: string;
-  bookingStatus?: 'confirmed' | 'pending' | 'failed';
 }
 
 export interface ChatMessage {

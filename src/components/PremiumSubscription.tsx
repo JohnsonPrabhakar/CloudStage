@@ -52,9 +52,8 @@ export default function PremiumSubscription() {
     setProcessingPlan(planName);
 
     try {
-        // Mock payment logic
-        const mockPaymentId = `MOCK_PREMIUM_${Date.now()}`;
-        await updateArtistToPremium(artist.id, mockPaymentId);
+        // Mock subscription logic
+        await updateArtistToPremium(artist.id);
 
         toast({
             title: "Subscription Activated!",

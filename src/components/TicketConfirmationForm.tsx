@@ -104,8 +104,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
           throw new Error("Event data is not available.");
       }
 
-      // Mocked payment success flow
-      const mockPaymentId = `MOCK_PAYMENT_${Date.now()}`;
       await createTicket(
         finalUser.uid,
         event.id,
@@ -114,8 +112,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
           buyerName: values.fullName,
           buyerEmail: values.email,
           buyerPhone: values.phone,
-        },
-        { paymentId: mockPaymentId }
+        }
       );
       
       toast({
