@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
 
-const eventCategories: EventCategory[] = [
+const eventCategories = [
   "Music",
   "Stand-up Comedy",
   "Workshop",
@@ -47,7 +47,7 @@ const eventCategories: EventCategory[] = [
   "Meditation / Yoga",
   "Magic Show",
   "Devotional / Bhajan / Satsang",
-];
+] as const;
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -287,7 +287,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                      <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
                     </Popover>
                   <FormMessage /></FormItem>
                 )} />
