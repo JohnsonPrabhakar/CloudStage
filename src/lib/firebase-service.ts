@@ -1,4 +1,5 @@
 
+
 import { db, auth, storage } from '@/lib/firebase';
 import {
   collection,
@@ -686,11 +687,17 @@ const getTicketsCountListener = (callback: (count: number) => void): (() => void
 };
 
 const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
-  return onSnapshot(usersCollection, (snapshot) => {
-    callback(snapshot.size);
-  }, (error) => {
-    console.error("User count listener failed:", error);
-  });
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
+    return onSnapshot(usersCollection, (snapshot) => {
+      callback(snapshot.size);
+    }, (error) => {
+      console.error("User count listener failed:", error);
+    });
+  } else {
+    // Return a no-op unsubscribe function if the user is not an admin
+    return () => {};
+  }
 };
 
 
@@ -853,4 +860,5 @@ export {
     getPublicArtistEventsListener, 
     updateEvent
 };
+
 
