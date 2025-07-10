@@ -46,6 +46,9 @@ export default function ArtistPage({ params }: ArtistPageProps) {
       setCurrentUser(user);
     });
 
+    let eventsUnsubscribe: (() => void) | undefined;
+    let followersUnsubscribe: (() => void) | undefined;
+
     const fetchArtistData = async () => {
       setLoading(true);
       setError(null);
@@ -53,6 +56,8 @@ export default function ArtistPage({ params }: ArtistPageProps) {
         const profile = await getArtistProfile(artistId);
         if (profile) {
           setArtist(profile);
+          eventsUnsubscribe = getPublicArtistEventsListener(artistId, setEvents);
+          followersUnsubscribe = getFollowersCountListener(artistId, setFollowersCount);
         } else {
           setError("Artist not found.");
         }
@@ -66,13 +71,10 @@ export default function ArtistPage({ params }: ArtistPageProps) {
 
     fetchArtistData();
 
-    const eventsUnsubscribe = getPublicArtistEventsListener(artistId, setEvents);
-    const followersUnsubscribe = getFollowersCountListener(artistId, setFollowersCount);
-
     return () => {
       authSub();
-      eventsUnsubscribe();
-      followersUnsubscribe();
+      if (eventsUnsubscribe) eventsUnsubscribe();
+      if (followersUnsubscribe) followersUnsubscribe();
     };
   }, [artistId]);
 

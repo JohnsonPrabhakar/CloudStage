@@ -1,5 +1,6 @@
 
 'use server';
 
-// Razorpay functionality has been removed as per user request to fix build.
-// This file can be used for other server actions in the future.
+// This file is available for future server actions.
+// All payment-related logic has been removed to ensure a successful build.
+// Mock payment flows are handled directly on the client for demo purposes.
