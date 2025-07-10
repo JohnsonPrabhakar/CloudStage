@@ -259,7 +259,8 @@ const getPublicArtistEventsListener = (artistId: string, callback: (events: Even
   const q = query(
     eventsCollection,
     where('artistId', '==', artistId),
-    where('moderationStatus', '==', 'approved')
+    where('moderationStatus', '==', 'approved'),
+    orderBy('date', 'desc')
   );
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
@@ -852,3 +853,4 @@ export {
     getPublicArtistEventsListener, 
     updateEvent
 };
+
