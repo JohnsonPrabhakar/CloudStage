@@ -1,4 +1,6 @@
 
+
+
 import { db, auth, storage } from '@/lib/firebase';
 import {
   collection,
@@ -21,6 +23,7 @@ import {
 import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type AppUser } from '@/lib/types';
 import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { format } from "date-fns";
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
@@ -60,7 +63,7 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 };
 
 // --- STORAGE HELPER FUNCTIONS ---
-export const uploadFile = async (file: File, path: string): Promise<string> => {
+const uploadFile = async (file: File, path: string): Promise<string> => {
   const storageRef = ref(storage, path);
   try {
     const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
@@ -91,7 +94,7 @@ const deleteFileByUrl = async (url: string) => {
 }
 
 // --- YOUTUBE HELPER ---
-export const getYouTubeEmbedUrl = (url: string): string | null => {
+const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
   let videoId: string | null = null;
@@ -148,7 +151,7 @@ const getYouTubeVideoId = (url: string): string | null => {
 
 
 // --- EVENT-RELATED FUNCTIONS ---
-export const addEvent = async (
+const addEvent = async (
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>
 ): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
@@ -171,28 +174,45 @@ export const addEvent = async (
     createdAt: serverTimestamp(),
   });
   
-  // TODO: Set up a Cloud Function or scheduled job triggered by `endTime`.
-  // This job should check for events where `endTime` has passed and `status` is still "live",
-  // and update their status to "past". This ensures the platform accurately reflects
-  // event states without requiring manual intervention from the artist.
-
   return { eventId };
 };
 
-export const getApprovedEvents = async (): Promise<Event[]> => {
+const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' | 'artist' | 'artistId'>>) => {
+    const eventDoc = doc(db, 'events', eventId);
+
+    const dataToUpdate: Partial<Event> = {
+        ...eventData,
+        moderationStatus: 'pending' as const,
+    };
+
+    if (eventData.streamUrl) {
+        const videoId = getYouTubeVideoId(eventData.streamUrl);
+        dataToUpdate.bannerUrl = videoId
+            ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+            : 'https://placehold.co/600x400.png';
+        dataToUpdate.streamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
+    }
+    
+    await updateDoc(eventDoc, dataToUpdate);
+}
+
+const getApprovedEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(
     eventsCollection,
-    where('moderationStatus', '==', 'approved')
+    where('moderationStatus', '==', 'approved'),
+    limit(50)
   );
-  const snapshot = await getDocs(q);
-  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-
-  return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 50);
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(sortedEvents);
+  }, (error) => {
+    console.error(`Approved events listener failed:`, error);
+  });
 };
 
-export const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
+
+const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
   const q = query(
     eventsCollection,
     where('moderationStatus', '==', 'approved')
@@ -202,7 +222,7 @@ export const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
   return events;
 };
 
-export const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
+const getPendingEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('moderationStatus', '==', 'pending'));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
@@ -210,13 +230,13 @@ export const getPendingEventsListener = (callback: (events: Event[]) => void): (
   });
 };
 
-export const getBoostedEvents = async (): Promise<Event[]> => {
+const getBoostedEvents = async (): Promise<Event[]> => {
     const q = query(eventsCollection, where('isBoosted', '==', true), where('moderationStatus', '==', 'approved'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => fromFirestore<Event>(doc));
 }
 
-export const getEventById = async (id: string): Promise<Event | null> => {
+const getEventById = async (id: string): Promise<Event | null> => {
   const eventDoc = doc(db, 'events', id);
   const snapshot = await getDoc(eventDoc);
   if (snapshot.exists()) {
@@ -225,24 +245,45 @@ export const getEventById = async (id: string): Promise<Event | null> => {
   return null;
 };
 
-export const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+const getArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(eventsCollection, where('artistId', '==', artistId));
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
     // Sort on the client-side to avoid the composite index requirement
     const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     callback(sortedEvents);
+  }, (error) => {
+    console.error(`Artist events listener for artistId ${artistId} failed:`, error);
   });
 };
 
-export const updateEventStatus = async (id: string, status: 'approved' | 'rejected') => {
+const getPublicArtistEventsListener = (artistId: string, callback: (events: Event[]) => void): (() => void) => {
+  const q = query(
+    eventsCollection,
+    where('artistId', '==', artistId),
+    where('moderationStatus', '==', 'approved'),
+    orderBy('date', 'desc')
+  );
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    callback(events);
+  }, (error) => {
+    console.error(`Public artist events listener for artistId ${artistId} failed:`, error);
+  });
+};
+
+const updateEventStatus = async (id: string, status: 'approved' | 'rejected', category?: 'verified' | 'premium') => {
   const eventDoc = doc(db, 'events', id);
-  await updateDoc(eventDoc, {
+  const dataToUpdate: { moderationStatus: 'approved' | 'rejected', eventCategory?: 'verified' | 'premium' } = {
     moderationStatus: status,
-  });
+  };
+  if (status === 'approved' && category) {
+    dataToUpdate.eventCategory = category;
+  }
+  await updateDoc(eventDoc, dataToUpdate);
 };
 
-export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: number) => {
+const toggleEventBoost = async (id: string, isBoosted: boolean, amount: number) => {
   const eventDoc = doc(db, 'events', id);
   await updateDoc(eventDoc, {
     isBoosted: isBoosted,
@@ -250,7 +291,7 @@ export const toggleEventBoost = async (id: string, isBoosted: boolean, amount: n
   });
 };
 
-export const goLive = async (eventId: string, streamUrl: string) => {
+const goLive = async (eventId: string, streamUrl: string) => {
   const embedUrl = getYouTubeEmbedUrl(streamUrl);
   if (!embedUrl) {
     throw new Error("Invalid YouTube URL provided. Please use a valid watch, live, or youtu.be link.");
@@ -265,7 +306,7 @@ export const goLive = async (eventId: string, streamUrl: string) => {
 
 
 // --- USER-RELATED FUNCTIONS (for mobile app users) ---
-export const createUserProfileForPhoneAuth = async (user: User) => {
+const createUserProfileForPhoneAuth = async (user: User) => {
   const userRef = doc(db, 'users', user.uid);
   const docSnap = await getDoc(userRef);
 
@@ -278,7 +319,7 @@ export const createUserProfileForPhoneAuth = async (user: User) => {
   }
 };
 
-export const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
+const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
     const userDoc = doc(db, 'users', uid);
     const snapshot = await getDoc(userDoc);
     if (snapshot.exists()) {
@@ -312,7 +353,7 @@ const buildArtistProfileObject = (data: any, profilePictureUrl?: string): Omit<A
   };
 };
 
-export const createArtistProfileForUser = async (uid: string, data: any, profilePictureFile?: File) => {
+const createArtistProfileForUser = async (uid: string, data: any, profilePictureFile?: File) => {
     let profilePictureUrl;
     if (profilePictureFile) {
         profilePictureUrl = await uploadFile(profilePictureFile, `artists/${uid}/profile.jpg`);
@@ -321,13 +362,13 @@ export const createArtistProfileForUser = async (uid: string, data: any, profile
     await setDoc(doc(db, "artists", uid), artistProfile);
 };
 
-export const registerArtist = async (data: any, profilePictureFile?: File) => {
+const registerArtist = async (data: any, profilePictureFile?: File) => {
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
     const user = userCredential.user;
     await createArtistProfileForUser(user.uid, data, profilePictureFile);
 }
 
-export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
+const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     const artistDoc = doc(db, 'artists', uid);
     const snapshot = await getDoc(artistDoc);
     if (snapshot.exists()) {
@@ -336,12 +377,12 @@ export const getArtistProfile = async (uid: string): Promise<Artist | null> => {
     return null;
 }
 
-export const getAllArtists = async (): Promise<Artist[]> => {
+const getAllArtists = async (): Promise<Artist[]> => {
     const snapshot = await getDocs(artistsCollection);
     return snapshot.docs.map(doc => fromFirestore<Artist>(doc));
 };
 
-export const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
+const getPendingArtistsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('isApproved', '==', false));
     return onSnapshot(q, (snapshot) => {
         const artists = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
@@ -349,14 +390,14 @@ export const getPendingArtistsListener = (callback: (artists: Artist[]) => void)
     });
 }
 
-export const approveArtist = async (uid: string) => {
+const approveArtist = async (uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isApproved: true,
     });
 }
 
-export const rejectArtist = async (uid: string) => {
+const rejectArtist = async (uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     const artistProfile = await getArtistProfile(uid);
     if (artistProfile?.profilePictureUrl) {
@@ -365,17 +406,14 @@ export const rejectArtist = async (uid: string) => {
     await deleteDoc(artistDoc);
 }
 
-export const updateArtistToPremium = async(uid: string, paymentId: string) => {
+const updateArtistToPremium = async(uid: string) => {
     const artistDoc = doc(db, 'artists', uid);
     await updateDoc(artistDoc, {
         isPremium: true,
-        premiumPaymentId: paymentId
     });
 }
 
-export const saveFcmToken = async (userId: string, token: string) => {
-    // This function attempts to save the token for both artists and general users.
-    // It will not throw an error if one of the profiles does not exist.
+const saveFcmToken = async (userId: string, token: string) => {
     const artistDocRef = doc(db, 'artists', userId);
     const artistSnap = await getDoc(artistDocRef);
     if (artistSnap.exists()) {
@@ -389,9 +427,9 @@ export const saveFcmToken = async (userId: string, token: string) => {
     }
 };
 
-// TICKET-RELATED FUNCTIONS
+// --- TICKET-RELATED FUNCTIONS ---
 
-export const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
+const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
   const q = query(
     ticketsCollection,
     where('userId', '==', userId),
@@ -402,50 +440,41 @@ export const checkForExistingTicket = async (userId: string, eventId: string): P
   return !snapshot.empty;
 };
 
-export const createTicket = async (
+const createTicket = async (
     userId: string,
     eventId: string,
     price: number,
-    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string | null }
-): Promise<string> => {
+    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string }
+): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
-        throw new Error('You already have a ticket for this event.');
+        return { success: false, error: 'You already have a ticket for this event.' };
     }
 
     const eventData = await getEventById(eventId);
     if (!eventData) {
-      throw new Error("Event not found, cannot create ticket.");
+      return { success: false, error: 'Event not found, cannot create ticket.'};
     }
 
-    if (!paymentDetails.paymentId) {
-        throw new Error("A valid payment ID is required for bookings.");
-    }
-    
     const newTicketData: Omit<Ticket, 'id'> = {
         userId,
         eventId,
         pricePaid: price,
         createdAt: serverTimestamp(),
-        isPaid: true,
         ...contactDetails,
-        paymentId: paymentDetails.paymentId,
-        testMode: false,
-        paymentStatus: "SUCCESS",
-        bookingStatus: "confirmed",
+        testMode: true, // All tickets are now in test mode
     };
 
     try {
       const ticketRef = await addDoc(ticketsCollection, newTicketData);
-      return ticketRef.id;
+      return { success: true, ticketId: ticketRef.id };
     } catch (error: any) {
       console.error("Error writing ticket to Firestore: ", error);
-      throw new Error('Could not save your ticket to the database. Please try again.');
+      return { success: false, error: 'Could not save your ticket to the database. Please try again.' };
     }
 };
 
-export const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {
+const getUserTicketsListener = (userId: string, callback: (events: Event[]) => void): (() => void) => {
   const q = query(ticketsCollection, where('userId', '==', userId));
   
   return onSnapshot(q, async (snapshot) => {
@@ -463,23 +492,23 @@ export const getUserTicketsListener = (userId: string, callback: (events: Event[
 
 // --- FOLLOWER FUNCTIONS ---
 
-export const isUserFollowing = async (userId: string, artistId: string): Promise<boolean> => {
+const isUserFollowing = async (userId: string, artistId: string): Promise<boolean> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   const docSnap = await getDoc(followDocRef);
   return docSnap.exists();
 };
 
-export const followArtist = async (userId: string, artistId:string): Promise<void> => {
+const followArtist = async (userId: string, artistId:string): Promise<void> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   await setDoc(followDocRef, { followedAt: serverTimestamp() });
 };
 
-export const unfollowArtist = async (userId: string, artistId:string): Promise<void> => {
+const unfollowArtist = async (userId: string, artistId:string): Promise<void> => {
   const followDocRef = doc(db, 'artists', artistId, 'followers', userId);
   await deleteDoc(followDocRef);
 };
 
-export const getFollowersCountListener = (artistId: string, callback: (count: number) => void): (() => void) => {
+const getFollowersCountListener = (artistId: string, callback: (count: number) => void): (() => void) => {
   const followersCol = collection(db, 'artists', artistId, 'followers');
   return onSnapshot(followersCol, (snapshot) => {
     callback(snapshot.size);
@@ -496,7 +525,7 @@ type MoviePayload = {
   youtubeUrl?: string;
 };
 
-export const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
+const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
   const movieRef = doc(collection(db, 'movies'));
   const movieId = movieRef.id;
 
@@ -527,7 +556,7 @@ export const addMovie = async ({ movieData, files, youtubeUrl }: MoviePayload): 
   });
 };
 
-export const updateMovie = async (movieId: string, { movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
+const updateMovie = async (movieId: string, { movieData, files, youtubeUrl }: MoviePayload): Promise<void> => {
     const movieRef = doc(db, "movies", movieId);
     const movieSnap = await getDoc(movieRef);
 
@@ -572,7 +601,7 @@ export const updateMovie = async (movieId: string, { movieData, files, youtubeUr
 };
 
 
-export const deleteMovie = async (movie: Movie): Promise<void> => {
+const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteFileByUrl(movie.posterUrl);
     if (movie.videoUrl && !movie.videoUrl.includes('youtube')) {
         await deleteFileByUrl(movie.videoUrl);
@@ -580,7 +609,7 @@ export const deleteMovie = async (movie: Movie): Promise<void> => {
     await deleteDoc(doc(db, 'movies', movie.id));
 }
 
-export const getAllMovies = async (): Promise<Movie[]> => {
+const getAllMovies = async (): Promise<Movie[]> => {
   try {
     const q = query(moviesCollection, orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -590,7 +619,7 @@ export const getAllMovies = async (): Promise<Movie[]> => {
   }
 };
 
-export const getMovieById = async (id: string): Promise<Movie | null> => {
+const getMovieById = async (id: string): Promise<Movie | null> => {
   try {
     const movieDoc = doc(db, 'movies', id);
     const snapshot = await getDoc(movieDoc);
@@ -606,7 +635,7 @@ export const getMovieById = async (id: string): Promise<Movie | null> => {
 
 // --- CHAT FUNCTIONS ---
 
-export const getChatMessagesListener = (
+const getChatMessagesListener = (
   eventId: string,
   callback: (messages: ChatMessage[]) => void
 ): (() => void) => {
@@ -619,7 +648,7 @@ export const getChatMessagesListener = (
   });
 };
 
-export const sendChatMessage = async (eventId: string, name: string, message: string): Promise<void> => {
+const sendChatMessage = async (eventId: string, name: string, message: string): Promise<void> => {
     if (!name.trim() || !message.trim()) {
         throw new Error("Name and message cannot be empty.");
     }
@@ -633,7 +662,7 @@ export const sendChatMessage = async (eventId: string, name: string, message: st
 
 
 // --- DASHBOARD COUNT LISTENER FUNCTIONS ---
-export const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {
+const getArtistsCountListener = (callback: (count: number) => void): (() => void) => {
   const q = query(artistsCollection, where('isApproved', '==', true));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.size);
@@ -642,33 +671,51 @@ export const getArtistsCountListener = (callback: (count: number) => void): (() 
   });
 };
 
-export const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
-  return onSnapshot(eventsCollection, (snapshot) => {
-    callback(snapshot.size);
-  }, (error) => {
-    console.error("Event count listener failed:", error);
-  });
+const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
+    return onSnapshot(eventsCollection, (snapshot) => {
+      callback(snapshot.size);
+    }, (error) => {
+      console.error("Event count listener failed:", error);
+    });
+  } else {
+    // Return a no-op unsubscribe function if the user is not an admin
+    return () => {};
+  }
 };
 
-export const getTicketsCountListener = (callback: (count: number) => void): (() => void) => {
-  return onSnapshot(ticketsCollection, (snapshot) => {
-    callback(snapshot.size);
-  }, (error) => {
-    console.error("Ticket count listener failed:", error);
-  });
+const getTicketsCountListener = (callback: (count: number) => void): (() => void) => {
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
+    return onSnapshot(ticketsCollection, (snapshot) => {
+      callback(snapshot.size);
+    }, (error) => {
+      console.error("Ticket count listener failed:", error);
+    });
+  } else {
+    // Return a no-op unsubscribe function if the user is not an admin
+    return () => {};
+  }
 };
 
-export const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
-  return onSnapshot(usersCollection, (snapshot) => {
-    callback(snapshot.size);
-  }, (error) => {
-    console.error("User count listener failed:", error);
-  });
+const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
+    return onSnapshot(usersCollection, (snapshot) => {
+      callback(snapshot.size);
+    }, (error) => {
+      console.error("User count listener failed:", error);
+    });
+  } else {
+    // Return a no-op unsubscribe function if the user is not an admin
+    return () => {};
+  }
 };
 
 
 // CONFIG/SITE STATUS FUNCTIONS
-export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
+const getSiteStatus = async (): Promise<'online' | 'offline'> => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   try {
     const snapshot = await getDoc(statusDoc);
@@ -681,14 +728,14 @@ export const getSiteStatus = async (): Promise<'online' | 'offline'> => {
   return 'online';
 };
 
-export const updateSiteStatus = async (status: 'online' | 'offline') => {
+const updateSiteStatus = async (status: 'online' | 'offline') => {
   const statusDoc = doc(db, 'config', 'siteStatus');
   await setDoc(statusDoc, { status }, { merge: true });
 };
 
 // --- ARTIST VERIFICATION FUNCTIONS ---
 
-export const submitVerificationRequest = async (
+const submitVerificationRequest = async (
     artistId: string,
     requestData: Omit<VerificationRequestData, 'status' | 'submittedAt' | 'reviewedByAdmin' | 'reviewedAt'>,
     sampleVideoFile?: File
@@ -713,7 +760,7 @@ export const submitVerificationRequest = async (
     });
 };
 
-export const getPendingVerificationRequestsListener = (callback: (artists: Artist[]) => void): (() => void) => {
+const getPendingVerificationRequestsListener = (callback: (artists: Artist[]) => void): (() => void) => {
     const q = query(artistsCollection, where('verificationRequest.status', '==', 'pending'));
     return onSnapshot(q, (snapshot) => {
         const artistsWithPendingRequests = snapshot.docs.map(doc => fromFirestore<Artist>(doc));
@@ -723,7 +770,7 @@ export const getPendingVerificationRequestsListener = (callback: (artists: Artis
     });
 };
 
-export const approveVerificationRequest = async (artistId: string, adminId: string) => {
+const approveVerificationRequest = async (artistId: string, adminId: string) => {
     const artistDoc = doc(db, 'artists', artistId);
     await updateDoc(artistDoc, {
         accessLevel: 'verified',
@@ -733,7 +780,7 @@ export const approveVerificationRequest = async (artistId: string, adminId: stri
     });
 };
 
-export const rejectVerificationRequest = async (artistId: string, adminId: string) => {
+const rejectVerificationRequest = async (artistId: string, adminId: string) => {
     const artistDoc = doc(db, 'artists', artistId);
     await updateDoc(artistDoc, {
         'verificationRequest.status': 'rejected',
@@ -744,7 +791,7 @@ export const rejectVerificationRequest = async (artistId: string, adminId: strin
 
 // --- REPORTING FUNCTIONS ---
 
-export const getCompletedEventsForReport = async (): Promise<Event[]> => {
+const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const q = query(
         eventsCollection,
         where('moderationStatus', '==', 'approved')
@@ -752,23 +799,79 @@ export const getCompletedEventsForReport = async (): Promise<Event[]> => {
     const snapshot = await getDocs(q);
     const allApprovedEvents = snapshot.docs.map(doc => fromFirestore<Event>(doc));
     
-    // Perform filtering for completed events on the client-side
     const now = new Date();
     const completedEvents = allApprovedEvents.filter(event => new Date(event.date) < now);
         
     return completedEvents;
 };
 
-export const getAllTickets = async (): Promise<Ticket[]> => {
+const getAllTickets = async (): Promise<Ticket[]> => {
     const snapshot = await getDocs(ticketsCollection);
     return snapshot.docs.map(doc => fromFirestore<Ticket>(doc));
 };
 
 // --- EVENT FEEDBACK FUNCTIONS ---
 
-export const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id' | 'submittedAt'>) => {
+const submitEventFeedback = async (feedbackData: Omit<EventFeedback, 'id' | 'submittedAt'>) => {
     await addDoc(eventFeedbackCollection, {
         ...feedbackData,
         submittedAt: serverTimestamp(),
     });
 };
+
+export {
+    uploadFile,
+    getYouTubeEmbedUrl,
+    addEvent,
+    getApprovedEventsListener,
+    getAllApprovedEventsForAnalytics,
+    getPendingEventsListener,
+    getBoostedEvents,
+    getEventById,
+    getArtistEventsListener,
+    updateEventStatus,
+    toggleEventBoost,
+    goLive,
+    createUserProfileForPhoneAuth,
+    getAppUserProfile,
+    createArtistProfileForUser,
+    registerArtist,
+    getArtistProfile,
+    getAllArtists,
+    getPendingArtistsListener,
+    approveArtist,
+    rejectArtist,
+    updateArtistToPremium,
+    saveFcmToken,
+    checkForExistingTicket,
+    createTicket,
+    getUserTicketsListener,
+    isUserFollowing,
+    followArtist,
+    unfollowArtist,
+    getFollowersCountListener,
+    addMovie,
+    updateMovie,
+    deleteMovie,
+    getAllMovies,
+    getMovieById,
+    getChatMessagesListener,
+    sendChatMessage,
+    getArtistsCountListener,
+    getEventsCountListener,
+    getTicketsCountListener,
+    getUsersCountListener,
+    getSiteStatus,
+    updateSiteStatus,
+    submitVerificationRequest,
+    getPendingVerificationRequestsListener,
+    approveVerificationRequest,
+    rejectVerificationRequest,
+    getCompletedEventsForReport,
+    getAllTickets,
+    submitEventFeedback,
+    getPublicArtistEventsListener, 
+    updateEvent
+};
+
+    
