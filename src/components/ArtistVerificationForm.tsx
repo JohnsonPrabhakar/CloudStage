@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Artist } from "@/lib/types";
 import { BadgeCheck, ChevronLeft, Loader2, ShieldAlert } from "lucide-react";
