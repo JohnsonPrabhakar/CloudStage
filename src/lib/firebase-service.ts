@@ -199,12 +199,12 @@ const getApprovedEventsListener = (callback: (events: Event[]) => void): (() => 
   const q = query(
     eventsCollection,
     where('moderationStatus', '==', 'approved'),
-    orderBy('date', 'desc'),
     limit(50)
   );
   return onSnapshot(q, (snapshot) => {
     const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-    callback(events);
+    const sortedEvents = events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    callback(sortedEvents);
   }, (error) => {
     console.error(`Approved events listener failed:`, error);
   });
@@ -860,5 +860,6 @@ export {
     getPublicArtistEventsListener, 
     updateEvent
 };
+
 
 
