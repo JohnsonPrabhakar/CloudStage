@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { type Event } from "@/lib/types";
 import { EventCard } from "@/components/EventCard";
-import { getApprovedEvents } from "@/lib/firebase-service";
+import { getApprovedEventsListener } from "@/lib/firebase-service";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { ArrowRight, Calendar, RadioTower, Search, ChevronRight } from "lucide-react";
@@ -32,18 +32,14 @@ export function HomePageClient() {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        const events = await getApprovedEvents();
-        setAllEvents(events);
-      } catch (error) {
-        console.error("Failed to fetch events from Firestore", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
+    setLoading(true);
+    const unsubscribe = getApprovedEventsListener((events) => {
+      setAllEvents(events);
+      setLoading(false);
+    });
+
+    // Cleanup the listener when the component unmounts
+    return () => unsubscribe();
   }, []);
 
   const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {

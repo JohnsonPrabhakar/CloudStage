@@ -194,18 +194,21 @@ const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' 
     await updateDoc(eventDoc, dataToUpdate);
 }
 
-const getApprovedEvents = async (): Promise<Event[]> => {
+const getApprovedEventsListener = (callback: (events: Event[]) => void): (() => void) => {
   const q = query(
     eventsCollection,
-    where('moderationStatus', '==', 'approved')
+    where('moderationStatus', '==', 'approved'),
+    orderBy('date', 'desc'),
+    limit(50)
   );
-  const snapshot = await getDocs(q);
-  const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
-
-  return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 50);
+  return onSnapshot(q, (snapshot) => {
+    const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
+    callback(events);
+  }, (error) => {
+    console.error(`Approved events listener failed:`, error);
+  });
 };
+
 
 const getAllApprovedEventsForAnalytics = async (): Promise<Event[]> => {
   const q = query(
@@ -799,7 +802,7 @@ export {
     uploadFile,
     getYouTubeEmbedUrl,
     addEvent,
-    getApprovedEvents,
+    getApprovedEventsListener,
     getAllApprovedEventsForAnalytics,
     getPendingEventsListener,
     getBoostedEvents,
