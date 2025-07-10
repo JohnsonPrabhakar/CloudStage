@@ -203,7 +203,7 @@ const getApprovedEvents = async (): Promise<Event[]> => {
   const events = snapshot.docs.map(doc => fromFirestore<Event>(doc));
 
   return events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime())
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 50);
 };
 
@@ -440,7 +440,7 @@ const createTicket = async (
     eventId: string,
     price: number,
     contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string },
-    paymentDetails: { paymentId: string }
+    paymentDetails: { paymentId: string | null }
 ): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
