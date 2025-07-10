@@ -255,5 +255,3 @@ const useAnalytics = (
         return { totalRevenue, totalTicketsSold, monthlyData, categoryData, topEventsData, topArtistsData, tableData, sortedTableData };
     }, [events, tickets, artists, dateRange, category, sortConfig]);
 };
-
-    
