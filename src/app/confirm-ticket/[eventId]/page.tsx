@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useParams } from "next/navigation";
 
 function ConfirmTicketPageLoader() {
     return (
@@ -23,11 +24,14 @@ function ConfirmTicketPageLoader() {
     );
 }
 
-export default function ConfirmTicketPage({ params }: { params: { eventId: string } }) {
+export default function ConfirmTicketPage() {
+  const params = useParams();
+  const eventId = params.eventId as string;
+
   return (
     <div className="container mx-auto p-4 md:p-8 flex items-center justify-center min-h-[calc(100vh-80px)]">
       <Suspense fallback={<ConfirmTicketPageLoader />}>
-        <TicketConfirmationForm eventId={params.eventId} />
+        {eventId && <TicketConfirmationForm eventId={eventId} />}
       </Suspense>
     </div>
   );
