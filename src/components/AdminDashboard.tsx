@@ -110,12 +110,13 @@ export default function AdminDashboard() {
                 }
             });
 
-            // Set up stats listeners
-            const artistsListener = getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count })));
-            const eventsListener = getEventsCountListener((count) => setStats(s => ({...s, events: count })));
-            const ticketsListener = getTicketsCountListener((count) => setStats(s => ({...s, tickets: count })));
-            const usersListener = getUsersCountListener((count) => setStats(s => ({...s, users: count })));
-            statsUnsubscribers.push(artistsListener, eventsListener, ticketsListener, usersListener);
+            // Set up stats listeners only for authenticated admin
+            statsUnsubscribers.push(
+              getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count }))),
+              getEventsCountListener((count) => setStats(s => ({...s, events: count }))),
+              getTicketsCountListener((count) => setStats(s => ({...s, tickets: count }))),
+              getUsersCountListener((count) => setStats(s => ({...s, users: count })))
+            );
 
         } catch(err) {
             console.error("Admin dashboard listener error:", err);
