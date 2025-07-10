@@ -19,7 +19,16 @@ const allPossibleCategories: EventCategory[] = [
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
 
-type SortableKeys = keyof (ReturnType<typeof useAnalytics>['tableData'][0]);
+// Define the shape of the table data explicitly to break the circular dependency
+type AnalyticsTableData = {
+    id: string;
+    title: string;
+    artist: string;
+    ticketsSold: number;
+    totalRevenue: number;
+};
+
+type SortableKeys = keyof AnalyticsTableData;
 
 // Main component
 export default function EventAnalyticsDashboard() {
@@ -224,7 +233,7 @@ const useAnalytics = (
             .map(([artistId, tickets]) => ({ name: artists.find(a => a.id === artistId)?.name || 'Unknown', tickets }))
             .sort((a, b) => b.tickets - a.tickets).slice(0, 5);
             
-        const tableData = eventsInCategory.map(event => {
+        const tableData: AnalyticsTableData[] = eventsInCategory.map(event => {
             const ticketsSold = salesByEvent[event.id] || 0;
             return {
                 id: event.id,
@@ -246,3 +255,5 @@ const useAnalytics = (
         return { totalRevenue, totalTicketsSold, monthlyData, categoryData, topEventsData, topArtistsData, tableData, sortedTableData };
     }, [events, tickets, artists, dateRange, category, sortConfig]);
 };
+
+    
