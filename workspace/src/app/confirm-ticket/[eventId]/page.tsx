@@ -41,11 +41,15 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
   const [event, setEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { fullName: "", email: "", phone: "" },
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+    },
   });
   
   useEffect(() => {
@@ -53,7 +57,9 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
         setUser(currentUser);
         if (currentUser) {
             form.setValue('email', currentUser.email || '');
-            if (currentUser.displayName) form.setValue('fullName', currentUser.displayName);
+            if (currentUser.displayName) {
+                form.setValue('fullName', currentUser.displayName);
+            }
         }
     });
 
@@ -61,8 +67,9 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
         setLoading(true);
         try {
             const fetchedEvent = await getEventById(eventId);
-            if (fetchedEvent) setEvent(fetchedEvent);
-            else {
+            if (fetchedEvent) {
+                setEvent(fetchedEvent);
+            } else {
                 toast({ variant: 'destructive', title: 'Event Not Found' });
                 router.push('/');
             }
@@ -75,11 +82,12 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
     };
     
     fetchEvent();
+
     return () => authUnsubscribe();
   }, [eventId, router, toast, form]);
 
   async function onSubmit(values: FormValues) {
-    setIsProcessing(true);
+    setIsProcessingPayment(true);
     try {
       let finalUser = user;
       if (!finalUser) {
@@ -87,7 +95,9 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
         finalUser = userCredential.user;
       }
       
-      if (!event) throw new Error("Event data is not available.");
+      if (!event) {
+          throw new Error("Event data is not available.");
+      }
 
       const { success, error } = await createTicket(
         finalUser.uid,
@@ -116,24 +126,24 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
         variant: "destructive"
       });
     } finally {
-      setIsProcessing(false);
+      setIsProcessingPayment(false);
     }
   }
 
   if (loading || !event) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-2xl animate-pulse">
-          <CardHeader><div className="h-8 w-3/4 rounded-md bg-muted" /></CardHeader>
-          <CardContent><div className="h-40 w-full rounded-md bg-muted" /></CardContent>
-        </Card>
-      </div>
+        <div className="flex items-center justify-center min-h-screen p-4">
+            <Card className="w-full max-w-2xl animate-pulse">
+                <CardHeader><div className="h-8 w-3/4 rounded-md bg-muted" /></CardHeader>
+                <CardContent><div className="h-40 w-full rounded-md bg-muted" /></CardContent>
+            </Card>
+        </div>
     );
   }
 
   if (event.status === 'past') {
       return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen p-4">
           <Card className="w-full max-w-2xl text-center">
             <CardHeader>
                 <CardTitle className="flex justify-center items-center gap-2"><AlertTriangle className="text-destructive"/>This Event is Over</CardTitle>
@@ -152,52 +162,79 @@ export default function ConfirmTicketPage({ params }: { params: { eventId: strin
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle className="text-2xl">Confirm Your Ticket</CardTitle>
-          <CardDescription>Verify your details. Your ticket will be sent to this email.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg p-4 mb-6 bg-muted/30">
-              <h3 className="font-bold text-lg">{event.title}</h3>
-              <p className="text-sm text-muted-foreground">by {event.artist}</p>
-              <div className="flex justify-between items-center mt-2 text-sm">
-                  <span className="flex items-center gap-2"><Calendar className="h-4 w-4"/> {format(new Date(event.date), 'PPP')}</span>
-                  <span className="flex items-center gap-2 font-semibold"><Ticket className="h-4 w-4"/> ₹{event.ticketPrice.toFixed(2)}</span>
-              </div>
-          </div>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField control={form.control} name="fullName" render={({ field }) => (
+    <Card className="w-full max-w-2xl">
+      <CardHeader>
+        <CardTitle className="text-2xl">Confirm Your Ticket Purchase</CardTitle>
+        <CardDescription>
+          Please verify your details below before proceeding. Your ticket will be sent to this email.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-lg p-4 mb-6 bg-muted/30">
+            <h3 className="font-bold text-lg">{event.title}</h3>
+            <p className="text-sm text-muted-foreground">by {event.artist}</p>
+            <div className="flex justify-between items-center mt-2 text-sm">
+                <span className="flex items-center gap-2"><Calendar className="h-4 w-4"/> {format(new Date(event.date), 'PPP')}</span>
+                <span className="flex items-center gap-2 font-semibold"><Ticket className="h-4 w-4"/> ₹{event.ticketPrice.toFixed(2)}</span>
+            </div>
+        </div>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
-                  <FormControl><Input placeholder="Enter your full name" {...field} /></FormControl>
+                  <FormControl>
+                    <Input placeholder="Enter your full name" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
-              )} />
-               <FormField control={form.control} name="email" render={({ field }) => (
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
-                  <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="email" placeholder="you@example.com" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
-              )} />
-               <FormField control={form.control} name="phone" render={({ field }) => (
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Mobile Number</FormLabel>
-                  <FormControl><Input type="tel" placeholder="+91 98765 43210" {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="tel" placeholder="+91 98765 43210" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
-              )} />
-              <Button type="submit" size="lg" className="w-full" disabled={isProcessing}>
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {`Confirm & Get Ticket (₹${event.ticketPrice.toFixed(2)})`}
-              </Button>
-               <Button variant="link" className="w-full" onClick={() => router.back()}>Cancel</Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+              )}
+            />
+            <Button type="submit" size="lg" className="w-full" disabled={isProcessingPayment}>
+              {isProcessingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                `Confirm & Get Ticket (₹${event.ticketPrice.toFixed(2)})`
+              )}
+            </Button>
+             <Button variant="link" className="w-full" onClick={() => router.back()}>Cancel</Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
     </div>
   );
 }

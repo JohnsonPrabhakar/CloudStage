@@ -33,8 +33,8 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { CalendarIcon, ChevronLeft, Loader2, Sparkles } from "lucide-react";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -149,12 +149,11 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
         date: eventDate.toISOString(),
         endTime: endTime.toISOString(),
         status: "upcoming" as const,
-        moderationStatus: "pending" as const,
         isBoosted: false,
       };
       
       if (mode === 'create') {
-        await addEvent(eventPayload);
+        await addEvent({...eventPayload, moderationStatus: "pending" as const});
         toast({ title: "Event Created!", description: "Your event is now pending admin approval." });
       } else if (initialData) {
         await updateEvent(initialData.id, eventPayload);
