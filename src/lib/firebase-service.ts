@@ -860,6 +860,3 @@ export {
     getPublicArtistEventsListener, 
     updateEvent
 };
-
-
-
