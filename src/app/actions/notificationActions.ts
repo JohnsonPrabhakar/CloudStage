@@ -1,3 +1,4 @@
+
 'use server';
 
 import { fcm, adminDb } from '@/lib/fcm-admin';
@@ -90,7 +91,7 @@ export async function sendNewEventNotification(eventId: string) {
         body: `"${event.title}" has been announced. Tap to book your tickets now!`,
       },
       webpush: {
-        fcmOptions: { // Corrected from fcm_options
+        fcmOptions: {
           link: `/events/${eventId}`,
         },
       },

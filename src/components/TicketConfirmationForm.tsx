@@ -19,13 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
-import { getEventById } from "@/lib/firebase-service";
+import { getEventById, createTicket } from "@/lib/firebase-service";
 import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from 'date-fns';
-import { createRazorpayOrder } from "@/lib/actions";
-import Script from "next/script";
 
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
@@ -35,12 +33,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -48,7 +40,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   const [event, setEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -98,7 +90,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   }, [eventId, router, toast, form]);
 
   async function onSubmit(values: FormValues) {
-    setIsProcessingPayment(true);
+    setIsProcessing(true);
     try {
       let finalUser: User;
       if (user) {
@@ -111,68 +103,29 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
       if (!event) {
           throw new Error("Event data is not available.");
       }
-       if (event.ticketPrice <= 0) {
-        toast({ title: 'This is a free event!', description: 'No payment is required. Redirecting...'});
-        router.push(`/events/${event.id}`);
-        return;
-      }
 
-      const orderResponse = await createRazorpayOrder({
-          amount: event.ticketPrice,
-          receiptId: `TICKET_${event.id}_${Date.now()}`,
-          notes: {
-              type: 'ticket',
-              userId: finalUser.uid,
-              eventId: event.id,
-              buyerName: values.fullName,
-              buyerEmail: values.email,
-              buyerPhone: values.phone,
-          }
+      // Mocked payment success flow
+      const mockPaymentId = `MOCK_PAYMENT_${Date.now()}`;
+      await createTicket(
+        finalUser.uid,
+        event.id,
+        event.ticketPrice,
+        {
+          buyerName: values.fullName,
+          buyerEmail: values.email,
+          buyerPhone: values.phone,
+        },
+        { paymentId: mockPaymentId }
+      );
+      
+      toast({
+          title: "Booking Successful!",
+          description: `Your ticket for "${event.title}" has been confirmed. You'll be redirected shortly.`,
       });
-      
-      if (!orderResponse.success || !orderResponse.order) {
-        throw new Error(orderResponse.error || 'Failed to create payment order.');
-      }
-
-      const { order } = orderResponse;
-      
-      const rzpOptions = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: order.amount,
-            currency: "INR",
-            name: "CloudStage Ticket",
-            description: `Ticket for ${event.title}`,
-            order_id: order.id,
-            handler: (response: any) => {
-                toast({
-                    title: "Payment Successful!",
-                    description: `Your ticket purchase is being confirmed. You'll be redirected shortly.`,
-                });
-                setTimeout(() => {
-                    router.push("/my-tickets");
-                    router.refresh();
-                }, 3000);
-            },
-            prefill: {
-                name: values.fullName,
-                email: values.email,
-                contact: values.phone
-            },
-            theme: {
-                color: "#800000"
-            }
-        };
-
-        const rzp = new window.Razorpay(rzpOptions);
-        rzp.open();
-        rzp.on('payment.failed', function (response: any){
-            toast({
-                title: 'Payment Failed',
-                description: response.error.description,
-                variant: 'destructive',
-            });
-            setIsProcessingPayment(false);
-        });
+      setTimeout(() => {
+          router.push("/my-tickets");
+          router.refresh();
+      }, 3000);
 
     } catch (error: any) {
       console.error("Booking failed:", error);
@@ -181,7 +134,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
-      setIsProcessingPayment(false);
+    } finally {
+        setIsProcessing(false);
     }
   }
 
@@ -212,11 +166,6 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   }
 
   return (
-    <>
-    <Script
-        id="razorpay-checkout-js"
-        src="https://checkout.razorpay.com/v1/checkout.js"
-    />
     <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle className="text-2xl">Confirm Your Ticket Purchase</CardTitle>
@@ -275,8 +224,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
                 </FormItem>
               )}
             />
-            <Button type="submit" size="lg" className="w-full" disabled={isProcessingPayment}>
-              {isProcessingPayment ? (
+            <Button type="submit" size="lg" className="w-full" disabled={isProcessing}>
+              {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
@@ -290,6 +239,5 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         </Form>
       </CardContent>
     </Card>
-    </>
   );
 }

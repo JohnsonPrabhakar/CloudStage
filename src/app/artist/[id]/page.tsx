@@ -234,5 +234,4 @@ export default function ArtistPage({ params }: ArtistPageProps) {
       </div>
     </div>
   );
-
-    
+}
