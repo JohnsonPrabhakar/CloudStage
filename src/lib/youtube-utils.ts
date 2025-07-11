@@ -1,6 +1,3 @@
-
-'use server';
-
 // This file is created to break a circular dependency between
 // CreateEventForm.tsx and firebase-service.ts
 
