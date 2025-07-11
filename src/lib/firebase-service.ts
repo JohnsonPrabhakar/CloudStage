@@ -803,5 +803,3 @@ export {
     getAllTickets,
     submitEventFeedback,
 };
-
-    

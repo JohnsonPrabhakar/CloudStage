@@ -137,7 +137,7 @@ export default function ArtistDashboard() {
 
     return {
       liveEvents: live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
-      upcomingEvents: sortAndBoost(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())),
+      upcomingEvents: sortAndBoost(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(a.date).getTime())),
       pastEvents: past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     };
   }, [approvedEvents]);
@@ -433,5 +433,3 @@ export default function ArtistDashboard() {
     </div>
   );
 }
-
-    
