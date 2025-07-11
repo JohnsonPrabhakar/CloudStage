@@ -1,7 +1,4 @@
 
-
-
-
 import { db, auth, storage } from '@/lib/firebase';
 import {
   collection,
@@ -862,3 +859,5 @@ export {
     getAllTickets,
     submitEventFeedback,
 };
+
+    
