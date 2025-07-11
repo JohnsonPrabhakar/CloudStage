@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { addEvent, getEventById, updateEvent, getYouTubeEmbedUrl } from "@/lib/firebase-service";
+import { addEvent, getEventById, updateEvent } from "@/lib/firebase-service";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { CalendarIcon, ChevronLeft, Drama, Loader2, Mic, Music, Palette } from "lucide-react";
@@ -38,6 +38,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
+import { getYouTubeEmbedUrl } from "@/lib/youtube-utils";
+
 
 const eventCategories = [
   "Music",
@@ -309,3 +311,4 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     </div>
   );
 }
+
