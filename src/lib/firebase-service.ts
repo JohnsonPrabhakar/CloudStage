@@ -1,5 +1,6 @@
 
 
+
 import { db, auth, storage } from '@/lib/firebase';
 import {
   collection,
@@ -810,12 +811,14 @@ export {
     uploadFile,
     getYouTubeEmbedUrl,
     addEvent,
+    updateEvent,
     getApprovedEventsListener,
     getAllApprovedEventsForAnalytics,
     getPendingEventsListener,
     getBoostedEvents,
     getEventById,
     getArtistEventsListener,
+    getPublicArtistEventsListener,
     updateEventStatus,
     toggleEventBoost,
     goLive,
@@ -857,8 +860,4 @@ export {
     getCompletedEventsForReport,
     getAllTickets,
     submitEventFeedback,
-    getPublicArtistEventsListener, 
-    updateEvent
 };
-
-    
