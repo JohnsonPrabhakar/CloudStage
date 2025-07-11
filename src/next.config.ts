@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Forcing a fresh build on publish: 2024-07-30T12:00:00Z
+  // Forcing a fresh build on publish: 2025-07-10T12:00:00Z
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -42,3 +42,5 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+    

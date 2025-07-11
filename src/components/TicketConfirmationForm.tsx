@@ -216,7 +216,7 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
                   <FormLabel>Mobile Number</FormLabel>
                   <FormControl>
                     <Input type="tel" placeholder="+91 98765 43210" {...field} />
-                  </FormControl>
+                  FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -238,3 +238,5 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
     </Card>
   );
 }
+
+    

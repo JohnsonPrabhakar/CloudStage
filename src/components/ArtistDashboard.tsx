@@ -110,39 +110,36 @@ export default function ArtistDashboard() {
     return myEvents.filter(e => e.moderationStatus === 'approved');
   }, [myEvents]);
 
-  const liveEvents = useMemo(() => {
-    if (!approvedEvents) return [];
+  const { liveEvents, upcomingEvents, pastEvents } = useMemo(() => {
     const now = new Date();
-    return approvedEvents
-      .filter(event => {
-        const eventStartDate = new Date(event.date);
-        const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
-        return (now >= eventStartDate && now < eventEndDate) || event.status === 'live';
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [approvedEvents]);
+    const live: Event[] = [];
+    const upcoming: Event[] = [];
+    const past: Event[] = [];
 
-  const upcomingEvents = useMemo(() => {
-    if (!approvedEvents) return [];
-    const now = new Date();
-    const allUpcoming = approvedEvents
-      .filter(event => new Date(event.date) > now && event.status !== 'live')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-    const boosted = allUpcoming.filter(e => e.isBoosted);
-    const nonBoosted = allUpcoming.filter(e => !e.isBoosted);
-    return [...boosted, ...nonBoosted];
-  }, [approvedEvents]);
-  
-  const pastEvents = useMemo(() => {
-    if (!approvedEvents) return [];
-    const now = new Date();
-    return approvedEvents
-      .filter(event => {
-         const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(new Date(event.date).getTime() + 3 * 60 * 60 * 1000);
-         return now >= eventEndDate;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    for (const event of approvedEvents) {
+      const eventStartDate = new Date(event.date);
+      const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(eventStartDate.getTime() + 3 * 60 * 60 * 1000);
+
+      if (event.status === 'live' || (now >= eventStartDate && now < eventEndDate)) {
+        live.push(event);
+      } else if (now < eventStartDate) {
+        upcoming.push(event);
+      } else {
+        past.push(event);
+      }
+    }
+    
+    const sortAndBoost = (arr: Event[]) => {
+        const boosted = arr.filter(e => e.isBoosted);
+        const nonBoosted = arr.filter(e => !e.isBoosted);
+        return [...boosted, ...nonBoosted];
+    };
+
+    return {
+      liveEvents: live.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+      upcomingEvents: sortAndBoost(upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())),
+      pastEvents: past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    };
   }, [approvedEvents]);
 
 
@@ -436,3 +433,5 @@ export default function ArtistDashboard() {
     </div>
   );
 }
+
+    
