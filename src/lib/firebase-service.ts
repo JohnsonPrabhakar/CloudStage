@@ -630,17 +630,11 @@ const getTicketsCountListener = (callback: (count: number) => void): (() => void
 };
 
 const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
-  const currentUser = auth.currentUser;
-  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
-    return onSnapshot(usersCollection, (snapshot) => {
-      callback(snapshot.size);
-    }, (error) => {
-      console.error("User count listener failed:", error);
-    });
-  } else {
-    // Return a no-op unsubscribe function if the user is not an admin
-    return () => {};
-  }
+  return onSnapshot(usersCollection, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("User count listener failed:", error);
+  });
 };
 
 
