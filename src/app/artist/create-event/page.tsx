@@ -1,9 +1,10 @@
 
+'use client';
+
 import CreateEventForm from "@/components/CreateEventForm";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-
 
 function CreateEventPageLoader() {
   return (
