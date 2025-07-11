@@ -31,14 +31,14 @@ import { addEvent, getEventById, updateEvent } from "@/lib/firebase-service";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { CalendarIcon, ChevronLeft, Drama, Loader2, Mic, Music, Palette } from "lucide-react";
-import { type Event, type EventCategory } from "@/lib/types";
+import { type Event } from "@/lib/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { generateEventDescription } from "@/ai/flows/generate-event-description";
-import { getYouTubeEmbedUrl } from "@/lib/youtube-utils";
+import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube-utils";
 
 
 const eventCategories = [
@@ -204,8 +204,9 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
   }
 
   const streamUrlValue = form.watch("streamUrl");
-  const bannerPreview = getYouTubeEmbedUrl(streamUrlValue)
-      ? `https://img.youtube.com/vi/${getYouTubeEmbedUrl(streamUrlValue)!.split('/embed/')[1]}/hqdefault.jpg`
+  const videoId = getYouTubeVideoId(streamUrlValue);
+  const bannerPreview = videoId
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : "https://placehold.co/600x400.png";
 
   if (loading) {
@@ -236,15 +237,13 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                 )} />
               </div>
 
-              {bannerPreview && (
-                  <FormItem>
-                      <FormLabel>Banner Preview</FormLabel>
-                      <div className="w-full aspect-video relative rounded-md overflow-hidden bg-muted">
-                        <Image src={bannerPreview} alt="Banner Preview" fill className="object-cover" data-ai-hint="event banner" />
-                      </div>
-                      <FormDescription>The banner is automatically generated from your YouTube URL thumbnail.</FormDescription>
-                  </FormItem>
-              )}
+              <FormItem>
+                  <FormLabel>Banner Preview</FormLabel>
+                  <div className="w-full aspect-video relative rounded-md overflow-hidden bg-muted">
+                    <Image src={bannerPreview} alt="Banner Preview" fill className="object-cover" data-ai-hint="event banner" />
+                  </div>
+                  <FormDescription>The banner is automatically generated from your YouTube URL thumbnail.</FormDescription>
+              </FormItem>
 
               <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>
@@ -311,4 +310,3 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     </div>
   );
 }
-
