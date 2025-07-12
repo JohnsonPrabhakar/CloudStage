@@ -20,23 +20,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film, User as UserIcon, LogOut, UserCircle } from "lucide-react";
+import { Menu, Ticket, Film, User as UserIcon, LogOut, UserCircle, LayoutDashboard } from "lucide-react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { getArtistProfile } from "@/lib/firebase-service";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isArtist, setIsArtist] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        // Check if the user has an artist profile
+        const artistProfile = await getArtistProfile(user.uid);
+        setIsArtist(!!artistProfile);
+      } else {
+        setIsArtist(false);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -48,11 +57,31 @@ export function Header() {
     router.push("/");
   };
 
+  // This should remain static and not change between server/client renders
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
-    { label: "Artist Login", href: "/artist/login" },
   ];
+  
+  const ArtistDashboardLink = () => (
+    <Link
+      href="/artist/dashboard"
+      className="transition-colors hover:text-primary flex items-center gap-2"
+    >
+      <LayoutDashboard className="h-4 w-4" />
+      Artist Dashboard
+    </Link>
+  );
+  
+   const ArtistLoginLink = () => (
+     <Link
+        href="/artist/login"
+        className="transition-colors hover:text-primary flex items-center gap-2"
+      >
+        Artist Login
+      </Link>
+   );
+
 
   const UserMenu = () => {
     if (loading) {
@@ -144,6 +173,8 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            {/* Conditionally render artist link only on client after auth check */}
+            {!loading && (isArtist ? <ArtistDashboardLink /> : <ArtistLoginLink />)}
           </nav>
         </div>
         
@@ -187,6 +218,16 @@ export function Header() {
                       {item.label}
                     </Link>
                   ))}
+                  {!loading && (
+                    <Link
+                      href={isArtist ? "/artist/dashboard" : "/artist/login"}
+                      className="transition-colors hover:text-primary flex items-center gap-2 text-lg"
+                      onClick={() => setIsSheetOpen(false)}
+                    >
+                      {isArtist ? <LayoutDashboard/> : <UserIcon />}
+                      {isArtist ? 'Artist Dashboard' : 'Artist Login'}
+                    </Link>
+                  )}
                   <hr className="my-2" />
                   <MobileUserMenu />
                 </nav>
