@@ -33,6 +33,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { getYouTubeVideoId } from "@/lib/youtube-utils";
 
+export const dynamic = 'force-dynamic';
+
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();

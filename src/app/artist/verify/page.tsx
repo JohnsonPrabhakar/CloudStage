@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
+export const dynamic = 'force-dynamic';
+
 function VerificationPageLoader() {
   return (
     <div className="container mx-auto p-4 md:p-8 animate-pulse">

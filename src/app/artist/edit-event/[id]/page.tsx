@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { getEventById } from "@/lib/firebase-service";
 
+export const dynamic = 'force-dynamic';
+
 function EditEventPageLoader() {
   return (
     <div className="container mx-auto p-4 md:p-8 animate-pulse">

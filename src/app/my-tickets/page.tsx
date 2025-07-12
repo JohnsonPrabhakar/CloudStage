@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 export default function MyTicketsPage() {
   const [ticketedEvents, setTicketedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);

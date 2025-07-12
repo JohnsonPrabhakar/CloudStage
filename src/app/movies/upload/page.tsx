@@ -9,6 +9,8 @@ import { auth } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { MovieForm } from "@/components/MovieForm";
 
+export const dynamic = 'force-dynamic';
+
 export default function UploadMoviePage() {
   const { toast } = useToast();
   const router = useRouter();

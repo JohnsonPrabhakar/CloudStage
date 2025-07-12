@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { WifiOff } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default function ArtistHistoryPage() {
   const [artistEvents, setArtistEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);

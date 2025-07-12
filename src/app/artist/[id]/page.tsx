@@ -30,6 +30,8 @@ interface ArtistPageProps {
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default function ArtistPage({ params }: ArtistPageProps) {
   const { id: artistId } = params;
   const { toast } = useToast();

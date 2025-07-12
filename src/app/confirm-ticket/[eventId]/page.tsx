@@ -6,6 +6,8 @@ import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export const dynamic = 'force-dynamic';
+
 function ConfirmTicketPageLoader() {
     return (
         <div className="container mx-auto p-4 md:p-8 flex items-center justify-center min-h-[calc(100vh-80px)]">

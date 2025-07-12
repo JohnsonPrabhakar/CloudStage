@@ -12,6 +12,8 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+
 export default function PlayPage() {
   const params = useParams();
   const router = useRouter();

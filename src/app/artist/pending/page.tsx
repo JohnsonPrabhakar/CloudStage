@@ -7,6 +7,7 @@ import { signOut } from "firebase/auth";
 import { Clock, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
 
 export default function PendingApprovalPage() {
     const router = useRouter();

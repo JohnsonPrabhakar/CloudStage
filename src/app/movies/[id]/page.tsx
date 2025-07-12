@@ -19,6 +19,8 @@ import {
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export const dynamic = 'force-dynamic';
+
 export default function MovieWatchPage() {
   const params = useParams();
   const router = useRouter();
