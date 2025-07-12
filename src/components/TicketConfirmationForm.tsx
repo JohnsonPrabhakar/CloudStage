@@ -28,15 +28,24 @@ export default function TicketConfirmationForm() {
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        setUser(currentUser);
-        if (currentUser) {
-            const profile = await getUserProfile(currentUser.uid);
-            setUserProfile(profile);
-        }
+      setUser(currentUser);
+      if (currentUser) {
+        const profile = await getUserProfile(currentUser.uid);
+        setUserProfile(profile);
+      } else {
+        // If there's no user, we don't need to load a profile.
+        // The UI will handle showing the login prompt.
+        setLoading(false);
+      }
     });
 
+    return () => authUnsubscribe();
+  }, []);
+  
+  useEffect(() => {
+    if (!eventId) return;
+
     const fetchEvent = async () => {
-        setLoading(true);
         try {
             const fetchedEvent = await getEventById(eventId);
             if (fetchedEvent) {
@@ -48,17 +57,20 @@ export default function TicketConfirmationForm() {
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load event details.' });
             router.push('/');
-        } finally {
-            setLoading(false);
         }
     };
     
-    if (eventId) {
-        fetchEvent();
-    }
-
-    return () => authUnsubscribe();
+    fetchEvent();
   }, [eventId, router, toast]);
+
+  // Combined loading effect
+  useEffect(() => {
+    // We are done loading if we have fetched the event AND either
+    // we have a user and their profile, OR we know there is no user.
+    if (event !== null && (userProfile !== null || user === null)) {
+      setLoading(false);
+    }
+  }, [event, user, userProfile]);
 
   async function handleConfirmPurchase() {
     setIsProcessing(true);
@@ -102,36 +114,20 @@ export default function TicketConfirmationForm() {
     }
   }
 
-  if (loading || !event || !userProfile) {
+  if (loading) {
     return (
         <Card className="w-full max-w-2xl">
             <CardHeader>
-              <div className="h-8 w-3/4 rounded-md bg-muted animate-pulse" />
+                <CardTitle>Confirm Your Ticket</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-40 w-full rounded-md bg-muted animate-pulse" />
+            <CardContent className="flex justify-center items-center py-12">
+              <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+              <p>Loading your details...</p>
             </CardContent>
         </Card>
     );
   }
-
-  if (event.status === 'past') {
-      return (
-          <Card className="w-full max-w-2xl text-center">
-            <CardHeader>
-                <CardTitle className="flex justify-center items-center gap-2"><AlertTriangle className="text-destructive"/>This Event is Over</CardTitle>
-                <CardDescription>Bookings are no longer available for past events.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 <Button variant="outline" onClick={() => router.push(`/events/${eventId}`)}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Event Details
-                </Button>
-            </CardContent>
-          </Card>
-      );
-  }
-
+  
   if (!user) {
     return (
         <Card className="w-full max-w-2xl text-center">
@@ -150,6 +146,36 @@ export default function TicketConfirmationForm() {
             </CardContent>
           </Card>
     );
+  }
+  
+  if (!event || !userProfile) {
+    return (
+        <Card className="w-full max-w-2xl">
+             <CardHeader>
+                <CardTitle>Error</CardTitle>
+            </CardHeader>
+             <CardContent>
+                <p>Could not load event or user details. Please try again.</p>
+             </CardContent>
+        </Card>
+    )
+  }
+
+  if (event.status === 'past') {
+      return (
+          <Card className="w-full max-w-2xl text-center">
+            <CardHeader>
+                <CardTitle className="flex justify-center items-center gap-2"><AlertTriangle className="text-destructive"/>This Event is Over</CardTitle>
+                <CardDescription>Bookings are no longer available for past events.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Button variant="outline" onClick={() => router.push(`/events/${eventId}`)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Event Details
+                </Button>
+            </CardContent>
+          </Card>
+      );
   }
 
   return (
