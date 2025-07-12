@@ -84,6 +84,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [bannerPreview, setBannerPreview] = useState("https://placehold.co/600x400.png");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -131,6 +132,29 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
       });
     }
   }, [mode, initialData, form]);
+
+  const streamUrlValue = form.watch("streamUrl");
+
+  useEffect(() => {
+    const videoId = getYouTubeVideoId(streamUrlValue);
+    if (videoId) {
+      // Use max resolution by default, fallback to hqdefault
+      const maxResUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+      const hqUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      
+      const img = new window.Image();
+      img.src = maxResUrl;
+      img.onload = () => {
+        setBannerPreview(maxResUrl);
+      };
+      img.onerror = () => {
+        setBannerPreview(hqUrl);
+      };
+
+    } else {
+      setBannerPreview("https://placehold.co/600x400.png");
+    }
+  }, [streamUrlValue]);
 
   const handleGenerateDescription = async () => {
       const { title, genre, category } = form.getValues();
@@ -202,13 +226,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
       setIsSubmitting(false);
     }
   }
-
-  const streamUrlValue = form.watch("streamUrl");
-  const videoId = getYouTubeVideoId(streamUrlValue);
-  const bannerPreview = videoId
-      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-      : "https://placehold.co/600x400.png";
-
+  
   if (loading) {
       return <div>Loading form...</div>
   }
