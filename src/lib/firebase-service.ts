@@ -94,7 +94,7 @@ const deleteFileByUrl = async (url: string) => {
 
 // --- EVENT-RELATED FUNCTIONS ---
 type EventPayload = {
-  eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
+  eventData: Omit<Event, 'id' | 'eventCode' | 'createdAt'>;
 };
 
 const addEvent = async ({ eventData }: EventPayload): Promise<{ eventId: string }> => {
