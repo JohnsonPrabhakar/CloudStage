@@ -71,7 +71,7 @@ type CreateEventFormProps = {
 
 // We need to wrap the form in a component that uses Suspense
 // because CreateEventForm uses useSearchParams, which requires it.
-function CreateEventFormWrapper(props: CreateEventFormProps) {
+export default function CreateEventFormWrapper(props: CreateEventFormProps) {
   return (
     <Suspense fallback={<div>Loading form...</div>}>
       <CreateEventForm {...props} />
@@ -247,26 +247,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="w-full max-w-xl mx-auto aspect-video relative rounded-lg overflow-hidden border">
-                  <Image
-                    src={youtubeBanner}
-                    alt="Event Banner Preview"
-                    fill={true}
-                    style={{objectFit: 'cover'}}
-                    key={youtubeBanner} 
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (target.src.includes('maxresdefault')) {
-                        target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-                      } else {
-                        target.src = 'https://placehold.co/600x400.png';
-                      }
-                      target.onerror = null;
-                    }}
-                    data-ai-hint="youtube thumbnail"
-                  />
-                </div>
-
               <FormField
                 control={form.control}
                 name="title"
@@ -441,6 +421,30 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                 />
               </div>
 
+               <div className="space-y-2">
+                <FormLabel>Banner Preview</FormLabel>
+                <div className="w-full max-w-xl mx-auto aspect-video relative rounded-lg overflow-hidden border bg-muted">
+                  <Image
+                    src={youtubeBanner}
+                    alt="Event Banner Preview"
+                    fill={true}
+                    style={{objectFit: 'cover'}}
+                    key={youtubeBanner} 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src.includes('maxresdefault')) {
+                        target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                      } else {
+                        target.src = 'https://placehold.co/600x400.png';
+                      }
+                      target.onerror = null;
+                    }}
+                    data-ai-hint="youtube thumbnail"
+                  />
+                </div>
+              </div>
+
+
               <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {mode === 'create' ? 'Submit for Approval' : 'Update & Resubmit'}
@@ -452,5 +456,3 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
     </div>
   );
 }
-
-export default CreateEventFormWrapper;
