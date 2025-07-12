@@ -110,7 +110,9 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
   useEffect(() => {
     // This effect runs only on the client, preventing hydration errors
     if (mode === 'create' && !initialData) {
-      form.setValue('date', new Date());
+      if (!form.getValues('date')) {
+         form.setValue('date', new Date());
+      }
     }
   }, [mode, initialData, form]);
 
@@ -204,6 +206,10 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       const eventDate = new Date(values.date);
       const endTime = new Date(eventDate.getTime() + values.duration * 60000);
       const bannerFile = values.bannerFile?.[0];
+
+      // Remove bannerFile from the values object before spreading it
+      // to prevent it from being sent to Firestore.
+      delete values.bannerFile;
 
       const eventPayload = {
         eventData: {
