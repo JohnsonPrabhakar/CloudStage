@@ -60,7 +60,6 @@ const formSchema = z.object({
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.'),
   streamUrl: z.string().url('Please enter a valid YouTube URL.'),
   ticketPrice: z.coerce.number().min(0, 'Ticket price cannot be negative.'),
-  bannerFile: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -90,7 +89,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [artistName, setArtistName] = useState('');
-  const [bannerPreview, setBannerPreview] = useState<string | null>(initialData?.bannerUrl || null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -124,12 +122,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
   const youtubeBanner = videoId
     ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
     : 'https://placehold.co/600x400.png';
-
-  useEffect(() => {
-    if (!bannerPreview) {
-      setBannerPreview(youtubeBanner);
-    }
-  }, [youtubeBanner, bannerPreview]);
   
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
@@ -141,7 +133,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
             ...eventToDuplicate,
             date: new Date(), // Reset date to today
           });
-          setBannerPreview(eventToDuplicate.bannerUrl);
           toast({ title: 'Event Duplicated', description: 'Event details have been pre-filled.' });
         }
       };
@@ -207,14 +198,9 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
     try {
       const eventDate = new Date(values.date);
       const endTime = new Date(eventDate.getTime() + values.duration * 60000);
-      const bannerFile = values.bannerFile?.[0];
-
-      // Exclude bannerFile from the data sent to Firestore, as it's handled separately.
-      const { bannerFile: _bannerFile, ...eventData } = values;
 
       const payload = {
-        eventData: {
-          ...eventData,
+          ...values,
           date: eventDate.toISOString(),
           endTime: endTime.toISOString(),
           artist: artistName,
@@ -222,8 +208,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
           moderationStatus: 'pending' as const,
           status: 'upcoming' as const,
           isBoosted: initialData?.isBoosted || false,
-        },
-        bannerFile,
       };
 
       if (mode === 'create') {
@@ -257,7 +241,7 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
         <CardHeader>
           <CardTitle className="text-3xl">{mode === 'create' ? 'Create New Event' : 'Edit Event'}</CardTitle>
           <CardDescription>
-            Fill out the details below. All events are subject to admin approval before going live.
+            Fill out the details below. The event banner will be automatically generated from the YouTube thumbnail.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -265,10 +249,11 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <div className="w-full max-w-xl mx-auto aspect-video relative rounded-lg overflow-hidden border">
                   <Image
-                    src={bannerPreview || youtubeBanner}
+                    src={youtubeBanner}
                     alt="Event Banner Preview"
                     fill={true}
                     style={{objectFit: 'cover'}}
+                    key={youtubeBanner} 
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       if (target.src.includes('maxresdefault')) {
@@ -281,34 +266,6 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                     data-ai-hint="youtube thumbnail"
                   />
                 </div>
-
-              <FormField
-                control={form.control}
-                name="bannerFile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Custom Event Banner</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="file"
-                        accept="image/jpeg, image/png, image/webp"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            field.onChange(e.target.files);
-                            setBannerPreview(URL.createObjectURL(file));
-                          } else {
-                            field.onChange(null);
-                            setBannerPreview(youtubeBanner);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>Optional. Upload a custom banner. If not provided, the YouTube thumbnail will be used.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <FormField
                 control={form.control}
@@ -333,17 +290,9 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                       <Input 
                         placeholder="https://www.youtube.com/watch?v=..." 
                         {...field}
-                        onChange={(e) => {
-                           field.onChange(e);
-                           if (!form.getValues('bannerFile')) {
-                             const newVideoId = getYouTubeVideoId(e.target.value);
-                             const newYoutubeBanner = newVideoId ? `https://img.youtube.com/vi/${newVideoId}/maxresdefault.jpg` : 'https://placehold.co/600x400.png';
-                             setBannerPreview(newYoutubeBanner);
-                           }
-                        }}
                       />
                     </FormControl>
-                    <FormDescription>The video thumbnail will be used as the event banner if a custom one isn't uploaded.</FormDescription>
+                    <FormDescription>The video thumbnail will be used as the event banner.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
