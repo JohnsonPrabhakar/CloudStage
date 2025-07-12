@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,23 +11,119 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Menu, Ticket, Film } from "lucide-react";
+import { Menu, Ticket, Film, User as UserIcon, LogOut, UserCircle } from "lucide-react";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export function Header() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
+    router.push("/");
+  };
 
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
-    {
-      label: "My Tickets",
-      href: "/my-tickets",
-      icon: <Ticket className="h-4 w-4" />,
-    },
     { label: "Artist Dashboard", href: "/artist/login" },
     { label: "Admin", href: "/admin" },
   ];
+
+  const UserMenu = () => {
+    if (loading) {
+      return <Button variant="ghost" size="icon" className="w-24 h-9 rounded-md animate-pulse bg-muted"></Button>;
+    }
+
+    if (currentUser) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Avatar>
+                 <AvatarImage src={currentUser.photoURL || `https://i.pravatar.cc/40?u=${currentUser.uid}`} alt={currentUser.displayName || currentUser.email || 'User'}/>
+                 <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{currentUser.displayName || currentUser.email}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/my-tickets"><Ticket className="mr-2"/> My Tickets</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/user/profile"><UserCircle className="mr-2"/> Edit Profile</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+              <LogOut className="mr-2"/> Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
+    return (
+       <Button asChild>
+          <Link href="/user/login">
+            <UserIcon className="mr-2" />
+            User Login
+          </Link>
+        </Button>
+    )
+  };
+  
+  const MobileUserMenu = () => {
+     if (loading) {
+      return <div className="h-10 bg-muted rounded w-full animate-pulse"></div>;
+    }
+    if (currentUser) {
+      return (
+        <>
+          <Link href="/my-tickets" className="transition-colors hover:text-primary flex items-center gap-2 text-lg" onClick={() => setIsSheetOpen(false)}>
+            <Ticket/> My Tickets
+          </Link>
+          <Link href="/user/profile" className="transition-colors hover:text-primary flex items-center gap-2 text-lg" onClick={() => setIsSheetOpen(false)}>
+            <UserCircle/> Edit Profile
+          </Link>
+          <button onClick={() => { handleLogout(); setIsSheetOpen(false); }} className="transition-colors text-destructive hover:text-primary flex items-center gap-2 text-lg">
+            <LogOut/> Logout
+          </button>
+        </>
+      )
+    }
+     return (
+        <Link href="/user/login" className="transition-colors hover:text-primary flex items-center gap-2 text-lg" onClick={() => setIsSheetOpen(false)}>
+            <UserIcon/> User Login
+        </Link>
+      )
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/60 backdrop-blur-xl">
@@ -50,9 +147,14 @@ export function Header() {
             ))}
           </nav>
         </div>
+        
+        <div className="hidden md:flex items-center gap-2">
+          <UserMenu />
+        </div>
+
 
         {/* Mobile Navigation */}
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+        <div className="flex flex-1 items-center justify-between space-x-2 md:hidden">
           <div className="md:hidden">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
@@ -86,6 +188,8 @@ export function Header() {
                       {item.label}
                     </Link>
                   ))}
+                  <hr className="my-2" />
+                  <MobileUserMenu />
                 </nav>
               </SheetContent>
             </Sheet>

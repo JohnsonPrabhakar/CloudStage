@@ -1,23 +1,25 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
-import { type Event, type Ticket as TicketType } from "@/lib/types";
+import { type Event } from "@/lib/types";
 import { getUserTicketsListener } from "@/lib/firebase-service";
 import { EventCard } from "@/components/EventCard";
-import { Ticket, LogIn, WifiOff, Loader2 } from "lucide-react";
+import { Ticket, LogIn, WifiOff, Loader2, ArrowRight, User } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-export const dynamic = 'force-dynamic';
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
 
 export default function MyTicketsPage() {
   const [ticketedEvents, setTicketedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -42,7 +44,8 @@ export default function MyTicketsPage() {
       
       try {
         listenerUnsubscribe = getUserTicketsListener(user.uid, (events) => {
-          setTicketedEvents(events);
+          const sortedEvents = events.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setTicketedEvents(sortedEvents);
           setLoading(false);
         });
       } catch (err) {
@@ -59,6 +62,15 @@ export default function MyTicketsPage() {
       }
     };
   }, [user]);
+
+  const { upcoming, past } = ticketedEvents.reduce((acc, event) => {
+    if (new Date(event.date) >= new Date()) {
+      acc.upcoming.push(event);
+    } else {
+      acc.past.push(event);
+    }
+    return acc;
+  }, { upcoming: [] as Event[], past: [] as Event[] });
 
   if (loading) {
     return (
@@ -77,11 +89,11 @@ export default function MyTicketsPage() {
   if (!user) {
     return (
         <div className="container mx-auto p-4 md:p-8 text-center py-24 bg-card rounded-lg">
-            <Ticket className="mx-auto h-16 w-16 text-primary mb-4" />
-            <h1 className="text-3xl font-bold mb-2">See Your Tickets</h1>
+            <User className="mx-auto h-16 w-16 text-primary mb-4" />
+            <h1 className="text-3xl font-bold mb-2">Access Your Tickets</h1>
             <p className="text-muted-foreground mb-6">Please log in to view the events you've booked.</p>
             <Button asChild size="lg">
-                <Link href="/artist/login">
+                <Link href="/user/login?redirect=/my-tickets">
                     <LogIn className="mr-2 h-4 w-4" />
                     Log In
                 </Link>
@@ -103,6 +115,24 @@ export default function MyTicketsPage() {
     )
   }
 
+  const renderTicketList = (events: Event[], emptyMessage: string) => {
+    if (events.length === 0) {
+      return (
+        <div className="text-center py-16 text-muted-foreground bg-muted/20 rounded-lg mt-6">
+          <p>{emptyMessage}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-6">
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} />
+        ))}
+      </div>
+    );
+  };
+
+
   return (
     <div className="container mx-auto p-4 md:p-8">
       <div className="mb-12">
@@ -116,16 +146,29 @@ export default function MyTicketsPage() {
       </div>
 
       {ticketedEvents.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {ticketedEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+        <Tabs defaultValue="upcoming" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                <TabsTrigger value="past">Past</TabsTrigger>
+            </TabsList>
+            <TabsContent value="upcoming">
+              {renderTicketList(upcoming, "You have no upcoming tickets.")}
+            </TabsContent>
+             <TabsContent value="past">
+              {renderTicketList(past, "You have no past tickets.")}
+            </TabsContent>
+        </Tabs>
       ) : (
-        <div className="text-center py-24 text-muted-foreground bg-card rounded-lg">
-          <p className="text-xl">You haven't acquired any tickets yet.</p>
-          <p>Explore events and book your spot!</p>
-        </div>
+        <Card className="text-center py-24">
+            <CardContent>
+                <p className="text-xl text-muted-foreground">You haven't bought any tickets yet.</p>
+                <Button asChild className="mt-4">
+                    <Link href="/">
+                        Explore Events <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardContent>
+        </Card>
       )}
     </div>
   );

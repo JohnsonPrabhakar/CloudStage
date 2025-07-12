@@ -18,14 +18,15 @@ import {
   onSnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory } from '@/lib/types';
-import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type UserProfile } from '@/lib/types';
+import { createUserWithEmailAndPassword, type User, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { format } from "date-fns";
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from './youtube-utils';
 
 const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
+const usersCollection = collection(db, 'users');
 const ticketsCollection = collection(db, 'tickets');
 const moviesCollection = collection(db, 'movies');
 const eventFeedbackCollection = collection(db, 'eventFeedback');
@@ -94,16 +95,22 @@ const deleteFileByUrl = async (url: string) => {
 // --- EVENT-RELATED FUNCTIONS ---
 type EventPayload = {
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
+  bannerFile?: File;
 };
 
-const addEvent = async ({ eventData }: EventPayload): Promise<{ eventId: string }> => {
+const addEvent = async ({ eventData, bannerFile }: EventPayload): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
-
-  const videoId = getYouTubeVideoId(eventData.streamUrl);
-  let bannerUrl = videoId
-    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-    : 'https://placehold.co/600x400.png';
+  
+  let bannerUrl;
+  if (bannerFile) {
+    bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
+  } else {
+    const videoId = getYouTubeVideoId(eventData.streamUrl);
+    bannerUrl = videoId
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      : 'https://placehold.co/600x400.png';
+  }
 
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
   const finalStreamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
@@ -119,15 +126,19 @@ const addEvent = async ({ eventData }: EventPayload): Promise<{ eventId: string 
   return { eventId };
 };
 
-const updateEvent = async (eventId: string, { eventData }: EventPayload) => {
+const updateEvent = async (eventId: string, { eventData, bannerFile }: EventPayload) => {
     const eventDoc = doc(db, 'events', eventId);
     
     let bannerUrl;
     
-    const videoId = getYouTubeVideoId(eventData.streamUrl);
-    bannerUrl = videoId
-        ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-        : 'https://placehold.co/600x400.png';
+    if (bannerFile) {
+        bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
+    } else {
+        const videoId = getYouTubeVideoId(eventData.streamUrl);
+        bannerUrl = videoId
+            ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+            : 'https://placehold.co/600x400.png';
+    }
 
     const dataToUpdate: Partial<Event> = {
         ...eventData,
@@ -356,6 +367,33 @@ const saveFcmToken = async (userId: string, token: string) => {
     }
 };
 
+// --- USER-RELATED FUNCTIONS ---
+const createUserProfile = async (user: User, data: { fullName: string; phone: string; }) => {
+  await updateProfile(user, { displayName: data.fullName });
+  await setDoc(doc(db, "users", user.uid), {
+    id: user.uid,
+    email: user.email,
+    fullName: data.fullName,
+    phone: data.phone,
+    createdAt: serverTimestamp(),
+  });
+}
+
+const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+    const userDoc = doc(db, 'users', uid);
+    const snapshot = await getDoc(userDoc);
+    if (snapshot.exists()) {
+        return fromFirestore<UserProfile>(snapshot);
+    }
+    return null;
+}
+
+const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
+  const userDoc = doc(db, 'users', uid);
+  await updateDoc(userDoc, data);
+}
+
+
 // --- TICKET-RELATED FUNCTIONS ---
 
 const checkForExistingTicket = async (userId: string, eventId: string): Promise<boolean> => {
@@ -373,7 +411,7 @@ const createTicket = async (
     userId: string,
     eventId: string,
     price: number,
-    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone: string }
+    contactDetails: { buyerName: string; buyerEmail: string; buyerPhone?: string }
 ): Promise<{ success: boolean, ticketId?: string, error?: string }> => {
     const alreadyExists = await checkForExistingTicket(userId, eventId);
     if (alreadyExists) {
@@ -746,6 +784,9 @@ export {
     rejectArtist,
     updateArtistToPremium,
     saveFcmToken,
+    createUserProfile,
+    getUserProfile,
+    updateUserProfile,
     checkForExistingTicket,
     createTicket,
     getUserTicketsListener,

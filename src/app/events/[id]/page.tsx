@@ -164,7 +164,7 @@ export default function EventDetailPage() {
         className="w-full text-lg py-6 transition-transform transform hover:scale-105"
         disabled={siteStatus === 'offline' || event.status === 'past'}
       >
-        <Link href={`/confirm-ticket/${event.id}`}>
+        <Link href={currentUser ? `/confirm-ticket/${event.id}` : `/user/login?redirect=/confirm-ticket/${event.id}`}>
             <Ticket className="mr-2 h-6 w-6" /> Buy Ticket
         </Link>
       </Button>

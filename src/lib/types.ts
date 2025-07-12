@@ -1,4 +1,5 @@
 
+
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
@@ -93,9 +94,18 @@ export interface Ticket {
   pricePaid: number;
   buyerName: string;
   buyerEmail: string;
-  buyerPhone: string;
+  buyerPhone?: string;
   testMode: boolean;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  phone?: string;
+  createdAt: any;
+}
+
 
 export interface ChatMessage {
   id: string;

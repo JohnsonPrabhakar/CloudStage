@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
-import { getEventById, createTicket } from "@/lib/firebase-service";
+import { getEventById, createTicket, getUserProfile } from "@/lib/firebase-service";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft, LogIn } from "lucide-react";
@@ -29,7 +29,7 @@ import { format } from 'date-fns';
 const formSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters."),
   email: z.string().email("Please enter a valid email address."),
-  phone: z.string().min(10, "Please enter a valid phone number."),
+  phone: z.string().min(10, "Please enter a valid phone number.").optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -55,12 +55,14 @@ export default function TicketConfirmationForm() {
   });
   
   useEffect(() => {
-    const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         setUser(currentUser);
-        if (currentUser && !currentUser.isAnonymous) {
+        if (currentUser) {
+            const userProfile = await getUserProfile(currentUser.uid);
             form.setValue('email', currentUser.email || '');
-            if (currentUser.displayName) {
-                form.setValue('fullName', currentUser.displayName);
+            form.setValue('fullName', userProfile?.fullName || currentUser.displayName || '');
+            if (userProfile?.phone) {
+                form.setValue('phone', userProfile.phone);
             }
         }
     });
@@ -159,6 +161,7 @@ export default function TicketConfirmationForm() {
   }
 
   if (!user) {
+    // This case should ideally be handled by the wrapper now, but it's good to keep as a fallback.
     return (
         <Card className="w-full max-w-2xl text-center">
             <CardHeader>
@@ -167,7 +170,7 @@ export default function TicketConfirmationForm() {
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
                 <Button asChild>
-                    <Link href="/artist/login">Log In or Register</Link>
+                    <Link href={`/user/login?redirect=/confirm-ticket/${eventId}`}>Log In or Register</Link>
                 </Button>
                  <Button variant="outline" onClick={() => router.push(`/events/${eventId}`)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -183,7 +186,7 @@ export default function TicketConfirmationForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Confirm Your Ticket Purchase</CardTitle>
         <CardDescription>
-          Please verify your details below before proceeding. Your ticket will be sent to this email.
+          Your ticket will be linked to your account and sent to your email.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -218,7 +221,7 @@ export default function TicketConfirmationForm() {
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="you@example.com" {...field} />
+                    <Input type="email" placeholder="you@example.com" {...field} disabled />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -229,7 +232,7 @@ export default function TicketConfirmationForm() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mobile Number</FormLabel>
+                  <FormLabel>Mobile Number (Optional)</FormLabel>
                   <FormControl>
                     <Input type="tel" placeholder="+91 98765 43210" {...field} />
                   </FormControl>

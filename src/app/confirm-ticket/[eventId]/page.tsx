@@ -1,10 +1,14 @@
 
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import TicketConfirmationForm from "@/components/TicketConfirmationForm";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,11 +29,35 @@ function ConfirmTicketPageLoader() {
     );
 }
 
+function TicketConfirmationWrapper() {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        toast({
+          variant: 'destructive',
+          title: 'Authentication Required',
+          description: 'You must be logged in to purchase a ticket.',
+        });
+        const currentPath = window.location.pathname;
+        router.push(`/user/login?redirect=${currentPath}`);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router, toast]);
+
+  return <TicketConfirmationForm />;
+}
+
+
 export default function ConfirmTicketPage() {
   return (
     <div className="container mx-auto p-4 md:p-8 flex items-center justify-center min-h-[calc(100vh-80px)]">
       <Suspense fallback={<ConfirmTicketPageLoader />}>
-        <TicketConfirmationForm />
+        <TicketConfirmationWrapper />
       </Suspense>
     </div>
   );
