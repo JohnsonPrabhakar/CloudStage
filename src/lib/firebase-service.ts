@@ -109,7 +109,6 @@ const addEvent = async (
 
   const finalPayload = {
     ...eventData,
-    category: eventData.category as EventCategory, // Ensure type safety
   };
 
   await setDoc(docRef, {
@@ -129,7 +128,7 @@ const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' 
     const dataToUpdate: Partial<Event> = {
         ...eventData,
         moderationStatus: 'pending' as const,
-        category: eventData.category as EventCategory,
+        category: eventData.category,
     };
 
     if (eventData.streamUrl) {
@@ -338,27 +337,28 @@ const updateArtistToPremium = async(uid: string) => {
 }
 
 const saveFcmToken = async (userId: string, token: string) => {
-    // This function now checks for document existence before writing.
+    // This function attempts to save the FCM token for a user.
+    // It is designed to fail silently if permissions are insufficient,
+    // which can happen if a user is authenticated but has not completed registration.
     try {
         const artistDocRef = doc(db, 'artists', userId);
         const artistSnap = await getDoc(artistDocRef);
         if (artistSnap.exists()) {
             await setDoc(artistDocRef, { fcmToken: token }, { merge: true });
-            return; // Exit after successful write
+            return;
         }
 
         const userDocRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
-            await setDoc(userDocRef, { fcmToken: token }, { merge: true });
-            return;
+             await setDoc(userDocRef, { fcmToken: token }, { merge: true });
+             return;
         }
-
-        // If neither document exists, log it but don't throw an error to prevent crashes.
+        
         console.log(`FCM token for user ${userId} not saved: No corresponding artist or user document found.`);
-
     } catch (error) {
-        // Catch potential permission errors silently.
+        // This catch block is crucial. It prevents the app from crashing due to
+        // Firestore permission errors when a new/incomplete user logs in.
         console.error(`Failed to save FCM token for user ${userId}:`, error);
     }
 };
@@ -780,3 +780,4 @@ export {
     getAllTickets,
     submitEventFeedback,
 };
+

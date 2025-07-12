@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calendar, Ticket, Play, Sparkles, CheckCircle, Star } from "lucide-react";
 import { format } from "date-fns";
+import { getYouTubeVideoId } from "@/lib/youtube-utils";
 
 type EventCardProps = {
   event: Event;
@@ -65,9 +66,10 @@ export function EventCard({ event }: EventCardProps) {
 
   const action = getAction();
   
-  const displayBannerUrl = (event.bannerUrl && !event.bannerUrl.includes('?text='))
-    ? event.bannerUrl
-    : "https://placehold.co/600x400.png";
+  const videoId = getYouTubeVideoId(event.streamUrl);
+  const displayBannerUrl = videoId
+    ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+    : (event.bannerUrl && !event.bannerUrl.includes('?text=') ? event.bannerUrl : "https://placehold.co/600x400.png");
 
   return (
     <Card className="flex flex-col overflow-hidden h-full group">
