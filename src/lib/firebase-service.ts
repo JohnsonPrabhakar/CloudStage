@@ -346,13 +346,14 @@ const updateArtistToPremium = async(uid: string) => {
 const saveFcmToken = async (userId: string, token: string) => {
     try {
         const artistDocRef = doc(db, 'artists', userId);
+        const userDocRef = doc(db, 'users', userId);
+
         const artistSnap = await getDoc(artistDocRef);
         if (artistSnap.exists()) {
             await setDoc(artistDocRef, { fcmToken: token }, { merge: true });
             return;
         }
 
-        const userDocRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
              await setDoc(userDocRef, { fcmToken: token }, { merge: true });
