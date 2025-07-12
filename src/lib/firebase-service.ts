@@ -785,7 +785,6 @@ export {
     updateArtistToPremium,
     saveFcmToken,
     createUserProfile,
-    getUserProfile,
     updateUserProfile,
     checkForExistingTicket,
     createTicket,
@@ -813,4 +812,5 @@ export {
     getCompletedEventsForReport,
     getAllTickets,
     submitEventFeedback,
+    getUserProfile
 };
