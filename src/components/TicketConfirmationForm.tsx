@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,9 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { type Event } from "@/lib/types";
 import { getEventById, createTicket } from "@/lib/firebase-service";
-import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Loader2, Calendar, Ticket, AlertTriangle, ArrowLeft, LogIn } from "lucide-react";
 import { format } from 'date-fns';
 
 const formSchema = z.object({
@@ -33,9 +34,11 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function TicketConfirmationForm({ eventId }: { eventId: string }) {
+export default function TicketConfirmationForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const params = useParams();
+  const eventId = params.eventId as string;
   
   const [event, setEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -53,9 +56,8 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser); // Set user to the logged-in user or null for guests
+        setUser(currentUser);
         if (currentUser && !currentUser.isAnonymous) {
-            // Pre-fill form if user is logged in and not anonymous
             form.setValue('email', currentUser.email || '');
             if (currentUser.displayName) {
                 form.setValue('fullName', currentUser.displayName);
@@ -81,7 +83,9 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
         }
     };
     
-    fetchEvent();
+    if (eventId) {
+        fetchEvent();
+    }
 
     return () => authUnsubscribe();
   }, [eventId, router, toast, form]);
@@ -89,23 +93,15 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   async function onSubmit(values: FormValues) {
     setIsProcessing(true);
     try {
-      let finalUser = user;
-
-      // If no user is logged in (guest), sign in anonymously
-      if (!finalUser) {
-        const userCredential = await signInAnonymously(auth);
-        finalUser = userCredential.user;
-      }
-      
       if (!event) {
           throw new Error("Event data is not available.");
       }
-       if (!finalUser) {
-          throw new Error("Could not authenticate user. Please try again.");
+       if (!user) {
+          throw new Error("You must be logged in to purchase a ticket.");
       }
 
       await createTicket(
-        finalUser.uid,
+        user.uid,
         event.id,
         event.ticketPrice,
         {
@@ -160,6 +156,26 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
             </CardContent>
           </Card>
       );
+  }
+
+  if (!user) {
+    return (
+        <Card className="w-full max-w-2xl text-center">
+            <CardHeader>
+                <CardTitle className="flex justify-center items-center gap-2"><LogIn className="text-primary"/>Please Log In</CardTitle>
+                <CardDescription>You need to be logged in to purchase a ticket.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+                <Button asChild>
+                    <Link href="/artist/login">Log In or Register</Link>
+                </Button>
+                 <Button variant="outline" onClick={() => router.push(`/events/${eventId}`)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Event
+                </Button>
+            </CardContent>
+          </Card>
+    );
   }
 
   return (
