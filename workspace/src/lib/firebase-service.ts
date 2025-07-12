@@ -1,6 +1,5 @@
 
 
-
 import { db, auth, storage } from '@/lib/firebase';
 import {
   collection,
@@ -20,7 +19,7 @@ import {
   onSnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type AppUser } from '@/lib/types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory } from '@/lib/types';
 import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { format } from "date-fns";
@@ -304,29 +303,6 @@ const goLive = async (eventId: string, streamUrl: string) => {
   });
 };
 
-
-// --- USER-RELATED FUNCTIONS (for mobile app users) ---
-const createUserProfileForPhoneAuth = async (user: User) => {
-  const userRef = doc(db, 'users', user.uid);
-  const docSnap = await getDoc(userRef);
-
-  if (!docSnap.exists() && user.phoneNumber) {
-    await setDoc(userRef, {
-      phoneNumber: user.phoneNumber,
-      createdAt: serverTimestamp(),
-      fcmToken: '',
-    });
-  }
-};
-
-const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
-    const userDoc = doc(db, 'users', uid);
-    const snapshot = await getDoc(userDoc);
-    if (snapshot.exists()) {
-        return fromFirestore<AppUser>(snapshot);
-    }
-    return null;
-}
 
 // ARTIST-RELATED FUNCTIONS
 
@@ -699,21 +675,6 @@ const getTicketsCountListener = (callback: (count: number) => void): (() => void
   }
 };
 
-const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
-  const currentUser = auth.currentUser;
-  if (currentUser && currentUser.email === 'admin@cloudstage.in') {
-    return onSnapshot(usersCollection, (snapshot) => {
-      callback(snapshot.size);
-    }, (error) => {
-      console.error("User count listener failed:", error);
-    });
-  } else {
-    // Return a no-op unsubscribe function if the user is not an admin
-    return () => {};
-  }
-};
-
-
 // CONFIG/SITE STATUS FUNCTIONS
 const getSiteStatus = async (): Promise<'online' | 'offline'> => {
   const statusDoc = doc(db, 'config', 'siteStatus');
@@ -832,8 +793,6 @@ export {
     updateEventStatus,
     toggleEventBoost,
     goLive,
-    createUserProfileForPhoneAuth,
-    getAppUserProfile,
     createArtistProfileForUser,
     registerArtist,
     getArtistProfile,
@@ -860,7 +819,6 @@ export {
     getArtistsCountListener,
     getEventsCountListener,
     getTicketsCountListener,
-    getUsersCountListener,
     getSiteStatus,
     updateSiteStatus,
     submitVerificationRequest,
@@ -873,5 +831,3 @@ export {
     getPublicArtistEventsListener, 
     updateEvent
 };
-
-    
