@@ -28,7 +28,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { addEvent, updateEvent, getEventById } from '@/lib/firebase-service';
+import { addEvent, updateEvent, getEventById, getArtistProfile } from '@/lib/firebase-service';
 import { type Event } from '@/lib/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
@@ -121,9 +121,9 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        const artistProfile = await getEventById(currentUser.uid); // NOTE: This seems incorrect, should be getArtistProfile
-        if ((auth.currentUser as any)?.displayName) {
-          setArtistName((auth.currentUser as any)?.displayName);
+        const artistProfile = await getArtistProfile(currentUser.uid);
+        if (artistProfile) {
+          setArtistName(artistProfile.name);
         }
       } else {
         toast({ variant: 'destructive', title: 'Not Authenticated', description: 'Please log in.' });
