@@ -3,6 +3,7 @@
 
 
 
+
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'
@@ -116,11 +117,4 @@ export interface EventFeedback {
     rating: number; // 1 to 5
     review: string;
     submittedAt: any;
-}
-
-export interface AppUser {
-  id: string; // Firebase Auth UID
-  phoneNumber: string;
-  createdAt: any;
-  fcmToken?: string;
 }

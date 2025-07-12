@@ -18,7 +18,7 @@ import {
   onSnapshot,
   getCountFromServer,
 } from 'firebase/firestore';
-import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory, type AppUser } from '@/lib/types';
+import { type Event, type Artist, type Ticket, type Movie, type ChatMessage, type VerificationRequestData, type EventFeedback, type EventCategory } from '@/lib/types';
 import { createUserWithEmailAndPassword, type User } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { format } from "date-fns";
@@ -28,7 +28,6 @@ const eventsCollection = collection(db, 'events');
 const artistsCollection = collection(db, 'artists');
 const ticketsCollection = collection(db, 'tickets');
 const moviesCollection = collection(db, 'movies');
-const usersCollection = collection(db, 'users');
 const eventFeedbackCollection = collection(db, 'eventFeedback');
 
 
@@ -246,29 +245,6 @@ const goLive = async (eventId: string, streamUrl: string) => {
   });
 };
 
-
-// --- USER-RELATED FUNCTIONS (for mobile app users) ---
-const createUserProfileForPhoneAuth = async (user: User) => {
-  const userRef = doc(db, 'users', user.uid);
-  const docSnap = await getDoc(userRef);
-
-  if (!docSnap.exists() && user.phoneNumber) {
-    await setDoc(userRef, {
-      phoneNumber: user.phoneNumber,
-      createdAt: serverTimestamp(),
-      fcmToken: '',
-    });
-  }
-};
-
-const getAppUserProfile = async (uid: string): Promise<AppUser | null> => {
-    const userDoc = doc(db, 'users', uid);
-    const snapshot = await getDoc(userDoc);
-    if (snapshot.exists()) {
-        return fromFirestore<AppUser>(snapshot);
-    }
-    return null;
-}
 
 // ARTIST-RELATED FUNCTIONS
 
@@ -629,14 +605,6 @@ const getTicketsCountListener = (callback: (count: number) => void): (() => void
   });
 };
 
-const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
-  return onSnapshot(usersCollection, (snapshot) => {
-    callback(snapshot.size);
-  }, (error) => {
-    console.error("User count listener failed:", error);
-  });
-};
-
 
 // CONFIG/SITE STATUS FUNCTIONS
 const getSiteStatus = async (): Promise<'online' | 'offline'> => {
@@ -758,8 +726,6 @@ export {
     updateEventStatus,
     toggleEventBoost,
     goLive,
-    createUserProfileForPhoneAuth,
-    getAppUserProfile,
     createArtistProfileForUser,
     registerArtist,
     getArtistProfile,
@@ -786,7 +752,6 @@ export {
     getArtistsCountListener,
     getEventsCountListener,
     getTicketsCountListener,
-    getUsersCountListener,
     getSiteStatus,
     updateSiteStatus,
     submitVerificationRequest,
