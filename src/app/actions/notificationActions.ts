@@ -2,7 +2,7 @@
 'use server';
 
 import { fcm, adminDb } from '@/lib/fcm-admin';
-import { type AppUser, type Event, type Artist } from '@/lib/types';
+import { type Event, type Artist } from '@/lib/types';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // Helper to convert Firestore doc using Admin SDK
@@ -67,14 +67,22 @@ export async function sendNewEventNotification(eventId: string) {
 
     console.log(`[Notification Action] Found ${followerIds.length} followers.`);
 
-    // 2. Fetch the FCM token for each follower from the /users collection.
-    // This assumes followers are audience members, not other artists.
+    // 2. Fetch the FCM token for each follower from their artist or user document.
+    // This logic now checks both artists and potential future user collections.
     const userDocRefs = followerIds.map(id => adminDb.collection('users').doc(id));
+    const artistDocRefs = followerIds.map(id => adminDb.collection('artists').doc(id));
+    
     const userDocs = await adminDb.getAll(...userDocRefs);
+    const artistDocs = await adminDb.getAll(...artistDocRefs);
 
-    const fcmTokens = userDocs
-      .map(doc => doc.exists ? (doc.data() as AppUser).fcmToken : null)
-      .filter((token): token is string => !!token && token.length > 0);
+    const fcmTokens = [
+      ...userDocs
+        .map(doc => doc.exists ? (doc.data() as { fcmToken?: string }).fcmToken : null)
+        .filter((token): token is string => !!token && token.length > 0),
+      ...artistDocs
+        .map(doc => doc.exists ? (doc.data() as Artist).fcmToken : null)
+        .filter((token): token is string => !!token && token.length > 0)
+    ];
 
 
     if (fcmTokens.length === 0) {
@@ -98,15 +106,16 @@ export async function sendNewEventNotification(eventId: string) {
       tokens: [...new Set(fcmTokens)], // Use Set to remove duplicate tokens
     };
 
-    // const response = await fcm.sendEachForMulticast(message as any); // Temporarily cast to any to bypass strict type check
+    // FCM sending is disabled during testing to avoid build issues.
+    // To re-enable, uncomment the following lines and ensure the package supports the call.
+    // const response = await fcm.sendEachForMulticast(message as any); 
     // console.log(`[Notification Action] Successfully sent ${response.successCount} messages.`);
     
     // if (response.failureCount > 0) {
     //   console.warn(`[Notification Action] Failed to send ${response.failureCount} messages.`);
-    //   // Optionally, you could add logic here to clean up invalid tokens from your database
     // }
 
-    console.log('[Notification Action] FCM sendEachForMulticast is currently disabled to resolve build error. Would have sent to:', fcmTokens);
+    console.log('[Notification Action] FCM sendEachForMulticast is currently disabled. Would have sent to:', fcmTokens);
 
     return { success: true, message: `Notifications sending is disabled, but would have been sent to ${fcmTokens.length} followers.` };
   } catch (error) {
