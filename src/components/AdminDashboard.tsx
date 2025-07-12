@@ -101,7 +101,7 @@ export default function AdminDashboard() {
         getSiteStatus().then(setSiteStatus);
         
         try {
-            // Set up real-time listeners
+            // Set up real-time listeners only after confirming admin
             eventsUnsubscribe = getPendingEventsListener(setPendingEvents);
             artistsUnsubscribe = getPendingArtistsListener((artists) => {
                 setPendingArtists(artists);
@@ -110,7 +110,6 @@ export default function AdminDashboard() {
                 }
             });
 
-            // Set up stats listeners only for authenticated admin
             statsUnsubscribers.push(
               getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count }))),
               getEventsCountListener((count) => setStats(s => ({...s, events: count }))),
@@ -197,7 +196,7 @@ export default function AdminDashboard() {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-        <p>Loading Dashboard...</p>
+        <p>Verifying admin access...</p>
       </div>
     );
   }
