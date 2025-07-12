@@ -338,16 +338,28 @@ const updateArtistToPremium = async(uid: string) => {
 }
 
 const saveFcmToken = async (userId: string, token: string) => {
-    const artistDocRef = doc(db, 'artists', userId);
-    const artistSnap = await getDoc(artistDocRef);
-    if (artistSnap.exists()) {
-        await setDoc(artistDocRef, { fcmToken: token }, { merge: true });
-    }
+    // This function now checks for document existence before writing.
+    try {
+        const artistDocRef = doc(db, 'artists', userId);
+        const artistSnap = await getDoc(artistDocRef);
+        if (artistSnap.exists()) {
+            await setDoc(artistDocRef, { fcmToken: token }, { merge: true });
+            return; // Exit after successful write
+        }
 
-    const userDocRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists()) {
-        await setDoc(userDocRef, { fcmToken: token }, { merge: true });
+        const userDocRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+            await setDoc(userDocRef, { fcmToken: token }, { merge: true });
+            return;
+        }
+
+        // If neither document exists, log it but don't throw an error to prevent crashes.
+        console.log(`FCM token for user ${userId} not saved: No corresponding artist or user document found.`);
+
+    } catch (error) {
+        // Catch potential permission errors silently.
+        console.error(`Failed to save FCM token for user ${userId}:`, error);
     }
 };
 
