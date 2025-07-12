@@ -104,6 +104,7 @@ export interface UserProfile {
   fullName: string;
   phone?: string;
   createdAt: any;
+  fcmToken?: string;
 }
 
 
