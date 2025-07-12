@@ -12,6 +12,9 @@ export default function ContactPage() {
             If you have any questions or need assistance, please feel free to reach out to us.
           </p>
           <p>
+            <strong>Name:</strong> Johnson Prabhakar J
+          </p>
+          <p>
             <strong>Email:</strong> support@cloudstage.in
           </p>
           <p>
