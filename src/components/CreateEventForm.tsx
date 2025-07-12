@@ -228,8 +228,8 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                   <Image
                     src={bannerPreview}
                     alt="YouTube Thumbnail Preview"
-                    layout="fill"
-                    objectFit="cover"
+                    fill={true}
+                    style={{objectFit: 'cover'}}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
