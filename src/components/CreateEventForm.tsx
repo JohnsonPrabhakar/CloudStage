@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent, updateEvent, getEventById, getArtistProfile } from '@/lib/firebase-service';
-import { type Event } from '@/lib/types';
+import { type Event, type EventCategory } from '@/lib/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { Calendar as CalendarIcon, Loader2, ChevronLeft, Sparkles, BrainCircuit } from 'lucide-react';
@@ -39,7 +39,7 @@ import { format } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
 import { generateEventDescription } from '@/ai/flows/generate-event-description';
 
-const eventCategories = [
+const eventCategories: EventCategory[] = [
   'Music',
   'Devotional / Bhajan / Satsang',
   'Magic Show',
@@ -52,7 +52,7 @@ const eventCategories = [
 const formSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),
   description: z.string().min(20, 'Description must be at least 20 characters.'),
-  category: z.string().min(1, 'Category is required.'),
+  category: z.enum(eventCategories, { required_error: 'Category is required.' }),
   genre: z.string().min(2, 'Genre is required.'),
   language: z.string().min(2, 'Language is required.'),
   date: z.date({ required_error: 'A date is required.' }),
@@ -83,7 +83,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     defaultValues: {
       title: initialData?.title || '',
       description: initialData?.description || '',
-      category: initialData?.category || '',
+      category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
       date: initialData ? new Date(initialData.date) : new Date(),
@@ -98,7 +98,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
 
   const bannerPreview = videoId
     ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-    : null;
+    : 'https://placehold.co/600x400.png';
 
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
@@ -124,6 +124,9 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
         const artistProfile = await getArtistProfile(currentUser.uid);
         if (artistProfile) {
           setArtistName(artistProfile.name);
+        } else {
+            toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist profile before creating an event.' });
+            router.push('/artist/register');
         }
       } else {
         toast({ variant: 'destructive', title: 'Not Authenticated', description: 'Please log in.' });
@@ -221,7 +224,6 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {bannerPreview && (
                 <div className="w-full aspect-video relative rounded-lg overflow-hidden border">
                   <Image
                     src={bannerPreview}
@@ -236,7 +238,6 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                     data-ai-hint="youtube thumbnail"
                   />
                 </div>
-              )}
 
               <FormField
                 control={form.control}

@@ -107,8 +107,13 @@ const addEvent = async (
 
   const finalStreamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
 
-  await setDoc(docRef, {
+  const finalPayload: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'> = {
     ...eventData,
+    category: eventData.category as EventCategory, // Ensure type safety
+  };
+
+  await setDoc(docRef, {
+    ...finalPayload,
     bannerUrl: bannerUrl,
     streamUrl: finalStreamUrl,
     eventCode,
@@ -124,6 +129,7 @@ const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' 
     const dataToUpdate: Partial<Event> = {
         ...eventData,
         moderationStatus: 'pending' as const,
+        category: eventData.category as EventCategory,
     };
 
     if (eventData.streamUrl) {
