@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +38,7 @@ import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
 import { generateEventDescription } from '@/ai/flows/generate-event-description';
+import { Suspense } from 'react';
 
 const eventCategories = [
   'Music',
@@ -69,7 +70,18 @@ type CreateEventFormProps = {
   initialData?: Event;
 };
 
-export default function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
+// We need to wrap the form in a component that uses Suspense
+// because CreateEventForm uses useSearchParams, which requires it.
+function CreateEventFormWrapper(props: CreateEventFormProps) {
+  return (
+    <Suspense fallback={<div>Loading form...</div>}>
+      <CreateEventForm {...props} />
+    </Suspense>
+  )
+}
+
+
+function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,7 +100,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
       category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
-      date: undefined,
+      date: initialData ? new Date(initialData.date) : undefined,
       duration: initialData?.duration || 60,
       streamUrl: initialData?.streamUrl || '',
       ticketPrice: initialData?.ticketPrice || 0,
@@ -96,12 +108,11 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
   });
   
   useEffect(() => {
-    if (initialData?.date) {
-      form.setValue('date', new Date(initialData.date));
-    } else if (mode === 'create') {
+    // This effect runs only on the client, preventing hydration errors
+    if (mode === 'create' && !initialData) {
       form.setValue('date', new Date());
     }
-  }, [initialData, mode, form]);
+  }, [mode, initialData, form]);
 
   const streamUrlValue = useWatch({ control: form.control, name: 'streamUrl' });
   const videoId = getYouTubeVideoId(streamUrlValue);
@@ -245,7 +256,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="w-full aspect-video relative rounded-lg overflow-hidden border">
+                <div className="w-full max-w-xl mx-auto aspect-video relative rounded-lg overflow-hidden border">
                   <Image
                     src={bannerPreview || youtubeBanner}
                     alt="Event Banner Preview"
@@ -253,11 +264,9 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                     style={{objectFit: 'cover'}}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      // Fallback for maxresdefault
                       if (target.src.includes('maxresdefault')) {
                         target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
                       } else {
-                        // Fallback for everything else
                         target.src = 'https://placehold.co/600x400.png';
                       }
                       target.onerror = null;
@@ -487,3 +496,5 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     </div>
   );
 }
+
+export default CreateEventFormWrapper;
