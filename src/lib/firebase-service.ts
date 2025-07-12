@@ -95,22 +95,16 @@ const deleteFileByUrl = async (url: string) => {
 // --- EVENT-RELATED FUNCTIONS ---
 type EventPayload = {
   eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
-  bannerFile?: File;
 };
 
-const addEvent = async ({ eventData, bannerFile }: EventPayload): Promise<{ eventId: string }> => {
+const addEvent = async ({ eventData }: EventPayload): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
   
-  let bannerUrl;
-  if (bannerFile) {
-    bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
-  } else {
-    const videoId = getYouTubeVideoId(eventData.streamUrl);
-    bannerUrl = videoId
-      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-      : 'https://placehold.co/600x400.png';
-  }
+  const videoId = getYouTubeVideoId(eventData.streamUrl);
+  const bannerUrl = videoId
+    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    : 'https://placehold.co/600x400.png';
 
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
   const finalStreamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
@@ -126,19 +120,13 @@ const addEvent = async ({ eventData, bannerFile }: EventPayload): Promise<{ even
   return { eventId };
 };
 
-const updateEvent = async (eventId: string, { eventData, bannerFile }: EventPayload) => {
+const updateEvent = async (eventId: string, { eventData }: EventPayload) => {
     const eventDoc = doc(db, 'events', eventId);
     
-    let bannerUrl;
-    
-    if (bannerFile) {
-        bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
-    } else {
-        const videoId = getYouTubeVideoId(eventData.streamUrl);
-        bannerUrl = videoId
-            ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-            : 'https://placehold.co/600x400.png';
-    }
+    const videoId = getYouTubeVideoId(eventData.streamUrl);
+    const bannerUrl = videoId
+        ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        : 'https://placehold.co/600x400.png';
 
     const dataToUpdate: Partial<Event> = {
         ...eventData,
@@ -638,6 +626,14 @@ const getArtistsCountListener = (callback: (count: number) => void): (() => void
   });
 };
 
+const getUsersCountListener = (callback: (count: number) => void): (() => void) => {
+  return onSnapshot(usersCollection, (snapshot) => {
+    callback(snapshot.size);
+  }, (error) => {
+    console.error("User count listener failed:", error);
+  });
+};
+
 const getEventsCountListener = (callback: (count: number) => void): (() => void) => {
   return onSnapshot(eventsCollection, (snapshot) => {
     callback(snapshot.size);
@@ -801,6 +797,7 @@ export {
     getChatMessagesListener,
     sendChatMessage,
     getArtistsCountListener,
+    getUsersCountListener,
     getEventsCountListener,
     getTicketsCountListener,
     getSiteStatus,

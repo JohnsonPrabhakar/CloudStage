@@ -52,6 +52,7 @@ import {
     updateSiteStatus,
     getArtistsCountListener,
     getEventsCountListener,
+    getUsersCountListener,
     getTicketsCountListener,
 } from "@/lib/firebase-service";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +73,7 @@ type Stats = {
   artists: number | null;
   events: number | null;
   tickets: number | null;
+  users: number | null;
 }
 
 export default function AdminDashboard() {
@@ -84,7 +86,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [siteStatus, setSiteStatus] = useState<'online' | 'offline'>('online');
-  const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null });
+  const [stats, setStats] = useState<Stats>({ artists: null, events: null, tickets: null, users: null });
   const [eventCategories, setEventCategories] = useState<Record<string, "verified" | "premium">>({});
 
   useEffect(() => {
@@ -111,7 +113,8 @@ export default function AdminDashboard() {
             statsUnsubscribers.push(
               getArtistsCountListener((count) => setStats(s => ({ ...s, artists: count }))),
               getEventsCountListener((count) => setStats(s => ({...s, events: count }))),
-              getTicketsCountListener((count) => setStats(s => ({...s, tickets: count })))
+              getTicketsCountListener((count) => setStats(s => ({...s, tickets: count }))),
+              getUsersCountListener((count) => setStats(s => ({...s, users: count })))
             );
 
         } catch(err) {
@@ -313,7 +316,17 @@ export default function AdminDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8 mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Registered Users</CardTitle>
+                <Smartphone className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.users ?? <Skeleton className="h-8 w-16" />}</div>
+                <p className="text-xs text-muted-foreground">General user accounts</p>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Artists</CardTitle>
