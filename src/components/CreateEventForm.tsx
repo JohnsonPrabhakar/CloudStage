@@ -37,7 +37,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
-import { generateEventDescription } from '@/ai/flows/generate-event-description';
 
 const eventCategories = [
   'Music',
@@ -86,12 +85,19 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
       category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
-      date: initialData ? new Date(initialData.date) : new Date(),
+      date: initialData ? new Date(initialData.date) : undefined,
       duration: initialData?.duration || 60,
       streamUrl: initialData?.streamUrl || '',
       ticketPrice: initialData?.ticketPrice || 0,
     },
   });
+  
+  // This useEffect prevents hydration errors by setting the default date on the client side.
+  useEffect(() => {
+    if (mode === 'create' && !initialData && form.getValues('date') === undefined) {
+      form.setValue('date', new Date());
+    }
+  }, [form, initialData, mode]);
 
   const streamUrlValue = useWatch({ control: form.control, name: 'streamUrl' });
   const videoId = getYouTubeVideoId(streamUrlValue);
