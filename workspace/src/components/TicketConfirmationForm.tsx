@@ -54,14 +54,11 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser); // Set user to the logged-in user or null for guests
-        if (currentUser) {
-            // Pre-fill form if user is logged in
+        if (currentUser && !currentUser.isAnonymous) {
+            // Pre-fill form if user is logged in and not anonymous
             form.setValue('email', currentUser.email || '');
             if (currentUser.displayName) {
                 form.setValue('fullName', currentUser.displayName);
-            }
-             if ((currentUser as any).phoneNumber) {
-                form.setValue('phone', (currentUser as any).phoneNumber);
             }
         }
     });
@@ -92,16 +89,19 @@ export default function TicketConfirmationForm({ eventId }: { eventId: string })
   async function onSubmit(values: FormValues) {
     setIsProcessing(true);
     try {
-      let finalUser: User;
-      if (user) {
-        finalUser = user;
-      } else {
+      let finalUser = user;
+
+      // If no user is logged in (guest), sign in anonymously
+      if (!finalUser) {
         const userCredential = await signInAnonymously(auth);
         finalUser = userCredential.user;
       }
       
       if (!event) {
           throw new Error("Event data is not available.");
+      }
+       if (!finalUser) {
+          throw new Error("Could not authenticate user. Please try again.");
       }
 
       await createTicket(
