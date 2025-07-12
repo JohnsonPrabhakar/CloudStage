@@ -22,30 +22,30 @@ export default function TicketConfirmationForm() {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        const profile = await getUserProfile(currentUser.uid);
-        setUserProfile(profile);
-      } else {
-        // If there's no user, we don't need to load a profile.
-        // The UI will handle showing the login prompt.
-        setLoading(false);
-      }
     });
-
     return () => authUnsubscribe();
   }, []);
   
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No event ID provided.' });
+        setLoading(false);
+        router.push('/');
+        return;
+    }
+    
+    if (user === undefined) {
+      // Auth state is not yet determined, wait.
+      return;
+    }
 
-    const fetchEvent = async () => {
+    const fetchData = async () => {
         try {
             const fetchedEvent = await getEventById(eventId);
             if (fetchedEvent) {
@@ -57,20 +57,14 @@ export default function TicketConfirmationForm() {
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load event details.' });
             router.push('/');
+        } finally {
+            setLoading(false);
         }
     };
     
-    fetchEvent();
-  }, [eventId, router, toast]);
+    fetchData();
+  }, [eventId, user, router, toast]);
 
-  // Combined loading effect
-  useEffect(() => {
-    // We are done loading if we have fetched the event AND either
-    // we have a user and their profile, OR we know there is no user.
-    if (event !== null && (userProfile !== null || user === null)) {
-      setLoading(false);
-    }
-  }, [event, user, userProfile]);
 
   async function handleConfirmPurchase() {
     setIsProcessing(true);
@@ -78,8 +72,13 @@ export default function TicketConfirmationForm() {
       if (!event) {
           throw new Error("Event data is not available.");
       }
-       if (!user || !userProfile) {
+      if (!user) {
           throw new Error("You must be logged in to purchase a ticket.");
+      }
+      
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile) {
+          throw new Error("Could not retrieve your user profile.");
       }
 
       await createTicket(
@@ -148,7 +147,7 @@ export default function TicketConfirmationForm() {
     );
   }
   
-  if (!event || !userProfile) {
+  if (!event) {
     return (
         <Card className="w-full max-w-2xl">
              <CardHeader>
@@ -198,8 +197,8 @@ export default function TicketConfirmationForm() {
         
         <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
              <h3 className="font-bold text-lg flex items-center gap-2"><UserIcon className="h-5 w-5"/> Your Details</h3>
-             <p className="text-sm"><strong>Name:</strong> {userProfile?.fullName}</p>
-             <p className="text-sm"><strong>Email:</strong> {userProfile?.email}</p>
+             <p className="text-sm"><strong>Name:</strong> {user?.displayName}</p>
+             <p className="text-sm"><strong>Email:</strong> {user?.email}</p>
         </div>
 
         <div className="flex flex-col gap-2">
