@@ -100,7 +100,7 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
-      date: initialData ? new Date(initialData.date) : undefined,
+      date: undefined, // Set initially to undefined to avoid hydration error
       duration: initialData?.duration || 60,
       streamUrl: initialData?.streamUrl || '',
       ticketPrice: initialData?.ticketPrice || 0,
@@ -113,6 +113,8 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       if (!form.getValues('date')) {
          form.setValue('date', new Date());
       }
+    } else if (mode === 'edit' && initialData) {
+      form.setValue('date', new Date(initialData.date));
     }
   }, [mode, initialData, form]);
 
@@ -207,13 +209,12 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       const endTime = new Date(eventDate.getTime() + values.duration * 60000);
       const bannerFile = values.bannerFile?.[0];
 
-      // Remove bannerFile from the values object before spreading it
-      // to prevent it from being sent to Firestore.
-      delete values.bannerFile;
+      // Exclude bannerFile from the data sent to Firestore, as it's handled separately.
+      const { bannerFile: _bannerFile, ...eventData } = values;
 
-      const eventPayload = {
+      const payload = {
         eventData: {
-          ...values,
+          ...eventData,
           date: eventDate.toISOString(),
           endTime: endTime.toISOString(),
           artist: artistName,
@@ -226,10 +227,10 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       };
 
       if (mode === 'create') {
-        await addEvent(eventPayload);
+        await addEvent(payload);
         toast({ title: 'Event Submitted!', description: 'Your event is pending admin approval.' });
       } else if (initialData) {
-        await updateEvent(initialData.id, eventPayload);
+        await updateEvent(initialData.id, payload);
         toast({ title: 'Event Updated!', description: 'Your event changes are pending admin approval.' });
       }
 
