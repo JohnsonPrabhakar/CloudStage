@@ -39,7 +39,7 @@ import { format } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
 import { generateEventDescription } from '@/ai/flows/generate-event-description';
 
-const eventCategories: EventCategory[] = [
+const eventCategories = [
   'Music',
   'Devotional / Bhajan / Satsang',
   'Magic Show',
@@ -47,7 +47,7 @@ const eventCategories: EventCategory[] = [
   'Stand-up Comedy',
   'Workshop',
   'Talk',
-];
+] as const;
 
 const formSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),

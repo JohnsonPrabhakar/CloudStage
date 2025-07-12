@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export type EventCategory =
   | 'Music'
   | 'Devotional / Bhajan / Satsang'

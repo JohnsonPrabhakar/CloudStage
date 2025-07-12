@@ -107,7 +107,7 @@ const addEvent = async (
 
   const finalStreamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
 
-  const finalPayload: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'> = {
+  const finalPayload = {
     ...eventData,
     category: eventData.category as EventCategory, // Ensure type safety
   };
