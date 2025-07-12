@@ -31,6 +31,7 @@ import { format, isToday } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { getYouTubeVideoId } from "@/lib/youtube-utils";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -230,6 +231,13 @@ export default function EventDetailPage() {
     return buyTicketButton;
   };
 
+  const videoId = getYouTubeVideoId(event.streamUrl);
+  const displayBannerUrl = event.bannerUrl && !event.bannerUrl.includes('youtube.com/vi')
+    ? event.bannerUrl
+    : videoId
+      ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+      : "https://placehold.co/1280x720.png";
+
   return (
     <div className="container mx-auto p-4 md:p-8">
       <Button
@@ -242,11 +250,20 @@ export default function EventDetailPage() {
       </Button>
       <div className="relative w-full h-64 md:h-96 rounded-lg overflow-hidden shadow-2xl mb-8">
         <Image
-          src={event.bannerUrl}
+          src={displayBannerUrl}
           alt={event.title}
           fill
           className="object-cover"
           data-ai-hint="concert stage"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            if (videoId) {
+              target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            } else {
+              target.src = 'https://placehold.co/1280x720.png';
+            }
+            target.onerror = null;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         {event.isBoosted && (

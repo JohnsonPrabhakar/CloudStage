@@ -67,14 +67,18 @@ export function EventCard({ event }: EventCardProps) {
   const action = getAction();
   
   const videoId = getYouTubeVideoId(event.streamUrl);
-  const displayBannerUrl = videoId
-    ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
-    : (event.bannerUrl && !event.bannerUrl.includes('?text=') ? event.bannerUrl : "https://placehold.co/600x400.png");
+  
+  // Use event.bannerUrl if it exists (custom upload), otherwise fallback to YouTube thumbnail.
+  const displayBannerUrl = event.bannerUrl && !event.bannerUrl.includes('youtube.com/vi') 
+    ? event.bannerUrl 
+    : videoId
+      ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+      : "https://placehold.co/600x400.png";
 
   return (
     <Card className="flex flex-col overflow-hidden h-full group">
       <Link href={`/events/${event.id}`} className="block overflow-hidden rounded-t-lg">
-        <div className="relative h-48 w-full">
+        <div className="relative aspect-video w-full">
           <Image
             src={displayBannerUrl}
             alt={event.title}
@@ -82,6 +86,11 @@ export function EventCard({ event }: EventCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
             data-ai-hint={getEventHint(event.category)}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = 'https://placehold.co/600x400.png';
+              target.onerror = null;
+            }}
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
            <div className="absolute top-2 right-2 flex gap-2">

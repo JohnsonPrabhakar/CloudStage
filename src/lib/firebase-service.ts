@@ -92,28 +92,31 @@ const deleteFileByUrl = async (url: string) => {
 }
 
 // --- EVENT-RELATED FUNCTIONS ---
-const addEvent = async (
-  eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>
-): Promise<{ eventId: string }> => {
+type EventPayload = {
+  eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
+  bannerFile?: File;
+};
+
+const addEvent = async ({ eventData, bannerFile }: EventPayload): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
 
-  const videoId = getYouTubeVideoId(eventData.streamUrl);
-  const bannerUrl = videoId
-    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-    : 'https://placehold.co/600x400.png';
+  let bannerUrl = '';
+  if (bannerFile) {
+    bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
+  } else {
+    const videoId = getYouTubeVideoId(eventData.streamUrl);
+    bannerUrl = videoId
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      : 'https://placehold.co/600x400.png';
+  }
 
   const eventCode = `EVT-${eventId.substring(0, 8).toUpperCase()}`;
-
   const finalStreamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
 
-  const finalPayload = {
-    ...eventData,
-  };
-
   await setDoc(docRef, {
-    ...finalPayload,
-    bannerUrl: bannerUrl,
+    ...eventData,
+    bannerUrl,
     streamUrl: finalStreamUrl,
     eventCode,
     createdAt: serverTimestamp(),
@@ -122,24 +125,28 @@ const addEvent = async (
   return { eventId };
 };
 
-const updateEvent = async (eventId: string, eventData: Partial<Omit<Event, 'id' | 'artist' | 'artistId'>>) => {
+const updateEvent = async (eventId: string, { eventData, bannerFile }: EventPayload) => {
     const eventDoc = doc(db, 'events', eventId);
-
+    
     const dataToUpdate: Partial<Event> = {
         ...eventData,
         moderationStatus: 'pending' as const,
-        category: eventData.category,
     };
-
-    if (eventData.streamUrl) {
+    
+    if (bannerFile) {
+        dataToUpdate.bannerUrl = await uploadFile(bannerFile, `events/${eventId}/banner.jpg`);
+    } else if (eventData.streamUrl) {
         const videoId = getYouTubeVideoId(eventData.streamUrl);
         dataToUpdate.bannerUrl = videoId
             ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
             : 'https://placehold.co/600x400.png';
+    }
+
+    if (eventData.streamUrl) {
         dataToUpdate.streamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
     }
     
-    await updateDoc(eventDoc, dataToUpdate);
+    await updateDoc(eventDoc, dataToUpdate as any);
 }
 
 const getApprovedEventsListener = (callback: (events: Event[]) => void): (() => void) => {
@@ -337,9 +344,6 @@ const updateArtistToPremium = async(uid: string) => {
 }
 
 const saveFcmToken = async (userId: string, token: string) => {
-    // This function attempts to save the FCM token for a user.
-    // It is designed to fail silently if permissions are insufficient,
-    // which can happen if a user is authenticated but has not completed registration.
     try {
         const artistDocRef = doc(db, 'artists', userId);
         const artistSnap = await getDoc(artistDocRef);
@@ -357,8 +361,6 @@ const saveFcmToken = async (userId: string, token: string) => {
         
         console.log(`FCM token for user ${userId} not saved: No corresponding artist or user document found.`);
     } catch (error) {
-        // This catch block is crucial. It prevents the app from crashing due to
-        // Firestore permission errors when a new/incomplete user logs in.
         console.error(`Failed to save FCM token for user ${userId}:`, error);
     }
 };
@@ -780,4 +782,3 @@ export {
     getAllTickets,
     submitEventFeedback,
 };
-

@@ -37,6 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
+import { generateEventDescription } from '@/ai/flows/generate-event-description';
 
 const eventCategories = [
   'Music',
@@ -58,6 +59,7 @@ const formSchema = z.object({
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.'),
   streamUrl: z.string().url('Please enter a valid YouTube URL.'),
   ticketPrice: z.coerce.number().min(0, 'Ticket price cannot be negative.'),
+  bannerFile: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -76,6 +78,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [artistName, setArtistName] = useState('');
+  const [bannerPreview, setBannerPreview] = useState<string | null>(initialData?.bannerUrl || null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -85,27 +88,34 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
       category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
-      date: initialData ? new Date(initialData.date) : undefined,
+      date: undefined,
       duration: initialData?.duration || 60,
       streamUrl: initialData?.streamUrl || '',
       ticketPrice: initialData?.ticketPrice || 0,
     },
   });
   
-  // This useEffect prevents hydration errors by setting the default date on the client side.
   useEffect(() => {
-    if (mode === 'create' && !initialData && form.getValues('date') === undefined) {
+    if (initialData?.date) {
+      form.setValue('date', new Date(initialData.date));
+    } else if (mode === 'create') {
       form.setValue('date', new Date());
     }
-  }, [form, initialData, mode]);
+  }, [initialData, mode, form]);
 
   const streamUrlValue = useWatch({ control: form.control, name: 'streamUrl' });
   const videoId = getYouTubeVideoId(streamUrlValue);
-
-  const bannerPreview = videoId
+  
+  const youtubeBanner = videoId
     ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
     : 'https://placehold.co/600x400.png';
 
+  useEffect(() => {
+    if (!bannerPreview) {
+      setBannerPreview(youtubeBanner);
+    }
+  }, [youtubeBanner, bannerPreview]);
+  
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
     if (mode === 'create' && duplicateEventId) {
@@ -116,6 +126,7 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
             ...eventToDuplicate,
             date: new Date(), // Reset date to today
           });
+          setBannerPreview(eventToDuplicate.bannerUrl);
           toast({ title: 'Event Duplicated', description: 'Event details have been pre-filled.' });
         }
       };
@@ -181,16 +192,20 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
     try {
       const eventDate = new Date(values.date);
       const endTime = new Date(eventDate.getTime() + values.duration * 60000);
+      const bannerFile = values.bannerFile?.[0];
 
       const eventPayload = {
-        ...values,
-        date: eventDate.toISOString(),
-        endTime: endTime.toISOString(),
-        artist: artistName,
-        artistId: user.uid,
-        moderationStatus: 'pending' as const,
-        status: 'upcoming' as const,
-        isBoosted: initialData?.isBoosted || false,
+        eventData: {
+          ...values,
+          date: eventDate.toISOString(),
+          endTime: endTime.toISOString(),
+          artist: artistName,
+          artistId: user.uid,
+          moderationStatus: 'pending' as const,
+          status: 'upcoming' as const,
+          isBoosted: initialData?.isBoosted || false,
+        },
+        bannerFile,
       };
 
       if (mode === 'create') {
@@ -232,18 +247,52 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <div className="w-full aspect-video relative rounded-lg overflow-hidden border">
                   <Image
-                    src={bannerPreview}
-                    alt="YouTube Thumbnail Preview"
+                    src={bannerPreview || youtubeBanner}
+                    alt="Event Banner Preview"
                     fill={true}
                     style={{objectFit: 'cover'}}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-                      target.onerror = null; // prevent infinite loop
+                      // Fallback for maxresdefault
+                      if (target.src.includes('maxresdefault')) {
+                        target.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                      } else {
+                        // Fallback for everything else
+                        target.src = 'https://placehold.co/600x400.png';
+                      }
+                      target.onerror = null;
                     }}
                     data-ai-hint="youtube thumbnail"
                   />
                 </div>
+
+              <FormField
+                control={form.control}
+                name="bannerFile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Custom Event Banner</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="file"
+                        accept="image/jpeg, image/png, image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            field.onChange(e.target.files);
+                            setBannerPreview(URL.createObjectURL(file));
+                          } else {
+                            field.onChange(null);
+                            setBannerPreview(youtubeBanner);
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>Optional. Upload a custom banner. If not provided, the YouTube thumbnail will be used.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -265,9 +314,20 @@ export default function CreateEventForm({ mode, initialData }: CreateEventFormPr
                   <FormItem>
                     <FormLabel>YouTube Stream URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://www.youtube.com/watch?v=..." {...field} />
+                      <Input 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        {...field}
+                        onChange={(e) => {
+                           field.onChange(e);
+                           if (!form.getValues('bannerFile')) {
+                             const newVideoId = getYouTubeVideoId(e.target.value);
+                             const newYoutubeBanner = newVideoId ? `https://img.youtube.com/vi/${newVideoId}/maxresdefault.jpg` : 'https://placehold.co/600x400.png';
+                             setBannerPreview(newYoutubeBanner);
+                           }
+                        }}
+                      />
                     </FormControl>
-                    <FormDescription>The video thumbnail will be used as the event banner.</FormDescription>
+                    <FormDescription>The video thumbnail will be used as the event banner if a custom one isn't uploaded.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
