@@ -35,7 +35,7 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { Calendar as CalendarIcon, Loader2, ChevronLeft, Sparkles, BrainCircuit } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { format } from 'date-fns';
+import { format, setHours, setMinutes, parse, isValid } from 'date-fns';
 import { getYouTubeVideoId } from '@/lib/youtube-utils';
 import { generateEventDescription } from '@/ai/flows/generate-event-description';
 import { Suspense } from 'react';
@@ -56,7 +56,7 @@ const formSchema = z.object({
   category: z.enum(eventCategories, { required_error: 'Category is required.' }),
   genre: z.string().min(2, 'Genre is required.'),
   language: z.string().min(2, 'Language is required.'),
-  date: z.date({ required_error: 'A date is required.' }),
+  date: z.date({ required_error: 'A date and time is required.' }),
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.'),
   streamUrl: z.string().url('Please enter a valid YouTube URL.'),
   ticketPrice: z.coerce.number().min(0, 'Ticket price cannot be negative.'),
@@ -76,7 +76,7 @@ export default function CreateEventFormWrapper(props: CreateEventFormProps) {
     <Suspense fallback={<div>Loading form...</div>}>
       <CreateEventForm {...props} />
     </Suspense>
-  )
+  );
 }
 
 
@@ -98,31 +98,20 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       category: initialData?.category,
       genre: initialData?.genre || '',
       language: initialData?.language || '',
-      date: undefined, // Set initially to undefined to avoid hydration error
+      date: initialData ? new Date(initialData.date) : new Date(),
       duration: initialData?.duration || 60,
       streamUrl: initialData?.streamUrl || '',
       ticketPrice: initialData?.ticketPrice || 0,
     },
   });
-  
-  useEffect(() => {
-    // This effect runs only on the client, preventing hydration errors
-    if (mode === 'create' && !initialData) {
-      if (!form.getValues('date')) {
-         form.setValue('date', new Date());
-      }
-    } else if (mode === 'edit' && initialData) {
-      form.setValue('date', new Date(initialData.date));
-    }
-  }, [mode, initialData, form]);
 
   const streamUrlValue = useWatch({ control: form.control, name: 'streamUrl' });
   const videoId = getYouTubeVideoId(streamUrlValue);
-  
+
   const youtubeBanner = videoId
     ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
     : 'https://placehold.co/600x400.png';
-  
+
   useEffect(() => {
     const duplicateEventId = searchParams.get('duplicate');
     if (mode === 'create' && duplicateEventId) {
@@ -148,8 +137,8 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
         if (artistProfile) {
           setArtistName(artistProfile.name);
         } else {
-            toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist profile before creating an event.' });
-            router.push('/artist/register');
+          toast({ variant: 'destructive', title: 'Profile Incomplete', description: 'Please complete your artist profile before creating an event.' });
+          router.push('/artist/register');
         }
       } else {
         toast({ variant: 'destructive', title: 'Not Authenticated', description: 'Please log in.' });
@@ -200,6 +189,7 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
       const endTime = new Date(eventDate.getTime() + values.duration * 60000);
 
       const payload = {
+        eventData: {
           ...values,
           date: eventDate.toISOString(),
           endTime: endTime.toISOString(),
@@ -208,6 +198,7 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
           moderationStatus: 'pending' as const,
           status: 'upcoming' as const,
           isBoosted: initialData?.isBoosted || false,
+        },
       };
 
       if (mode === 'create') {
@@ -267,8 +258,8 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                   <FormItem>
                     <FormLabel>YouTube Stream URL</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="https://www.youtube.com/watch?v=..." 
+                      <Input
+                        placeholder="https://www.youtube.com/watch?v=..."
                         {...field}
                       />
                     </FormControl>
@@ -383,9 +374,24 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) => date < new Date()}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                             initialFocus
                           />
+                          <div className="p-3 border-t border-border">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="time"
+                                defaultValue={format(field.value, 'HH:mm')}
+                                onChange={(e) => {
+                                  const [hours, minutes] = e.target.value.split(':');
+                                  const newDate = setHours(setMinutes(field.value, parseInt(minutes)), parseInt(hours));
+                                  field.onChange(newDate);
+                                }}
+                                className="w-full"
+                              />
+                            </div>
+                            <FormDescription className="mt-2 text-xs">Select the time for your event.</FormDescription>
+                          </div>
                         </PopoverContent>
                       </Popover>
                       <FormMessage />
@@ -421,15 +427,15 @@ function CreateEventForm({ mode, initialData }: CreateEventFormProps) {
                 />
               </div>
 
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <FormLabel>Banner Preview</FormLabel>
                 <div className="w-full max-w-xl mx-auto aspect-video relative rounded-lg overflow-hidden border bg-muted">
                   <Image
                     src={youtubeBanner}
                     alt="Event Banner Preview"
                     fill={true}
-                    style={{objectFit: 'cover'}}
-                    key={youtubeBanner} 
+                    style={{ objectFit: 'cover' }}
+                    key={youtubeBanner}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       if (target.src.includes('maxresdefault')) {

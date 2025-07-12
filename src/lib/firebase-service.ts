@@ -92,14 +92,16 @@ const deleteFileByUrl = async (url: string) => {
 }
 
 // --- EVENT-RELATED FUNCTIONS ---
-type EventPayload = Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
+type EventPayload = {
+  eventData: Omit<Event, 'id' | 'bannerUrl' | 'eventCode' | 'createdAt'>;
+};
 
-const addEvent = async (eventData: EventPayload): Promise<{ eventId: string }> => {
+const addEvent = async ({ eventData }: EventPayload): Promise<{ eventId: string }> => {
   const docRef = doc(collection(db, 'events'));
   const eventId = docRef.id;
 
   const videoId = getYouTubeVideoId(eventData.streamUrl);
-  const bannerUrl = videoId
+  let bannerUrl = videoId
     ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
     : 'https://placehold.co/600x400.png';
 
@@ -117,20 +119,22 @@ const addEvent = async (eventData: EventPayload): Promise<{ eventId: string }> =
   return { eventId };
 };
 
-const updateEvent = async (eventId: string, eventData: EventPayload) => {
+const updateEvent = async (eventId: string, { eventData }: EventPayload) => {
     const eventDoc = doc(db, 'events', eventId);
     
-    const dataToUpdate: Partial<Event> = {
-        ...eventData,
-        moderationStatus: 'pending' as const,
-    };
+    let bannerUrl;
     
     const videoId = getYouTubeVideoId(eventData.streamUrl);
-    dataToUpdate.bannerUrl = videoId
+    bannerUrl = videoId
         ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
         : 'https://placehold.co/600x400.png';
 
-    dataToUpdate.streamUrl = getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl;
+    const dataToUpdate: Partial<Event> = {
+        ...eventData,
+        moderationStatus: 'pending' as const,
+        bannerUrl,
+        streamUrl: getYouTubeEmbedUrl(eventData.streamUrl) || eventData.streamUrl,
+    };
     
     await updateDoc(eventDoc, dataToUpdate as any);
 }
