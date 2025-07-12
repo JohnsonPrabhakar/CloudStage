@@ -24,32 +24,38 @@ import {
 import { DatePickerWithRange } from './ui/date-picker-with-range';
 import { type DateRange } from 'react-day-picker';
 import { subDays, format, startOfDay } from 'date-fns';
-import { type Event, type Ticket } from '@/lib/types';
+import { type Event, type Ticket, type Artist } from '@/lib/types';
 import {
   getAllApprovedEventsForAnalytics,
   getAllTickets,
+  getAllArtists,
 } from '@/lib/firebase-service';
-import { Loader2, DollarSign, Ticket as TicketIcon, CalendarDays, BarChart2 } from 'lucide-react';
+import { Loader2, DollarSign, Ticket as TicketIcon, CalendarDays, BarChart2, Users, PieChart } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 export default function EventAnalyticsDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 29),
     to: new Date(),
   });
+  const [selectedArtistId, setSelectedArtistId] = useState<string>('all');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [fetchedEvents, fetchedTickets] = await Promise.all([
+        const [fetchedEvents, fetchedTickets, fetchedArtists] = await Promise.all([
           getAllApprovedEventsForAnalytics(),
           getAllTickets(),
+          getAllArtists(),
         ]);
         setEvents(fetchedEvents);
         setTickets(fetchedTickets);
+        setArtists(fetchedArtists);
       } catch (error) {
         console.error('Failed to fetch analytics data:', error);
       } finally {
@@ -90,6 +96,23 @@ export default function EventAnalyticsDashboard() {
     }
   }, [events, tickets, dateRange]);
 
+  const artistAnalytics = useMemo(() => {
+    if (selectedArtistId === 'all') return null;
+
+    const artistEvents = filteredEvents.filter(e => e.artistId === selectedArtistId);
+    const artistEventIds = new Set(artistEvents.map(e => e.id));
+    const artistTickets = filteredTickets.filter(t => artistEventIds.has(t.eventId));
+
+    const revenue = artistTickets.reduce((sum, ticket) => sum + ticket.pricePaid, 0);
+
+    return {
+      artist: artists.find(a => a.id === selectedArtistId),
+      revenue,
+      ticketsSold: artistTickets.length,
+      eventsCount: artistEvents.length,
+    }
+  }, [selectedArtistId, filteredEvents, filteredTickets, artists]);
+
 
   const revenueByDay = useMemo(() => {
     const data: { [key: string]: number } = {};
@@ -98,7 +121,7 @@ export default function EventAnalyticsDashboard() {
       const day = format(new Date(ticket.createdAt), 'MMM d');
       data[day] = (data[day] || 0) + ticket.pricePaid;
     });
-    return Object.entries(data).map(([name, revenue]) => ({ name, revenue }));
+    return Object.entries(data).map(([name, revenue]) => ({ name, revenue: Math.round(revenue) }));
   }, [filteredTickets]);
 
   const ticketsByCategory = useMemo(() => {
@@ -142,16 +165,16 @@ export default function EventAnalyticsDashboard() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                    <DollarSign />
+                    <DollarSign className="text-primary"/>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</div>
+                    <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN', {maximumFractionDigits: 0})}</div>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Tickets Sold</CardTitle>
-                    <TicketIcon />
+                    <TicketIcon className="text-primary"/>
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{ticketsSold.toLocaleString('en-IN')}</div>
@@ -160,29 +183,66 @@ export default function EventAnalyticsDashboard() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Events in Range</CardTitle>
-                    <CalendarDays />
+                    <CalendarDays className="text-primary"/>
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{eventsCount}</div>
                 </CardContent>
             </Card>
        </div>
+       
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Artist-wise Analytics</CardTitle>
+                <CardDescription>Filter by artist to see their performance in the selected date range.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Select value={selectedArtistId} onValueChange={setSelectedArtistId}>
+                    <SelectTrigger className="w-full md:w-[300px]">
+                        <SelectValue placeholder="Select an artist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Artists</SelectItem>
+                        {artists.map(artist => (
+                            <SelectItem key={artist.id} value={artist.id}>{artist.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {artistAnalytics && (
+                    <div className="grid gap-4 md:grid-cols-3 pt-4">
+                        <Card>
+                            <CardHeader className="pb-2"><CardTitle className="text-base">Revenue</CardTitle></CardHeader>
+                            <CardContent><p className="text-xl font-bold">₹{artistAnalytics.revenue.toLocaleString('en-IN', {maximumFractionDigits: 0})}</p></CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="pb-2"><CardTitle className="text-base">Tickets Sold</CardTitle></CardHeader>
+                            <CardContent><p className="text-xl font-bold">{artistAnalytics.ticketsSold}</p></CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="pb-2"><CardTitle className="text-base">Events Held</CardTitle></CardHeader>
+                            <CardContent><p className="text-xl font-bold">{artistAnalytics.eventsCount}</p></CardContent>
+                        </Card>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader>
                     <CardTitle>Revenue Over Time</CardTitle>
-                    <CardDescription>Total revenue from ticket sales per day.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={revenueByDay}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
-                            <YAxis stroke="hsl(var(--foreground))"/>
-                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                            <Legend />
-                            <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" activeDot={{ r: 8 }} />
+                            <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={12} />
+                            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`}/>
+                            <Tooltip
+                                contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                                formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, "Revenue"]}
+                            />
+                            <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" activeDot={{ r: 8 }} dot={false}/>
                         </LineChart>
                     </ResponsiveContainer>
                 </CardContent>
@@ -190,17 +250,15 @@ export default function EventAnalyticsDashboard() {
              <Card>
                 <CardHeader>
                     <CardTitle>Tickets by Category</CardTitle>
-                    <CardDescription>Most popular event categories by tickets sold.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
-                         <BarChart data={ticketsByCategory} layout="vertical">
+                         <BarChart data={ticketsByCategory} layout="vertical" margin={{ left: 50 }}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" stroke="hsl(var(--foreground))" />
-                            <YAxis type="category" dataKey="name" width={120} stroke="hsl(var(--foreground))" />
+                            <XAxis type="number" stroke="hsl(var(--foreground))" fontSize={12} />
+                            <YAxis type="category" dataKey="name" width={100} stroke="hsl(var(--foreground))" fontSize={12}/>
                             <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                            <Legend />
-                            <Bar dataKey="tickets" fill="hsl(var(--primary))" />
+                            <Bar dataKey="tickets" fill="hsl(var(--primary))" name="Tickets Sold" />
                         </BarChart>
                     </ResponsiveContainer>
                 </CardContent>
@@ -209,3 +267,5 @@ export default function EventAnalyticsDashboard() {
     </div>
   );
 }
+
+    
