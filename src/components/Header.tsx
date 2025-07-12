@@ -51,8 +51,7 @@ export function Header() {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
-    { label: "Artist Dashboard", href: "/artist/login" },
-    { label: "Admin", href: "/admin" },
+    { label: "Artist Login", href: "/artist/login" },
   ];
 
   const UserMenu = () => {

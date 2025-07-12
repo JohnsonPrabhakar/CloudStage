@@ -45,9 +45,21 @@ export default function ArtistLogin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
+      // Step 1: Sign in the user
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      // Step 2: Check for Admin role
+      if (user.email === 'admin@cloudstage.in') {
+        toast({
+          title: "Admin Login Successful",
+          description: "Redirecting to the admin dashboard...",
+        });
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      // Step 3: Handle Artist role
       const artistProfile = await getArtistProfile(user.uid);
 
       if (artistProfile) {
@@ -74,7 +86,7 @@ export default function ArtistLogin() {
       }
 
     } catch (error) {
-      console.error("Artist Login Failed:", error);
+      console.error("Login Failed:", error);
       let title = "Login Failed";
       let description = "An unexpected error occurred. Please try again.";
 
@@ -106,7 +118,7 @@ export default function ArtistLogin() {
          <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <CardHeader>
-                  <CardTitle>Artist Login</CardTitle>
+                  <CardTitle>Artist & Admin Login</CardTitle>
                   <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -142,7 +154,7 @@ export default function ArtistLogin() {
                         {loading ? "Logging in..." : "Login"}
                     </Button>
                     <CardDescription>
-                        Don&apos;t have an account?{" "}
+                        Don&apos;t have an artist account?{" "}
                         <Link href="/artist/register" className="text-primary hover:underline">
                             Register here
                         </Link>
