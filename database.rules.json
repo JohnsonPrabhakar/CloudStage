@@ -28,7 +28,7 @@
 
         "match /followers/{userId}": {
           "allow read": "if true;",
-          "allow list": "if isAdmin();",
+          "allow list": "if isAdmin() || (request.auth != null && request.auth.uid == userId);",
           "allow write": "if isAdmin() || (request.auth != null && request.auth.uid == userId);"
         }
       },
@@ -58,8 +58,10 @@
       },
 
       "match /users/{userId}": {
-        "allow read, write": "if isAdmin() || (request.auth != null && request.auth.uid == userId);",
-        "allow list": "if isAdmin();"
+        "allow read": "if isAdmin() || (request.auth != null && request.auth.uid == userId);",
+        "allow list": "if isAdmin();",
+        "allow create": "if request.auth != null && request.resource.data.id == request.auth.uid;",
+        "allow update": "if isAdmin() || (request.auth != null && request.auth.uid == userId);"
       }
     }
   }
