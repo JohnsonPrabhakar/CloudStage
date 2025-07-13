@@ -379,10 +379,17 @@ const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
     return null;
 }
 
-const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
+const updateUserProfile = async (uid: string, data: Pick<UserProfile, 'fullName' | 'phone'>) => {
   const userDoc = doc(db, 'users', uid);
-  await updateDoc(userDoc, data);
-}
+  // Construct the payload to ensure we only update specific fields
+  // and correctly include the 'id' for security rules.
+  const payload = {
+    id: uid, // Ensure 'id' field is present for security rule validation
+    fullName: data.fullName,
+    phone: data.phone,
+  };
+  await updateDoc(userDoc, payload);
+};
 
 
 // --- TICKET-RELATED FUNCTIONS ---
@@ -812,5 +819,5 @@ export {
     getCompletedEventsForReport,
     getAllTickets,
     submitEventFeedback,
-    getUserProfile
 };
+
