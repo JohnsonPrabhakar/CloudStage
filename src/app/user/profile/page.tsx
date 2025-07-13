@@ -1,7 +1,7 @@
 
 import { UserProfileForm } from "@/components/UserProfileForm";
 import { getUserProfile } from "@/lib/firebase-service";
-import { auth }_from_lib_firebase from "firebase-admin";
+import { auth } from "firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
