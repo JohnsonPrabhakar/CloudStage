@@ -15,6 +15,7 @@
         
         "match /messages/{messageId}": {
           "allow read": "if true;",
+          "allow list": "if isAdmin() || request.auth != null;",
           "allow write": "if isAdmin() || request.auth != null;"
         }
       },
