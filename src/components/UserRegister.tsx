@@ -68,16 +68,26 @@ export default function UserRegister() {
 
     } catch (error) {
       console.error("User registration failed:", error);
+      let title = "Registration Failed";
       let description = "An unexpected error occurred.";
+
       if (error instanceof FirebaseError) {
         if (error.code === 'auth/email-already-in-use') {
-          description = "This email is already registered. Please log in instead.";
+          title = "Email Already Registered";
+          description = "This email address is already in use. Please log in or use a different email.";
+          form.setError("email", {
+            type: "manual",
+            message: "This email is already registered. Please log in.",
+          });
+        } else {
+          description = `An error occurred: ${error.message}`;
         }
       }
+      
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description,
+        title: title,
+        description: description,
       });
     } finally {
       setLoading(false);
