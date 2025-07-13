@@ -51,7 +51,9 @@ const fromFirestore = <T extends { id: string }>(doc: any): T => {
 
     const convertedData: { [key: string]: any } = {};
     for (const key in data) {
-      convertedData[key] = convertTimestamps(data[key]);
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        convertedData[key] = convertTimestamps(data[key]);
+      }
     }
     return convertedData;
   }
