@@ -45,11 +45,15 @@ export default function UserProfile() {
   });
 
   useEffect(() => {
+    console.log("[UserProfile] Setting up auth state listener...");
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        console.log(`[UserProfile] Auth state changed. User is logged in. UID: ${currentUser.uid}, Email: ${currentUser.email}`);
         setUser(currentUser);
         try {
+          console.log(`[UserProfile] Attempting to fetch profile for UID: ${currentUser.uid}`);
           const userProfile = await getUserProfile(currentUser.uid);
+          console.log("[UserProfile] Successfully fetched profile:", userProfile);
           if (userProfile) {
             form.reset({
               fullName: userProfile.fullName,
@@ -57,16 +61,20 @@ export default function UserProfile() {
             });
           }
         } catch (error) {
-          console.error("Failed to fetch user profile:", error);
+          console.error("[UserProfile] FAILED TO FETCH USER PROFILE. Full error object:", error);
           toast({ variant: "destructive", title: "Could not load your profile." });
         }
       } else {
+        console.log("[UserProfile] Auth state changed. No user is logged in. Redirecting to login.");
         router.push("/user/login");
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log("[UserProfile] Cleaning up auth state listener.");
+      unsubscribe();
+    }
   }, [router, toast, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
