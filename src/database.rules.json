@@ -61,7 +61,7 @@
       "match /users/{userId}": {
         "allow read": "if (request.auth != null && request.auth.uid == userId) || isAdmin();",
         "allow list": "if isAdmin();",
-        "allow create": "if request.auth != null && request.resource.data.id == request.auth.uid;",
+        "allow create": "if request.auth.uid == userId;",
         "allow update": "if (request.auth != null && request.auth.uid == userId) || isAdmin();"
       }
     }
