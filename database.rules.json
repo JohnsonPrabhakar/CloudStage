@@ -28,6 +28,7 @@
 
         "match /followers/{userId}": {
           "allow read": "if true;",
+          "allow list": "if isAdmin();",
           "allow write": "if isAdmin() || (request.auth != null && request.auth.uid == userId);"
         }
       },
@@ -52,6 +53,7 @@
 
       "match /eventFeedback/{feedbackId}": {
         "allow create": "if isAdmin() || (request.auth != null && request.resource.data.userId == request.auth.uid);",
+        "allow list": "if isAdmin();",
         "allow read, update, delete": "if isAdmin();"
       },
 
@@ -62,5 +64,3 @@
     }
   }
 }
-
-    
