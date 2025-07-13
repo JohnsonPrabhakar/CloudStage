@@ -38,12 +38,19 @@ export function Header() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
       if (user) {
-        // Check if the user has an artist profile
-        const artistProfile = await getArtistProfile(user.uid);
-        setIsArtist(!!artistProfile);
+        setCurrentUser(user);
+        // Only check for an artist profile if the user's email is not the admin email.
+        // This prevents unnecessary reads for general users. A better check might be
+        // a custom claim, but for this app structure, we assume non-admins might be artists.
+        if (user.email !== 'admin@cloudstage.in') {
+            const artistProfile = await getArtistProfile(user.uid);
+            setIsArtist(!!artistProfile);
+        } else {
+            setIsArtist(false); // Admin is not an artist
+        }
       } else {
+        setCurrentUser(null);
         setIsArtist(false);
       }
       setLoading(false);
@@ -57,7 +64,6 @@ export function Header() {
     router.push("/");
   };
 
-  // This should remain static and not change between server/client renders
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Movies", href: "/movies", icon: <Film className="h-4 w-4" /> },
