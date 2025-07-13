@@ -379,16 +379,18 @@ const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
     return null;
 }
 
-const updateUserProfile = async (uid: string, data: Pick<UserProfile, 'fullName' | 'phone'>) => {
-  const userDoc = doc(db, 'users', uid);
-  // Construct the payload to ensure we only update specific fields
-  // and correctly include the 'id' for security rules.
-  const payload = {
-    id: uid, // Ensure 'id' field is present for security rule validation
-    fullName: data.fullName,
-    phone: data.phone,
-  };
-  await updateDoc(userDoc, payload);
+const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
+    const userDoc = doc(db, 'users', uid);
+    
+    // Create a payload with only the fields we want to update.
+    // This prevents accidentally overwriting other fields like fcmToken.
+    const payload: { fullName: string; phone?: string; id: string } = {
+        id: uid, // Include ID for security rule validation.
+        fullName: data.fullName || '',
+        ...(data.phone && { phone: data.phone }),
+    };
+
+    await updateDoc(userDoc, payload);
 };
 
 
@@ -791,6 +793,7 @@ export {
     updateArtistToPremium,
     saveFcmToken,
     createUserProfile,
+    getUserProfile,
     updateUserProfile,
     checkForExistingTicket,
     createTicket,
@@ -820,4 +823,3 @@ export {
     getAllTickets,
     submitEventFeedback,
 };
-
