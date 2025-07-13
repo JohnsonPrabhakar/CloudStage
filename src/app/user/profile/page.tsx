@@ -1,7 +1,7 @@
 
 import { UserProfileForm } from "@/components/UserProfileForm";
 import { getUserProfile } from "@/lib/firebase-service";
-import { auth } from "firebase-admin";
+import admin from "firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -9,9 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { getAuth } from "firebase-admin/auth";
 
-// Re-initialize a server-side admin app instance if none exists
-if (!auth().apps.length) {
-    auth().initializeApp();
+// Initialize the Firebase Admin SDK if it hasn't been already.
+if (!admin.apps.length) {
+    admin.initializeApp();
 }
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,13 @@ async function getAuthenticatedUser() {
         if (!sessionCookie) {
             return null;
         }
+        // Now using the correctly initialized admin auth service
         const decodedIdToken = await getAuth().verifySessionCookie(sessionCookie, true);
         return decodedIdToken;
     } catch (error) {
         console.log("Failed to verify session cookie", error);
+        // Clear the invalid cookie by redirecting
+        cookies().delete('__session');
         return null;
     }
 }
