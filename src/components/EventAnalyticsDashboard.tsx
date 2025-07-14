@@ -33,6 +33,14 @@ import {
 import { Loader2, DollarSign, Ticket as TicketIcon, CalendarDays, BarChart2, Users, PieChart } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
+const formatCurrency = (value: number) => {
+    return value.toLocaleString('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0,
+    });
+};
+
 export default function EventAnalyticsDashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -171,7 +179,7 @@ export default function EventAnalyticsDashboard() {
                     <DollarSign className="text-primary"/>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{totalRevenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -215,7 +223,7 @@ export default function EventAnalyticsDashboard() {
                     <div className="grid gap-4 md:grid-cols-3 pt-4">
                         <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Revenue</CardTitle></CardHeader>
-                            <CardContent><p className="text-xl font-bold">{artistAnalytics.revenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p></CardContent>
+                            <CardContent><p className="text-xl font-bold">{formatCurrency(artistAnalytics.revenue)}</p></CardContent>
                         </Card>
                          <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Tickets Sold</CardTitle></CardHeader>
@@ -240,10 +248,14 @@ export default function EventAnalyticsDashboard() {
                         <LineChart data={revenueByDay}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={12} />
-                            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickFormatter={(value) => `₹${value}`}/>
+                            <YAxis
+                                stroke="hsl(var(--foreground))"
+                                fontSize={12}
+                                tickFormatter={(value: number) => formatCurrency(value)}
+                            />
                             <Tooltip
                                 contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                                formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, "Revenue"]}
+                                formatter={(value: number) => [formatCurrency(value), "Revenue"]}
                             />
                             <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" activeDot={{ r: 8 }} dot={false}/>
                         </LineChart>
