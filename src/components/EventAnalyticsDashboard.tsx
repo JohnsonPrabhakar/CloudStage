@@ -23,7 +23,7 @@ import {
 } from 'recharts';
 import { DatePickerWithRange } from './ui/date-picker-with-range';
 import { type DateRange } from 'react-day-picker';
-import { subDays, format, startOfDay } from 'date-fns';
+import { subDays, format, startOfDay, isValid } from 'date-fns';
 import { type Event, type Ticket, type Artist } from '@/lib/types';
 import {
   getAllApprovedEventsForAnalytics,
@@ -74,18 +74,21 @@ export default function EventAnalyticsDashboard() {
     const toDate = startOfDay(dateRange.to);
 
     const filteredEvents = events.filter(e => {
-        const eventDate = startOfDay(new Date(e.date));
-        return eventDate >= fromDate && eventDate <= toDate;
+        const eventDate = new Date(e.date);
+        return isValid(eventDate) && startOfDay(eventDate) >= fromDate && startOfDay(eventDate) <= toDate;
     });
 
     const eventIds = new Set(filteredEvents.map(e => e.id));
 
-    const filteredTickets = tickets.filter(t => 
-        eventIds.has(t.eventId) &&
-        t.createdAt && new Date(t.createdAt) >= fromDate && new Date(t.createdAt) <= toDate
-    );
+    const filteredTickets = tickets.filter(t => {
+        if (!t.createdAt || !eventIds.has(t.eventId)) {
+            return false;
+        }
+        const ticketDate = new Date(t.createdAt);
+        return isValid(ticketDate) && ticketDate >= fromDate && ticketDate <= toDate;
+    });
 
-    const totalRevenue = filteredTickets.reduce((sum, ticket) => sum + ticket.pricePaid, 0);
+    const totalRevenue = filteredTickets.reduce((sum, ticket) => sum + (ticket.pricePaid || 0), 0);
 
     return {
         filteredTickets,
@@ -267,5 +270,3 @@ export default function EventAnalyticsDashboard() {
     </div>
   );
 }
-
-    
