@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Roboto', 'sans-serif'],
-        headline: ['Roboto', 'sans-serif'],
+        heading: ['"Playfair Display"', 'serif'],
+        body: ['"PT Sans"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

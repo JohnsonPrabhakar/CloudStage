@@ -105,7 +105,7 @@ export function EventCard({ event }: EventCardProps) {
               </Badge>
             )}
             {event.isBoosted && (
-                <Badge className="bg-amber-500 text-white shadow-md">
+                <Badge className="bg-primary text-primary-foreground shadow-md">
                     <Sparkles className="mr-1 h-3 w-3" />
                     Boosted
                 </Badge>
@@ -122,7 +122,7 @@ export function EventCard({ event }: EventCardProps) {
       <CardHeader className="flex-grow">
         <Badge variant="outline" className="w-fit mb-2">{event.category}</Badge>
         <Link href={`/events/${event.id}`} className="block">
-          <CardTitle className="text-xl group-hover:text-primary transition-colors">
+          <CardTitle className="group-hover:text-primary transition-colors">
             {event.title}
           </CardTitle>
         </Link>

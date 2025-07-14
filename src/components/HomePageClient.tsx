@@ -182,7 +182,7 @@ export function HomePageClient() {
     <div className="container mx-auto p-4 md:p-8 space-y-12">
         <div className="relative w-full h-[60vh] md:h-[50vh] rounded-2xl flex items-center justify-center p-4 md:p-8 text-foreground text-center glowing-border">
             <div className="relative z-20 max-w-4xl mx-auto">
-                <h1 className="text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
+                <h1 className="font-heading text-4xl md:text-6xl font-extrabold shadow-lg">The Stage is Yours</h1>
                 <p className="text-lg md:text-xl mt-4 max-w-2xl mx-auto text-muted-foreground">
                     Watch live music, support artists, enjoy comedy, yoga, talk shows, and more — all in one stage.
                 </p>
@@ -249,15 +249,15 @@ export function HomePageClient() {
             </div>
             
             <TabsContent value="live">
-              <h2 className="text-2xl font-bold mb-4">Live Events</h2>
+              <h2 className="text-2xl font-bold font-heading mb-4">Live Events</h2>
               {renderEventSection(filteredLiveEvents, "Live Events")}
             </TabsContent>
             <TabsContent value="upcoming">
-              <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+              <h2 className="text-2xl font-bold font-heading mb-4">Upcoming Events</h2>
               {renderEventSection(filteredUpcomingEvents, "Upcoming Events")}
             </TabsContent>
             <TabsContent value="past">
-              <h2 className="text-2xl font-bold mb-4">Past Events</h2>
+              <h2 className="text-2xl font-bold font-heading mb-4">Past Events</h2>
               {renderEventSection(filteredPastEvents, "Past Events")}
             </TabsContent>
           </Tabs>
@@ -265,5 +265,3 @@ export function HomePageClient() {
     </div>
   );
 }
-
-    
