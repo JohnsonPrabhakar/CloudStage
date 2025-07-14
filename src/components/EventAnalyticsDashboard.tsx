@@ -81,11 +81,11 @@ export default function EventAnalyticsDashboard() {
     const eventIds = new Set(filteredEvents.map(e => e.id));
 
     const filteredTickets = tickets.filter(t => {
-        if (!t.createdAt || !eventIds.has(t.eventId)) {
+        if (!t.createdAt || !isValid(new Date(t.createdAt)) || !eventIds.has(t.eventId)) {
             return false;
         }
         const ticketDate = new Date(t.createdAt);
-        return isValid(ticketDate) && ticketDate >= fromDate && ticketDate <= toDate;
+        return ticketDate >= fromDate && ticketDate <= toDate;
     });
 
     const totalRevenue = filteredTickets.reduce((sum, ticket) => sum + (ticket.pricePaid || 0), 0);
@@ -219,11 +219,11 @@ export default function EventAnalyticsDashboard() {
                         </Card>
                          <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Tickets Sold</CardTitle></CardHeader>
-                            <CardContent><p className="text-xl font-bold">{artistAnalytics.ticketsSold}</p></CardContent>
+                            <CardContent><p className="text-xl font-bold">{artistAnalytics.ticketsSold.toLocaleString('en-IN')}</p></CardContent>
                         </Card>
                          <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Events Held</CardTitle></CardHeader>
-                            <CardContent><p className="text-xl font-bold">{artistAnalytics.eventsCount}</p></CardContent>
+                            <CardContent><p className="text-xl font-bold">{artistAnalytics.eventsCount.toLocaleString('en-IN')}</p></CardContent>
                         </Card>
                     </div>
                 )}

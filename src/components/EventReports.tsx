@@ -125,9 +125,9 @@ export default function EventReports() {
                                 {perArtistData.map(({ artist, eventCount, totalTicketsSold, totalRevenue }) => (
                                     <TableRow key={artist.id}>
                                         <TableCell className="font-medium">{artist.name}</TableCell>
-                                        <TableCell className="text-right">{eventCount}</TableCell>
-                                        <TableCell className="text-right">{totalTicketsSold}</TableCell>
-                                        <TableCell className="text-right font-bold">₹{totalRevenue.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">{eventCount.toLocaleString('en-IN')}</TableCell>
+                                        <TableCell className="text-right">{totalTicketsSold.toLocaleString('en-IN')}</TableCell>
+                                        <TableCell className="text-right font-bold">₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -165,9 +165,9 @@ export default function EventReports() {
                                         <TableCell className="font-medium">{event.title}</TableCell>
                                         <TableCell>{event.artist}</TableCell>
                                         <TableCell>{format(new Date(event.date), 'PPP')}</TableCell>
-                                        <TableCell className="text-right">₹{event.ticketPrice.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right">{ticketCount}</TableCell>
-                                        <TableCell className="text-right font-bold">₹{revenue.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">₹{event.ticketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{ticketCount.toLocaleString('en-IN')}</TableCell>
+                                        <TableCell className="text-right font-bold">₹{revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
