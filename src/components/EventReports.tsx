@@ -127,7 +127,7 @@ export default function EventReports() {
                                         <TableCell className="font-medium">{artist.name}</TableCell>
                                         <TableCell className="text-right">{eventCount.toLocaleString('en-IN')}</TableCell>
                                         <TableCell className="text-right">{totalTicketsSold.toLocaleString('en-IN')}</TableCell>
-                                        <TableCell className="text-right font-bold">₹{totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right font-bold">{totalRevenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -165,9 +165,9 @@ export default function EventReports() {
                                         <TableCell className="font-medium">{event.title}</TableCell>
                                         <TableCell>{event.artist}</TableCell>
                                         <TableCell>{format(new Date(event.date), 'PPP')}</TableCell>
-                                        <TableCell className="text-right">₹{event.ticketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{event.ticketPrice.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</TableCell>
                                         <TableCell className="text-right">{ticketCount.toLocaleString('en-IN')}</TableCell>
-                                        <TableCell className="text-right font-bold">₹{revenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right font-bold">{revenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

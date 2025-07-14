@@ -171,7 +171,7 @@ export default function EventAnalyticsDashboard() {
                     <DollarSign className="text-primary"/>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalRevenue.toLocaleString('en-IN', {maximumFractionDigits: 0})}</div>
+                    <div className="text-2xl font-bold">{totalRevenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -215,7 +215,7 @@ export default function EventAnalyticsDashboard() {
                     <div className="grid gap-4 md:grid-cols-3 pt-4">
                         <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Revenue</CardTitle></CardHeader>
-                            <CardContent><p className="text-xl font-bold">₹{artistAnalytics.revenue.toLocaleString('en-IN', {maximumFractionDigits: 0})}</p></CardContent>
+                            <CardContent><p className="text-xl font-bold">{artistAnalytics.revenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</p></CardContent>
                         </Card>
                          <Card>
                             <CardHeader className="pb-2"><CardTitle className="text-base">Tickets Sold</CardTitle></CardHeader>
